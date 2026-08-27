@@ -1,0 +1,24 @@
+--cpu Cortex-M3
+"v1-spi-slave-handshake\startup_stm32f103xe.o"
+"v1-spi-slave-handshake\main.o"
+"v1-spi-slave-handshake\gpio.o"
+"v1-spi-slave-handshake\spi.o"
+"v1-spi-slave-handshake\stm32f1xx_it.o"
+"v1-spi-slave-handshake\stm32f1xx_hal_msp.o"
+"v1-spi-slave-handshake\stm32f1xx_hal_gpio_ex.o"
+"v1-spi-slave-handshake\stm32f1xx_hal_spi.o"
+"v1-spi-slave-handshake\stm32f1xx_hal.o"
+"v1-spi-slave-handshake\stm32f1xx_hal_rcc.o"
+"v1-spi-slave-handshake\stm32f1xx_hal_rcc_ex.o"
+"v1-spi-slave-handshake\stm32f1xx_hal_gpio.o"
+"v1-spi-slave-handshake\stm32f1xx_hal_dma.o"
+"v1-spi-slave-handshake\stm32f1xx_hal_cortex.o"
+"v1-spi-slave-handshake\stm32f1xx_hal_pwr.o"
+"v1-spi-slave-handshake\stm32f1xx_hal_flash.o"
+"v1-spi-slave-handshake\stm32f1xx_hal_flash_ex.o"
+"v1-spi-slave-handshake\stm32f1xx_hal_exti.o"
+"v1-spi-slave-handshake\system_stm32f1xx.o"
+--strict --scatter "v1-spi-slave-handshake\v1-spi-slave-handshake.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "v1-spi-slave-handshake.map" -o v1-spi-slave-handshake\v1-spi-slave-handshake.axf
