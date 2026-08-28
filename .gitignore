@@ -26,6 +26,8 @@ compile_commands.json
 
 # ── 编辑器 / IDE ──
 .vscode/
+!v1-spi-slave-handshake/v1.3/MCU_v1-MCU-device-control/.vscode/
+!v1-spi-slave-handshake/v1.3/MCU_v1-MCU-device-control/.vscode/*.json
 .idea/
 *.swp
 *.swo

@@ -1,0 +1,21 @@
+{
+    "cmake.sourceDirectory": "${workspaceFolder}",
+    "cmake.configureOnOpen": true,
+    "cmake.generator": "Ninja",
+    "cmake.configureSettings": {},
+    "cmake.defaultVariants": {
+        "buildType": {
+            "default": "Debug",
+            "choices": {
+                "Debug": { "short": "Debug", "buildType": "Debug" },
+                "Release": { "short": "Release", "buildType": "Release" }
+            }
+        }
+    },
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/build/Debug/compile_commands.json",
+    "C_Cpp.default.compilerPath": "/opt/xpack/xpack-arm-none-eabi-gcc-15.2.1-1.1/bin/arm-none-eabi-gcc",
+    "C_Cpp.default.intelliSenseMode": "gcc-arm",
+    "files.associations": {
+        "*.ioc": "ini"
+    }
+}

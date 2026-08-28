@@ -1,0 +1,28 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "CMake: configure (Debug)",
+            "type": "shell",
+            "command": "cmake --preset Debug",
+            "options": { "cwd": "${workspaceFolder}" },
+            "problemMatcher": []
+        },
+        {
+            "label": "CMake: build (Debug)",
+            "type": "shell",
+            "command": "cmake --build --preset Debug",
+            "options": { "cwd": "${workspaceFolder}" },
+            "dependsOn": "CMake: configure (Debug)",
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Flash (OpenOCD + CMSIS-DAP)",
+            "type": "shell",
+            "command": "openocd -f interface/cmsis-dap.cfg -f target/stm32f1x.cfg -c \"program ${workspaceFolder}/build/Debug/v1-MCU-device-control.elf verify reset exit\"",
+            "dependsOn": "CMake: build (Debug)",
+            "problemMatcher": []
+        }
+    ]
+}
