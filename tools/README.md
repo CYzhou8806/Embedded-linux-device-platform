@@ -41,6 +41,17 @@ CMSIS-DAP 等）插在 Windows 上，通过 usbipd-win + USB/IP 直通进 VM，V
   sudo bash debug-connect.sh 172.29.191.1 2-7    # 或手动指定
   ```
 
+  **BUSID 会变**：脚本里写死的默认 BUSID 只是"上次见过的样子"，不是固定
+  值。它是 Windows 给 USB 物理端口编的号，重新插拔调试器或者换个 USB 口
+  （不需要重启电脑）就可能变（实测出现过 `2-7` 变成 `2-8`）。如果报错是
+  `Device not found`，去 Windows 跑 `usbipd list` 查 `c251:f001` 那一行
+  现在的 BUSID，传给脚本第二个参数覆盖默认值；脚本自己也会在这种报错时
+  打印同样的排查步骤。
+
+  ```powershell
+  usbipd list   # 在 Windows 上查当前 BUSID / STATE
+  ```
+
 - **`build-flash.sh`**：编译烧录模板脚本，**不是直接在这里跑的**。用
   法是复制到某个具体 MCU 项目的根目录（跟 `CMakePresets.json` 同级），
   在那个目录里执行:

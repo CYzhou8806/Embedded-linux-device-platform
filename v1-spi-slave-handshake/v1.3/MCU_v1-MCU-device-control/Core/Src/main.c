@@ -400,10 +400,6 @@ static void reg_write(uint8_t addr, uint32_t val)
  * ═══════════════════════════════════════════ */
 static void handle_frame(void)
 {
-  /* 临时调试：每次 handle_frame 真正执行就翻转 PA8，
-   * 用来验证"冻结的那几帧" handle_frame 到底有没有跑 */
-  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_8);
-
   uint8_t cmd = rx_buf[0];
   uint8_t addr = cmd & CMD_ADDR_MASK;
   uint32_t resp = 0;
@@ -568,7 +564,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
        */
       uint32_t sample_value = seq_counter & 0xFFFFu;
       fifo_push(sample_value);
-      //update_data_ready_gpio();
+      update_data_ready_gpio();
     }
   }
 }

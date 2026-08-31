@@ -22,7 +22,11 @@
 
 #define REG_DEVICE_ID	0x00
 #define REG_FW_VERSION	0x01
+#define REG_CONTROL	0x03
+#define REG_FIFO_LEVEL	0x05
+#define REG_DATA_VAL	0x07
 #define CMD_NOP		0x7F
+#define CMD_WRITE_FLAG	0x80
 
 /* Gap between the two frames of a pipelined register read. Matches
  * RaspPi/testv13.py's INTER_FRAME; empirically the margin the firmware
@@ -77,6 +81,87 @@ static int custom_acq_reg_read(struct spi_device *spi, u8 addr, u32 *val)
 	return 0;
 }
 
+static int custom_acq_reg_write(struct spi_device *spi, u8 addr, u32 val)
+{
+	u8 cmd = addr | CMD_WRITE_FLAG;
+	u8 rx[5];
+	int ret;
+
+	ret = custom_acq_xfer(spi, cmd, val, rx);
+	if (ret)
+		return ret;
+
+	usleep_range(INTER_FRAME_US, INTER_FRAME_US + 100);
+
+	ret = custom_acq_xfer(spi, CMD_NOP, 0, rx);
+	if (ret)
+		return ret;
+
+	if (rx[0] != cmd) {
+		dev_err(&spi->dev, "echo mismatch writing reg 0x%02x: got 0x%02x\n",
+			cmd, rx[0]);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+/* Write 1/0 to start or stop acquisition (REG_CONTROL bit 0). Debug-only
+ * knob for exercising DATA_READY end to end; the real control path is
+ * /dev/acq0 once that lands.
+ */
+static ssize_t control_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	u32 val;
+	int ret;
+
+	ret = kstrtou32(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	ret = custom_acq_reg_write(spi, REG_CONTROL, val & 0x01u);
+	if (ret)
+		return ret;
+
+	return count;
+}
+static DEVICE_ATTR_WO(control);
+
+static ssize_t fifo_level_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	u32 val;
+	int ret;
+
+	ret = custom_acq_reg_read(spi, REG_FIFO_LEVEL, &val);
+	if (ret)
+		return ret;
+
+	return sysfs_emit(buf, "%u\n", val);
+}
+static DEVICE_ATTR_RO(fifo_level);
+
+/* Reading this pops one item off the MCU's FIFO (real REG_DATA_VAL
+ * semantics) and re-evaluates DATA_READY on the MCU side as a side effect
+ * — not idempotent, that's inherent to the hardware register, not a driver
+ * bug.
+ */
+static ssize_t data_val_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	u32 val;
+	int ret;
+
+	ret = custom_acq_reg_read(spi, REG_DATA_VAL, &val);
+	if (ret)
+		return ret;
+
+	return sysfs_emit(buf, "0x%08x\n", val);
+}
+static DEVICE_ATTR_RO(data_val);
+
 static ssize_t device_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct spi_device *spi = to_spi_device(dev);
@@ -108,6 +193,9 @@ static DEVICE_ATTR_RO(fw_version);
 static struct attribute *custom_acq_attrs[] = {
 	&dev_attr_device_id.attr,
 	&dev_attr_fw_version.attr,
+	&dev_attr_control.attr,
+	&dev_attr_fifo_level.attr,
+	&dev_attr_data_val.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(custom_acq);

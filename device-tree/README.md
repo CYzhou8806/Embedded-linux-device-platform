@@ -104,3 +104,17 @@ bind to.
   V1.3). This confirms the full chain end to end: Device Tree overlay →
   kernel `probe()` → real SPI transaction → correct MCU register data —
   the first V3 milestone (Plan.md "第一版") is done.
+- 2026-08-31 (later same day): before starting V3's second sub-milestone
+  (GPIO threaded IRQ), wired DATA_READY (MCU `PA8` → Pi `GPIO17`) and
+  verified it end to end. Full writeup, including the debugging methodology
+  (why the first two verification attempts were inconclusive/risky, and
+  what worked instead) is
+  `docs/debugging/case-03-data-ready-gpio-verification.md`. Short version:
+  found and fixed a real firmware bug (a leftover per-frame debug GPIO
+  toggle was masking the real level-based DATA_READY logic, which itself
+  was never called from the FIFO-push path). Added `control`/`fifo_level`/
+  `data_val` sysfs attributes to `driver/custom-acq/custom_acq.c` to drive
+  real acquisition for the test. After the firmware fix, `gpiomon` showed
+  exactly one rising edge (data arrives) and one falling edge (FIFO
+  drained) — correct semantics for an interrupt-driven consumer. Clears
+  the way for the actual GPIO IRQ driver code.
