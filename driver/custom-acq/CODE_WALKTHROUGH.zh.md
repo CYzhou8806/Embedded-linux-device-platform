@@ -244,6 +244,204 @@ MODULE_LICENSE("GPL");
 
 ---
 
+# 第二部分：V3"第二版/第三版"新加的代码（GPIO 中断 + kfifo）
+
+**先说一句话总结这部分做了什么**：让 driver 从"只能被动等用户 `cat`
+才去读一次寄存器"，变成"MCU 一有新数据，driver 自己主动被硬件叫醒、
+把数据全部搬进内核内部的一个缓冲区里存好"——这是往"数据自动流进内核"
+迈的一步，`/dev/acq0` 以后要做的，只是把这个缓冲区里的东西倒给用户态。
+
+下面按代码里出现的顺序细讲。
+
+## 新增常量、私有结构体字段
+
+```c
+#define REG_CONTROL	0x03
+#define REG_FIFO_LEVEL	0x05
+#define REG_DATA_SEQ	0x06
+#define REG_DATA_VAL	0x07
+#define CMD_WRITE_FLAG	0x80
+#define SAMPLE_KFIFO_SIZE	128
+
+struct custom_acq_sample {
+	u32 seq;
+	u32 value;
+};
+```
+**这次业务相关。** 跟第一部分的寄存器常量是一回事——都是照抄固件
+`main.c` 里定义好的地址。`struct custom_acq_sample` 是我们自己定义的
+"一条采样长什么样"（序号 + 值），对应 MCU 协议里 `REG_DATA_SEQ`/
+`REG_DATA_VAL` 这一对寄存器的组合语义。
+
+```c
+struct custom_acq {
+	struct spi_device *spi;
+	struct gpio_desc *data_ready;
+	DECLARE_KFIFO(samples, struct custom_acq_sample, SAMPLE_KFIFO_SIZE);
+	spinlock_t fifo_lock;
+	u32 kfifo_overflow;
+	struct mutex spi_lock;
+};
+```
+第一部分说过"这个结构体会随功能增长"，这次正好印证了——多了四个字
+段。`struct gpio_desc *` 是**固定类型**（内核对"一根 GPIO 线"的标准
+抽象，任何用到 GPIO 的 driver 都用这个类型存）；`DECLARE_KFIFO(...)`
+是**固定宏**（内核 `kfifo` 的标准用法，任何想要环形缓冲区的 driver
+都这么声明）；哪些字段、为什么需要——`data_ready` 存哪根线、
+`kfifo_overflow` 记丢了几条数据、两把锁分别保护什么——这是这次业务
+相关的设计决定。
+
+## `custom_acq_reg_write()` —— 跟 `reg_read` 对称的写操作
+
+跟第一部分的 `custom_acq_reg_read()` 结构完全一样（地址帧 → 等
+`INTER_FRAME_US` → NOP 帧收回显 → 校验回显字节），唯一区别是命令字节
+要加上 `CMD_WRITE_FLAG`（`0x80`），而且校验的回显目标是"命令字节本
+身"（`cmd = addr | CMD_WRITE_FLAG`），不是单纯的地址——因为写操作和
+读操作在协议里用同一个字节表达"我刚才干了什么"，读的回显是地址，写
+的回显是"地址+写标志位"。**协议细节是业务相关，函数结构照抄
+`reg_read` 是固定套路。**
+
+## `control` / `fifo_level` / `data_val` 三个新 sysfs 接口
+
+`fifo_level_show()`/`data_val_show()` 跟第一部分的
+`device_id_show()`/`fw_version_show()` 是一模一样的写法（`xxx_show`
+签名 + `DEVICE_ATTR_RO` 宏），**固定模板**，业务区别只在于读的是哪个
+寄存器。
+
+`control_store()` 是这份代码第一次用到"可写"的 sysfs 属性：
+```c
+static ssize_t control_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	...
+	ret = kstrtou32(buf, 0, &val);
+	...
+	ret = custom_acq_reg_write(spi, REG_CONTROL, val & 0x01u);
+	...
+	return count;
+}
+static DEVICE_ATTR_WO(control);
+```
+**函数签名（多了 `const char *buf, size_t count` 两个参数）和
+`DEVICE_ATTR_WO` 宏是固定模板**——内核规定"想要一个只写的 sysfs 文
+件"必须提供 `xxx_store()` 这个签名的函数，命名规则跟 `_show` 完全对
+称（Q5 笔记里讲过的宏机制）。`kstrtou32(buf, 0, &val)` 也是固定套
+路：sysfs 传进来的永远是一段文本（`buf` 是字符串，比如 `"1\n"`），
+必须先转换成数字才能用，`kstrtou32` 是内核提供的标准字符串转数字函
+数。**业务相关的只是"转换成功后拿这个值去写哪个寄存器"这一行。**
+
+## `kfifo_level_show()` / `kfifo_overflow_show()` —— 观测内核内部缓冲区
+
+```c
+static ssize_t kfifo_level_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct custom_acq *priv = dev_get_drvdata(dev);
+	return sysfs_emit(buf, "%u\n", kfifo_len(&priv->samples));
+}
+```
+跟前面几个 `_show` 函数结构一样，**区别只是这次不发 SPI 通信**——
+直接读我们自己维护的 `kfifo` 现在存了多少条（`kfifo_len()`，内核
+`kfifo` 自带的查询函数）。这两个接口纯粹是给我们自己调试用的"观察窗
+口"，`/dev/acq0` 做好之后，用户态原本就应该直接 `read()` 拿数据，不
+需要通过这两个接口。
+
+## `custom_acq_read_sample()` —— 读一条完整采样
+
+```c
+static int custom_acq_read_sample(struct spi_device *spi, struct custom_acq_sample *s)
+{
+	ret = custom_acq_reg_read(spi, REG_DATA_SEQ, &s->seq);
+	...
+	return custom_acq_reg_read(spi, REG_DATA_VAL, &s->value);
+}
+```
+**这次业务相关**，直接对应固件 `main.c` 里 `REG_DATA_SEQ`（"看一眼"
+队首序号，不删除）+ `REG_DATA_VAL`（真正弹出、拿到值）这套"先peek再
+pop"协议——这是 MCU 固件自己设计的取数据方式，driver 这边只是照着协
+议规则调用两次已有的 `custom_acq_reg_read()`，没有发明新东西。
+
+## `custom_acq_irq_thread()` —— 这次改动的核心
+
+```c
+static irqreturn_t custom_acq_irq_thread(int irq, void *data)
+{
+	...
+	ret = custom_acq_reg_read(priv->spi, REG_FIFO_LEVEL, &level);
+	...
+	while (level > 0) {
+		ret = custom_acq_read_sample(priv->spi, &s);
+		...
+		spin_lock(&priv->fifo_lock);
+		if (!kfifo_put(&priv->samples, s))
+			priv->kfifo_overflow++;
+		spin_unlock(&priv->fifo_lock);
+		...
+		level--;
+	}
+	return IRQ_HANDLED;
+}
+```
+函数签名 `irqreturn_t xxx(int irq, void *data)`、返回 `IRQ_HANDLED`
+是**固定模板**——内核规定中断处理函数必须长这样。`spin_lock`/
+`spin_unlock` 包住 `kfifo_put` 也是**固定套路**（内核 `kfifo` 文档就
+是这么要求的：多个执行流会碰这个队列时，用锁保护每一次存取）。
+
+**业务相关、也是这次最值得记的设计**：为什么要用 `while (level > 0)`
+循环，而不是读一条就返回？因为 DATA_READY 是"电平"信号（case-03 验
+证过：有数据=高、没数据=低），我们只在电平从低变高那一瞬间收到**一
+次**中断——如果中断响的时候 MCU 已经攒了好几条数据（比如采样速率很
+快、我们处理得不够及时），必须一次性把它们全部搬空，不然只读一条,
+剩下的就再也没有新的触发时机能被读到（除非又有新数据、电平重新翻
+转）。`kfifo_put()` 返回 `false` 表示我们自己的内核缓冲区满了（跟
+MCU 硬件那个 FIFO 是两回事，是我们自己 128 条深度的队列），这时候用
+`kfifo_overflow` 计数记录丢了多少条，思路跟固件自己那个
+`fifo_overflow` 计数器是同一个套路（MCU 满了也这么记）。
+
+## `probe()` 里新增的部分——GPIO + 中断注册
+
+```c
+priv->data_ready = devm_gpiod_get(&spi->dev, "data-ready", GPIOD_IN);
+...
+ret = gpiod_to_irq(priv->data_ready);
+...
+ret = devm_request_threaded_irq(&spi->dev, ret, NULL, custom_acq_irq_thread,
+				 IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+				 "custom-acq", priv);
+```
+**这三步的调用方式是固定套路**（Q9/Q10/Q11 笔记详细记过原理：
+`"data-ready"` 这个字符串对应 DT 里的 `data-ready-gpios` 属性，
+`gpiod_to_irq` 把 GPIO 线翻译成中断号，`devm_request_threaded_irq`
+注册处理函数,`NULL` 表示不用硬中断上下文的那一层）。**业务相关的
+是选择了 `IRQF_TRIGGER_RISING`**（只在上升沿触发,对应我们的信号语
+义）。
+
+同一批还加了：
+```c
+INIT_KFIFO(priv->samples);
+spin_lock_init(&priv->fifo_lock);
+mutex_init(&priv->spi_lock);
+```
+三个初始化调用都是**固定套路**（任何用到这些内核基础设施的 driver,
+用之前都要这样初始化一次），顺序上要放在"这些字段第一次可能被用到
+之前"——`mutex_init` 必须在第一次调用 `custom_acq_reg_read()` 之前
+（因为读写函数内部现在会去拿这把锁），这一点是这次改动里容易踩坑的
+细节。
+
+## 并发 bug（case-04）为什么会发生、怎么修的
+
+已经详细写在
+`docs/debugging/case-04-spi-transaction-race-two-frame-protocol.md`
+里，这里只留一句话摘要：加中断之前，同一时刻只会有"用户主动 `cat`"
+这一种方式在跟 MCU 说话，天然不会撞车；加了中断之后，`echo 1 >
+control` 触发采集的同时,中断线程几乎立刻就会被数据到达唤醒、两边同
+时想跟 MCU 通信,而"发地址帧 → 等 500us → 发 NOP 帧"这个两帧一组的
+协议中间那段空隙没有加锁保护，会被另一边插队、打乱帧序。修复是给
+`custom_acq_reg_read()`/`custom_acq_reg_write()` 整个套上
+`mutex_lock`/`mutex_unlock`，把"一次完整的寄存器操作"变成不可分割
+的临界区。
+
+---
+
 ## 一句话总结：这份代码里真正"这次业务专属"的只有这几块
 
 1. 常量表（寄存器地址）
@@ -251,7 +449,14 @@ MODULE_LICENSE("GPL");
 3. `device_id_show` / `fw_version_show` 具体读哪个寄存器
 4. `probe()` 里 SPI 参数（mode/bits_per_word）和"读 DEVICE_ID 自检"这个逻辑
 5. 两张匹配表里的字符串（`"edp,custom-acq"` / `"custom-acq"`）
+6. `custom_acq_read_sample()` 的 peek+pop 协议细节
+7. `custom_acq_irq_thread()` 里"为什么要循环排空"这个设计决定
+8. `control`/`fifo_level`/`data_val`/`kfifo_level`/`kfifo_overflow`
+   具体读写哪个寄存器/哪个内部状态
+9. `IRQF_TRIGGER_RISING` 这个触发方式的选择
 
 其余的结构（私有数据结构体模式、`devm_kzalloc`、sysfs 属性宏、driver
-注册骨架、`module_spi_driver`）都是**换任何 SPI driver 都长这样**的固
-定套路，理解一次，以后照抄结构、只换业务细节。
+注册骨架、`module_spi_driver`、`gpiod_get`/`gpiod_to_irq`/
+`request_threaded_irq` 的调用方式、`kfifo`/`spinlock`/`mutex` 的初
+始化和加锁写法）都是**换任何类似的中断驱动采集类 driver 都长这样**
+的固定套路，理解一次，以后照抄结构、只换业务细节。
