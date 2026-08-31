@@ -5,9 +5,10 @@
  *
  * V3 progress: probe/remove + SPI register read (DEVICE_ID/FW_VERSION via
  * sysfs), control/fifo_level/data_val sysfs attributes to drive real
- * acquisition, and a GPIO threaded IRQ on DATA_READY (currently just logs
- * FIFO_LEVEL on each interrupt). Draining into a kfifo and exposing it via
- * /dev/acq0 are the remaining V3 sub-milestones (Plan.md).
+ * acquisition, a GPIO threaded IRQ on DATA_READY that drains the MCU's
+ * hardware FIFO into a kernel kfifo (kfifo_level/kfifo_overflow sysfs
+ * attributes for visibility — there's no /dev/acq0 yet to read the samples
+ * out through, that's the last V3 sub-milestone, Plan.md "第四版").
  *
  * Wire protocol (matches v1-spi-slave-handshake/v1.3 firmware and
  * RaspPi/testv13.py): 5-byte frames, [cmd, data_be32]. A register read is
@@ -22,14 +23,30 @@
 #include <linux/of.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
+#include <linux/kfifo.h>
+#include <linux/spinlock.h>
+#include <linux/mutex.h>
 
 #define REG_DEVICE_ID	0x00
 #define REG_FW_VERSION	0x01
 #define REG_CONTROL	0x03
 #define REG_FIFO_LEVEL	0x05
+#define REG_DATA_SEQ	0x06
 #define REG_DATA_VAL	0x07
 #define CMD_NOP		0x7F
 #define CMD_WRITE_FLAG	0x80
+
+/* Must be a power of 2 (kfifo requirement). One IRQ can drain many MCU
+ * FIFO entries at once (see custom_acq_irq_thread), so this needs enough
+ * headroom that a burst doesn't overflow before /dev/acq0 exists to drain
+ * it from userspace.
+ */
+#define SAMPLE_KFIFO_SIZE	128
+
+struct custom_acq_sample {
+	u32 seq;
+	u32 value;
+};
 
 /* Gap between the two frames of a pipelined register read. Matches
  * RaspPi/testv13.py's INTER_FRAME; empirically the margin the firmware
@@ -40,6 +57,24 @@
 struct custom_acq {
 	struct spi_device *spi;
 	struct gpio_desc *data_ready;
+
+	/* Filled by custom_acq_irq_thread() (producer), drained by
+	 * /dev/acq0's read() once that exists (consumer). The spinlock
+	 * guards against that future concurrent reader — the IRQ thread
+	 * itself is already serialized against re-entry by the IRQ core.
+	 */
+	DECLARE_KFIFO(samples, struct custom_acq_sample, SAMPLE_KFIFO_SIZE);
+	spinlock_t fifo_lock;
+	u32 kfifo_overflow;
+
+	/* Serializes each full reg_read/reg_write "logical operation" (its
+	 * two SPI frames, address + NOP, back to back). Individual
+	 * spi_sync_transfer() calls are already atomic at the controller
+	 * level, but nothing stops the IRQ thread's SPI traffic from
+	 * interleaving *between* our two frames without this — see
+	 * docs/debugging/case-04-* for what that looked like.
+	 */
+	struct mutex spi_lock;
 };
 
 static int custom_acq_xfer(struct spi_device *spi, u8 cmd, u32 data, u8 *rx)
@@ -62,52 +97,65 @@ static int custom_acq_xfer(struct spi_device *spi, u8 cmd, u32 data, u8 *rx)
 
 static int custom_acq_reg_read(struct spi_device *spi, u8 addr, u32 *val)
 {
+	struct custom_acq *priv = spi_get_drvdata(spi);
 	u8 rx[5];
 	int ret;
 
+	mutex_lock(&priv->spi_lock);
+
 	ret = custom_acq_xfer(spi, addr, 0, rx);
 	if (ret)
-		return ret;
+		goto out;
 
 	usleep_range(INTER_FRAME_US, INTER_FRAME_US + 100);
 
 	ret = custom_acq_xfer(spi, CMD_NOP, 0, rx);
 	if (ret)
-		return ret;
+		goto out;
 
 	if (rx[0] != addr) {
 		dev_err(&spi->dev, "echo mismatch reading reg 0x%02x: got 0x%02x\n",
 			addr, rx[0]);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
 	*val = ((u32)rx[1] << 24) | ((u32)rx[2] << 16) | ((u32)rx[3] << 8) | rx[4];
-	return 0;
+out:
+	mutex_unlock(&priv->spi_lock);
+	return ret;
 }
 
 static int custom_acq_reg_write(struct spi_device *spi, u8 addr, u32 val)
 {
+	struct custom_acq *priv = spi_get_drvdata(spi);
 	u8 cmd = addr | CMD_WRITE_FLAG;
 	u8 rx[5];
 	int ret;
 
+	mutex_lock(&priv->spi_lock);
+
 	ret = custom_acq_xfer(spi, cmd, val, rx);
 	if (ret)
-		return ret;
+		goto out;
 
 	usleep_range(INTER_FRAME_US, INTER_FRAME_US + 100);
 
 	ret = custom_acq_xfer(spi, CMD_NOP, 0, rx);
 	if (ret)
-		return ret;
+		goto out;
 
 	if (rx[0] != cmd) {
 		dev_err(&spi->dev, "echo mismatch writing reg 0x%02x: got 0x%02x\n",
 			cmd, rx[0]);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
-	return 0;
+	ret = 0;
+out:
+	mutex_unlock(&priv->spi_lock);
+	return ret;
 }
 
 /* Write 1/0 to start or stop acquisition (REG_CONTROL bit 0). Debug-only
@@ -166,6 +214,22 @@ static ssize_t data_val_show(struct device *dev, struct device_attribute *attr, 
 }
 static DEVICE_ATTR_RO(data_val);
 
+static ssize_t kfifo_level_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct custom_acq *priv = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%u\n", kfifo_len(&priv->samples));
+}
+static DEVICE_ATTR_RO(kfifo_level);
+
+static ssize_t kfifo_overflow_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct custom_acq *priv = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%u\n", priv->kfifo_overflow);
+}
+static DEVICE_ATTR_RO(kfifo_overflow);
+
 static ssize_t device_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct spi_device *spi = to_spi_device(dev);
@@ -200,21 +264,46 @@ static struct attribute *custom_acq_attrs[] = {
 	&dev_attr_control.attr,
 	&dev_attr_fifo_level.attr,
 	&dev_attr_data_val.attr,
+	&dev_attr_kfifo_level.attr,
+	&dev_attr_kfifo_overflow.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(custom_acq);
 
+/* One item off the MCU's hardware FIFO: REG_DATA_SEQ peeks the head
+ * item's sequence number (without removing it), REG_DATA_VAL then pops
+ * it and returns the value — matches the firmware's reg_read() handling
+ * of these two addresses (item_peeked latch) and RaspPi/testv13.py.
+ */
+static int custom_acq_read_sample(struct spi_device *spi, struct custom_acq_sample *s)
+{
+	int ret;
+
+	ret = custom_acq_reg_read(spi, REG_DATA_SEQ, &s->seq);
+	if (ret)
+		return ret;
+
+	return custom_acq_reg_read(spi, REG_DATA_VAL, &s->value);
+}
+
 /* Threaded handler only (no hard-IRQ handler) because acknowledging
  * DATA_READY means talking to the MCU over SPI, which can sleep — not
- * allowed in hard-IRQ context. First version: just prove the interrupt
- * fires and read FIFO_LEVEL for visibility. Draining into a kfifo and
- * exposing it via /dev/acq0 are later V3 sub-milestones.
+ * allowed in hard-IRQ context.
+ *
+ * DATA_READY is level-driven (high while the MCU's FIFO is non-empty,
+ * see docs/debugging/case-03-data-ready-gpio-verification.md), and we
+ * only get the rising edge once when it goes from empty to non-empty —
+ * so one IRQ can mean "many samples arrived", not just one. Drain the
+ * MCU's FIFO down to empty here rather than reading a single sample per
+ * interrupt.
  */
 static irqreturn_t custom_acq_irq_thread(int irq, void *data)
 {
 	struct custom_acq *priv = data;
+	struct custom_acq_sample s;
 	u32 level;
 	int ret;
+	unsigned int drained = 0;
 
 	ret = custom_acq_reg_read(priv->spi, REG_FIFO_LEVEL, &level);
 	if (ret) {
@@ -222,7 +311,23 @@ static irqreturn_t custom_acq_irq_thread(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	dev_info(&priv->spi->dev, "IRQ: DATA_READY fired, FIFO level=%u\n", level);
+	while (level > 0) {
+		ret = custom_acq_read_sample(priv->spi, &s);
+		if (ret) {
+			dev_err(&priv->spi->dev, "IRQ: failed to read sample: %d\n", ret);
+			break;
+		}
+
+		spin_lock(&priv->fifo_lock);
+		if (!kfifo_put(&priv->samples, s))
+			priv->kfifo_overflow++;
+		spin_unlock(&priv->fifo_lock);
+
+		drained++;
+		level--;
+	}
+
+	dev_dbg(&priv->spi->dev, "IRQ: DATA_READY fired, drained %u sample(s)\n", drained);
 	return IRQ_HANDLED;
 }
 
@@ -238,6 +343,9 @@ static int custom_acq_probe(struct spi_device *spi)
 
 	priv->spi = spi;
 	spi_set_drvdata(spi, priv);
+	INIT_KFIFO(priv->samples);
+	spin_lock_init(&priv->fifo_lock);
+	mutex_init(&priv->spi_lock);
 
 	spi->mode = SPI_MODE_0;
 	spi->bits_per_word = 8;

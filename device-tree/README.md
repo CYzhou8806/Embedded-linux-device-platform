@@ -118,3 +118,17 @@ bind to.
   exactly one rising edge (data arrives) and one falling edge (FIFO
   drained) — correct semantics for an interrupt-driven consumer. Clears
   the way for the actual GPIO IRQ driver code.
+- 2026-08-31 (later still): V3's second and third sub-milestones (GPIO
+  threaded IRQ, kfifo) done and verified on hardware. Overlay now
+  describes `data-ready-gpios` on the `custom-acq` node; the driver
+  requests it via `gpiod_get`/`gpiod_to_irq`/`devm_request_threaded_irq`,
+  and on each interrupt drains the MCU's hardware FIFO into a kernel
+  `kfifo` (new `kfifo_level`/`kfifo_overflow` sysfs attributes; no
+  `/dev/acq0` yet to read the samples out to userspace). Found and fixed
+  a real concurrency bug along the way — see
+  `docs/debugging/case-04-spi-transaction-race-two-frame-protocol.md`:
+  the two-frame pipelined register protocol wasn't safe against the IRQ
+  thread and a sysfs write racing on the same SPI bus, corrupting frame
+  sequencing. Fixed with a per-device mutex around each full
+  read/write operation. Verified clean after the fix: `kfifo_level`
+  correctly reflects drained samples with no echo-mismatch errors.

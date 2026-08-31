@@ -235,3 +235,25 @@ sudo reboot
   实流程重测，`gpiomon` 精确抓到 1 次上升沿 + 1 次下降沿，跟真实的"有
   数据=高、没数据=低"语义完全对上，接线和固件逻辑都确认没问题，可以开
   始写真正的中断 driver 代码了。
+
+- 2026-08-31（第三段）：V3"第二版"（GPIO threaded IRQ）+"第三版"
+  （kfifo）写完并在硬件上验证通过。overlay 里给 `custom-acq` 节点加了
+  `data-ready-gpios`（MCU `PA8` → Pi `GPIO17`），driver 用 `gpiod_get`
+  + `gpiod_to_irq` + `devm_request_threaded_irq` 注册中断，中断触发时
+  把 MCU 硬件 FIFO 里的数据全部读空、塞进一个内核 `kfifo`（新增
+  `kfifo_level`/`kfifo_overflow` 两个 sysfs 接口方便观察，`/dev/acq0`
+  还没写，暂时没法从用户态直接读到这些数据）。
+
+  中途发现并修复了一个真实的并发 bug（详见
+  `docs/debugging/case-04-spi-transaction-race-two-frame-protocol.md`）：
+  加了中断之后，`echo 1 > control` 触发启动采集的同时，中断线程几乎立
+  刻就会因为第一条数据到达而被唤醒、开始读 `FIFO_LEVEL`——这两个操作
+  会同时抢占同一条 SPI 总线，而我们的寄存器读写协议是"两帧一组"的（地
+  址帧 + 隔 500us 的 NOP 帧），中间那 500us 的空隙如果被另一个操作插
+  队，两边的帧序就全乱了（`dmesg` 里看到期望收到写操作的回显却收到了
+  中断线程在读的地址）。加一把互斥锁，把"两帧一组"当成一个不可分割
+  的临界区，问题解决。
+
+  用真实的启动/停止测试验证：`kfifo_level` 从 `0` 变成 `1`，没有再出
+  现帧错位报错。至此 V3 前三个子里程碑（overlay+基础 driver、GPIO 中
+  断、kfifo）全部完成，只剩最后的 `/dev/acq0` 字符设备。
