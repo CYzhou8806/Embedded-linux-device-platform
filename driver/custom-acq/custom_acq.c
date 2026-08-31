@@ -3,10 +3,11 @@
  * Kernel driver for the custom STM32 acquisition peripheral
  * (v1-spi-slave-handshake firmware).
  *
- * V3 first version: probe/remove + SPI register read, DEVICE_ID and
- * FW_VERSION exposed via sysfs. No FIFO/IRQ handling yet (see
- * Plan.md V3 milestone — GPIO threaded IRQ + kfifo + /dev/acq0 come later,
- * once DATA_READY is wired to a Pi GPIO).
+ * V3 progress: probe/remove + SPI register read (DEVICE_ID/FW_VERSION via
+ * sysfs), control/fifo_level/data_val sysfs attributes to drive real
+ * acquisition, and a GPIO threaded IRQ on DATA_READY (currently just logs
+ * FIFO_LEVEL on each interrupt). Draining into a kfifo and exposing it via
+ * /dev/acq0 are the remaining V3 sub-milestones (Plan.md).
  *
  * Wire protocol (matches v1-spi-slave-handshake/v1.3 firmware and
  * RaspPi/testv13.py): 5-byte frames, [cmd, data_be32]. A register read is
@@ -19,6 +20,8 @@
 #include <linux/spi/spi.h>
 #include <linux/delay.h>
 #include <linux/of.h>
+#include <linux/gpio/consumer.h>
+#include <linux/interrupt.h>
 
 #define REG_DEVICE_ID	0x00
 #define REG_FW_VERSION	0x01
@@ -36,6 +39,7 @@
 
 struct custom_acq {
 	struct spi_device *spi;
+	struct gpio_desc *data_ready;
 };
 
 static int custom_acq_xfer(struct spi_device *spi, u8 cmd, u32 data, u8 *rx)
@@ -200,6 +204,28 @@ static struct attribute *custom_acq_attrs[] = {
 };
 ATTRIBUTE_GROUPS(custom_acq);
 
+/* Threaded handler only (no hard-IRQ handler) because acknowledging
+ * DATA_READY means talking to the MCU over SPI, which can sleep — not
+ * allowed in hard-IRQ context. First version: just prove the interrupt
+ * fires and read FIFO_LEVEL for visibility. Draining into a kfifo and
+ * exposing it via /dev/acq0 are later V3 sub-milestones.
+ */
+static irqreturn_t custom_acq_irq_thread(int irq, void *data)
+{
+	struct custom_acq *priv = data;
+	u32 level;
+	int ret;
+
+	ret = custom_acq_reg_read(priv->spi, REG_FIFO_LEVEL, &level);
+	if (ret) {
+		dev_err(&priv->spi->dev, "IRQ: failed to read FIFO level: %d\n", ret);
+		return IRQ_HANDLED;
+	}
+
+	dev_info(&priv->spi->dev, "IRQ: DATA_READY fired, FIFO level=%u\n", level);
+	return IRQ_HANDLED;
+}
+
 static int custom_acq_probe(struct spi_device *spi)
 {
 	struct custom_acq *priv;
@@ -222,6 +248,22 @@ static int custom_acq_probe(struct spi_device *spi)
 	ret = custom_acq_reg_read(spi, REG_DEVICE_ID, &device_id);
 	if (ret)
 		return dev_err_probe(&spi->dev, ret, "failed to read DEVICE_ID\n");
+
+	priv->data_ready = devm_gpiod_get(&spi->dev, "data-ready", GPIOD_IN);
+	if (IS_ERR(priv->data_ready))
+		return dev_err_probe(&spi->dev, PTR_ERR(priv->data_ready),
+				      "failed to get data-ready gpio\n");
+
+	ret = gpiod_to_irq(priv->data_ready);
+	if (ret < 0)
+		return dev_err_probe(&spi->dev, ret,
+				      "failed to map data-ready gpio to irq\n");
+
+	ret = devm_request_threaded_irq(&spi->dev, ret, NULL, custom_acq_irq_thread,
+					 IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					 "custom-acq", priv);
+	if (ret)
+		return dev_err_probe(&spi->dev, ret, "failed to request IRQ\n");
 
 	dev_info(&spi->dev, "custom-acq bound, DEVICE_ID=0x%08x\n", device_id);
 	return 0;

@@ -37,6 +37,24 @@
 				reg = <0>;
 				spi-max-frequency = <1000000>;
 				status = "okay";
+
+				/* DATA_READY: MCU PA8 -> Pi GPIO17 (physical
+				 * pin 11). Active-high level signal, not a
+				 * bus protocol pin, so any free GPIO works
+				 * (see docs/debugging/case-03-...-verification.md
+				 * for why GPIO17 specifically). The driver
+				 * reads this via gpiod + gpiod_to_irq(),
+				 * not the standard "interrupts" property, so
+				 * it doesn't depend on the GPIO controller
+				 * being wired up as an interrupt-parent in
+				 * this overlay.
+				 */
+				/* 3rd cell 0 = GPIO_ACTIVE_HIGH. Not using the
+				 * <dt-bindings/gpio/gpio.h> macro here since
+				 * our plain `dtc` build command doesn't run
+				 * the C preprocessor first.
+				 */
+				data-ready-gpios = <&gpio 17 0>;
 			};
 		};
 	};
