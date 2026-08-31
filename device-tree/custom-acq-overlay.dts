@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Device Tree overlay for the custom STM32 acquisition peripheral
+ * (v1-spi-slave-handshake firmware) on Raspberry Pi 5 (spi0, CS0).
+ *
+ * Disables the stock `spidev0` binding on spi0 CS0 and replaces it with a
+ * node the custom-acq kernel driver (driver/custom-acq/) can bind to via
+ * its "edp,custom-acq" compatible string.
+ *
+ * Build:   dtc -@ -I dts -O dtb -o custom-acq.dtbo custom-acq-overlay.dts
+ * Install: copy custom-acq.dtbo to /boot/firmware/overlays/, add
+ *          "dtoverlay=custom-acq" to /boot/firmware/config.txt, reboot.
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2712";
+
+	fragment@0 {
+		target = <&spidev0>;
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@1 {
+		target = <&spi0>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+
+			custom_acq: custom-acq@0 {
+				compatible = "edp,custom-acq";
+				reg = <0>;
+				spi-max-frequency = <1000000>;
+				status = "okay";
+			};
+		};
+	};
+};
