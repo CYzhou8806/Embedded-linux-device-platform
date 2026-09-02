@@ -311,13 +311,28 @@ static irqreturn_t custom_acq_irq_thread(int irq, void *data)
 	int ret;
 	unsigned int drained = 0;
 
-	ret = custom_acq_reg_read(priv->spi, REG_FIFO_LEVEL, &level);
-	if (ret) {
-		dev_err(&priv->spi->dev, "IRQ: failed to read FIFO level: %d\n", ret);
-		return IRQ_HANDLED;
-	}
+	/* Re-read REG_FIFO_LEVEL from the MCU on every iteration rather than
+	 * snapshotting it once before the loop. DATA_READY is level-driven
+	 * but the GPIO IRQ is edge-triggered (IRQF_TRIGGER_RISING) - we only
+	 * get one rising edge for the whole time the MCU's FIFO stays
+	 * non-empty. If the MCU keeps producing samples faster than we can
+	 * drain them (each drained sample costs ~2 two-frame SPI ops here,
+	 * ~2-3ms), a stale one-time level snapshot means we stop after that
+	 * many samples while DATA_READY is still HIGH - no second edge ever
+	 * arrives to re-trigger us, so the MCU's hardware FIFO fills and
+	 * silently overflows for the rest of the run. Re-checking the real
+	 * level keeps this thread draining for as long as data keeps
+	 * arriving, exiting only once the MCU actually reports empty.
+	 */
+	for (;;) {
+		ret = custom_acq_reg_read(priv->spi, REG_FIFO_LEVEL, &level);
+		if (ret) {
+			dev_err(&priv->spi->dev, "IRQ: failed to read FIFO level: %d\n", ret);
+			break;
+		}
+		if (level == 0)
+			break;
 
-	while (level > 0) {
 		ret = custom_acq_read_sample(priv->spi, &s);
 		if (ret) {
 			dev_err(&priv->spi->dev, "IRQ: failed to read sample: %d\n", ret);
@@ -330,7 +345,6 @@ static irqreturn_t custom_acq_irq_thread(int irq, void *data)
 		mutex_unlock(&priv->fifo_lock);
 
 		drained++;
-		level--;
 	}
 
 	if (drained)

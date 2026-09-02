@@ -161,3 +161,30 @@ bind to.
   Plan.md's stated V3 completion criteria (clean `modprobe`, `/dev/acq0`
   appears, `read()` gets data, `poll()` blocks/wakes correctly) are all
   satisfied.
+- 2026-09-02 (later): V4 Phase 1 (`userspace/device-service/`, a minimal
+  end-to-end C++ acquisition service) done. Testing it against sustained
+  acquisition (not just V3's own short bursts) turned up a real driver
+  bug — see
+  `docs/debugging/case-05-irq-thread-stale-fifo-level-snapshot.md`.
+  Short version: `custom_acq_irq_thread()`'s drain loop only read
+  `REG_FIFO_LEVEL` once before looping, then decremented a local
+  counter instead of re-checking the MCU's real state each iteration.
+  DATA_READY is level-driven but the GPIO IRQ is edge-triggered, so as
+  long as the line stayed high only one interrupt ever fired; once MCU
+  production (~1kHz) outpaced the protocol's read rate, the stale
+  snapshot went out of date within the first iteration, the loop
+  returned early, and the MCU's own hardware FIFO silently overflowed
+  from then on with no further interrupt to wake the drain loop back
+  up. None of V3's own testing (short start/stop bursts) ran long
+  enough to expose this. Fixed by re-reading `REG_FIFO_LEVEL` on every
+  loop iteration and only exiting once the MCU genuinely reports empty;
+  throughput on the same sustained-load test went from 1 sample per run
+  to 2176 samples in ~5s, sequence numbers continuous, `kfifo_overflow`
+  and `dmesg` both clean.
+
+  Also added `tools/mcu-reset.sh`: a purely software-triggered MCU
+  hardware reset via the debugger's SWD link (bypasses SPI entirely),
+  for silencing sustained SPI bus activity ("buzzing") after a test run
+  without touching the physical reset button. Verified against a live
+  case: `kfifo_overflow` was still climbing by several hundred per
+  second before the reset, completely flat for 2s immediately after.

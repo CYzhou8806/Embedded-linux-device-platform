@@ -283,3 +283,23 @@ sudo reboot
   `kfifo_overflow` 全程为 0。Plan.md V3 的完成标准（`modprobe` 干净、
   `/dev/acq0` 出现、`read()` 拿到数据、`poll()` 正确阻塞唤醒）全部
   满足。
+
+- 2026-09-02（后段）：V4 第一阶段（`userspace/device-service/`，最小
+  闭环的 C++ 采集服务）写完，测试过程中意外发现并修复了一个真实的 V3
+  驱动 bug，详见
+  `docs/debugging/case-05-irq-thread-stale-fifo-level-snapshot.md`。
+  简述：`custom_acq_irq_thread()` 排空循环原来只在进入循环前读一次
+  `REG_FIFO_LEVEL`，之后用本地变量递减，而不是每次循环都重新问 MCU
+  真实状态——DATA_READY 是电平信号但 GPIO 中断是边沿触发，只要电平
+  持续保持高就只会触发一次中断；MCU 产生数据的速度（约 1kHz）比协议
+  读取速度快，导致快照很快过时、循环提前退出，之后 MCU 自己的硬件
+  FIFO 悄悄溢出、再也没有新中断把我们叫醒。V3 自己的测试从没测出来，
+  是因为每次都是"起一条、停"这种短平快场景，从没跑够长时间让快照真
+  正过时。改成循环里每次都重新读 `REG_FIFO_LEVEL`、只在 MCU 真的报告
+  0 时才退出，修复后同样场景吞吐量从 1 条/次暴涨到 2176 条/5秒，序列
+  号连续无跳号，`kfifo_overflow` 和 `dmesg` 都正常。
+
+  顺带做了个小工具 `tools/mcu-reset.sh`：纯软件触发的 MCU 硬件复位
+  （走调试器 SWD，不经过 SPI），解决"测试完 SPI 还在跑、蜂鸣声关不
+  掉"的问题——不用再摸物理复位键。实测验证过：复位前 `kfifo_overflow`
+  还在每秒涨几百，复位后 2 秒内完全不再变化。

@@ -379,9 +379,12 @@ pop"协议——这是 MCU 固件自己设计的取数据方式，driver 这边�
 static irqreturn_t custom_acq_irq_thread(int irq, void *data)
 {
 	...
-	ret = custom_acq_reg_read(priv->spi, REG_FIFO_LEVEL, &level);
-	...
-	while (level > 0) {
+	for (;;) {
+		ret = custom_acq_reg_read(priv->spi, REG_FIFO_LEVEL, &level);
+		...
+		if (level == 0)
+			break;
+
 		ret = custom_acq_read_sample(priv->spi, &s);
 		...
 		mutex_lock(&priv->fifo_lock);
@@ -389,7 +392,6 @@ static irqreturn_t custom_acq_irq_thread(int irq, void *data)
 			priv->kfifo_overflow++;
 		mutex_unlock(&priv->fifo_lock);
 		...
-		level--;
 	}
 	if (drained)
 		wake_up_interruptible(&priv->data_wq);
@@ -404,16 +406,27 @@ static irqreturn_t custom_acq_irq_thread(int irq, void *data)
 是这次 `/dev/acq0` 加的一行——排空循环结束后，只要真的搬了新数据
 （`drained > 0`），就把等待队列上睡着的 `read()`/`poll()` 都叫醒。
 
-**业务相关、也是这次最值得记的设计**：为什么要用 `while (level > 0)`
-循环，而不是读一条就返回？因为 DATA_READY 是"电平"信号（case-03 验
-证过：有数据=高、没数据=低），我们只在电平从低变高那一瞬间收到**一
-次**中断——如果中断响的时候 MCU 已经攒了好几条数据（比如采样速率很
-快、我们处理得不够及时），必须一次性把它们全部搬空，不然只读一条,
-剩下的就再也没有新的触发时机能被读到（除非又有新数据、电平重新翻
-转）。`kfifo_put()` 返回 `false` 表示我们自己的内核缓冲区满了（跟
-MCU 硬件那个 FIFO 是两回事，是我们自己 128 条深度的队列），这时候用
-`kfifo_overflow` 计数记录丢了多少条，思路跟固件自己那个
-`fifo_overflow` 计数器是同一个套路（MCU 满了也这么记）。
+**业务相关、也是这次最值得记的设计**：为什么要在循环里**每次都重新
+读一遍** `REG_FIFO_LEVEL`，而不是像最初写的那样，进循环前读一次、之
+后靠本地变量递减？——这里之前确实是这么写的（`while (level > 0) {
+... level--; }`），V4 阶段真拿一个持续采集的场景去测试才发现了问题
+（`docs/debugging/case-05-irq-thread-stale-fifo-level-snapshot.md`
+完整记录）：DATA_READY 是"电平"信号（case-03 验证过：有数据=高、没
+数据=低），但 GPIO 中断是"边沿"触发（`IRQF_TRIGGER_RISING`）——只要
+电平持续保持高，就只会在最开始触发**一次**中断。如果 MCU 产生数据的
+速度比我们读取的速度快（协议本身每条数据要好几次两帧 SPI 操作，有实
+打实的开销），电平会一直保持高、不会再回落，那"进循环前读一次"这个
+快照就会很快过时——循环按快照读到的数量读完就退出了，但 MCU 其实还
+在不停产生新数据，而且再也不会有第二次中断把我们叫醒去读它们，这些
+数据只能在 MCU 自己的硬件 FIFO 里悄悄溢出（`fifo_overflow` 计数器，
+MCU 侧的，这份 driver 目前完全没有读取/暴露它）。改成循环里每次都重
+新问一遍 MCU"你现在真的还有数据吗"，才能保证只要数据还在持续产生，
+这个线程就会一直排空下去，直到 MCU 真正报告"空了"为止——这才是跟
+DATA_READY 的电平语义匹配的正确写法。`kfifo_put()` 返回 `false` 表
+示我们自己的内核缓冲区满了（跟 MCU 硬件那个 FIFO 是两回事，是我们自
+己 128 条深度的队列），这时候用 `kfifo_overflow` 计数记录丢了多少
+条，思路跟固件自己那个 `fifo_overflow` 计数器是同一个套路（MCU 满了
+也这么记）。
 
 ## `probe()` 里新增的部分——GPIO + 中断注册
 
