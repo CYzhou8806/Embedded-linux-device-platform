@@ -313,3 +313,16 @@ sudo reboot
   手动模拟外部关闭采集后，watchdog 探活成功、自动软复位、采集真的恢
   复。3 分钟稳定性测试跑了 81179 条样本无异常。至此 V4 达到 Plan.md
   的完成标准。
+
+- 2026-09-02（再后段）：V5 自动化测试三层都有产出——C++ 单元测试拆出
+  独立的 `read_exact()` 拼帧逻辑并补了单测，新增 `tests/integration/`
+  （Python/pytest，4 个测试）和 `tests/hardware/stress_test.py`（压测
+  脚本）。但过程中发现一个还没根因定位的真实问题：持续读取会导致 Pi
+  的 SPI 控制器卡死（IRQ 线程进 `D` 状态，需要物理复位 MCU 才能恢
+  复），而且即使没卡死，实测吞吐也比 V4 Phase 2 那天低了一个数量级、
+  还是阵发性的（停顿几秒再一次性来一批）。已经排查排除了驱动锁逻辑
+  和 MCU 固件本身的问题，怀疑指向树莓派 5 的 RP1 SPI 控制器，但没有
+  `ftrace`/逻辑分析仪进一步验证——详见
+  `docs/debugging/case-06-spi-controller-stall-under-sustained-load.md`，
+  标记为留给 V7（正好是那个阶段该用的工具），V5 这边只做到"测试能检
+  测到、优雅报告，不会跟着一起卡死"。

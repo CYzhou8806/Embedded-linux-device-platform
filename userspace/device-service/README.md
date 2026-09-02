@@ -90,6 +90,12 @@ own tick) rather than cleanly exiting, systemd kills and restarts it
   two-frame, echo-verified SPI protocol has real per-sample overhead
   (see Case 05). An honest, now-visible bottleneck, not something this
   phase tries to optimize; that's Plan.md V7's job.
+- Sustained SPI traffic can stall the Pi's SPI controller badly enough to
+  need a physical MCU reset — see Case 06
+  (`docs/debugging/case-06-spi-controller-stall-under-sustained-load.md`,
+  found via V5's integration tests). Not something `Watchdog`'s soft
+  reset can recover from either (a stuck `spi_sync_transfer()` blocks the
+  same SPI path `Watchdog`'s own probe would need to use).
 - `Watchdog`'s recovery is a *soft* reset only (rewriting `control` over
   SPI) — it cannot recover a link that's genuinely down (SPI echo
   mismatches / no response at all). That needs a real hardware reset

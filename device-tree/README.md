@@ -200,3 +200,21 @@ bind to.
   watchdog probed successfully and the soft reset genuinely restarted
   acquisition. A 3-minute stability soak ran 81179 samples with no
   issues. V4 now meets Plan.md's stated completion criteria.
+- 2026-09-02 (still later): V5 (automated testing) produced work at all
+  three layers — the C++ unit tests gained a `read_exact()` helper
+  extracted from `Device::read_sample()` for testable frame-assembly
+  logic, plus new `tests/integration/` (Python/pytest, 4 tests) and
+  `tests/hardware/stress_test.py`. Along the way, found a real,
+  still-unresolved issue: sustained reading can wedge the Pi's SPI
+  controller (the IRQ thread lands in `D` state and needs a physical MCU
+  reset to recover), and even short of that, measured throughput was an
+  order of magnitude below V4 Phase 2's own measurement that same week,
+  and bursty rather than steady (multi-second gaps between bursts).
+  Ruled out the driver's own locking and the MCU firmware's SPI error
+  handling as the cause; suspicion points at the Pi 5's RP1 SPI
+  controller under sustained short-frame-interval traffic, but
+  confirming that needs `ftrace`/logic-analyzer-level tooling this
+  session didn't have — see
+  `docs/debugging/case-06-spi-controller-stall-under-sustained-load.md`.
+  Deliberately left open for V7 (which has the right tools); V5's tests
+  are built to detect and report the stall rather than hang on it.
