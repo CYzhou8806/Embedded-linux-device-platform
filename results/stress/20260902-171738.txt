@@ -1,0 +1,7 @@
+stress_test run at 2026-09-02T17:17:38
+requested duration: 20.0s, actual: 24.0s
+samples read: 275
+sequence gaps: 3
+kfifo_overflow: 20987 -> 31412
+throughput: 11.4 samples/s
+completed without a stall.
