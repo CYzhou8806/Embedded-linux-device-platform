@@ -1,4 +1,5 @@
 #include "device.hpp"
+#include "read_exact.hpp"
 
 #include <cerrno>
 #include <cstring>
@@ -58,24 +59,12 @@ void Device::stop_acquisition() {
 }
 
 Sample Device::read_sample() {
+	// The driver's custom_acq_read() never returns EOF for a blocking
+	// read - read_exact() throwing on premature EOF would only happen if
+	// something closed the device out from under us, which is itself a
+	// bug.
 	Sample s{};
-	char* buf = reinterpret_cast<char*>(&s);
-	std::size_t total = 0;
-	while (total < sizeof(s)) {
-		ssize_t n = ::read(fd_, buf + total, sizeof(s) - total);
-		if (n < 0) {
-			if (errno == EINTR)
-				continue;
-			throw DeviceError(std::string("read from ") + dev_path_ + " failed: " + std::strerror(errno));
-		}
-		if (n == 0) {
-			// The driver's custom_acq_read() never returns EOF for a
-			// blocking read — this would only happen if something closed
-			// the device out from under us, which is itself a bug.
-			throw DeviceError(dev_path_ + " read returned EOF unexpectedly");
-		}
-		total += static_cast<std::size_t>(n);
-	}
+	read_exact(fd_, &s, sizeof(s), dev_path_);
 	return s;
 }
 

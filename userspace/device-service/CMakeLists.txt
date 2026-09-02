@@ -20,6 +20,7 @@ pkg_check_modules(SYSTEMD REQUIRED libsystemd)
 add_executable(device-service
 	src/main.cpp
 	src/device.cpp
+	src/read_exact.cpp
 	src/acquisition_worker.cpp
 	src/config.cpp
 	src/metrics.cpp
