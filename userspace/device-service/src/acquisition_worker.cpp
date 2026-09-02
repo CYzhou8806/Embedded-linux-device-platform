@@ -4,6 +4,11 @@ namespace acq {
 
 namespace {
 constexpr int kPollTimeoutMs = 200;
+
+int64_t now_ms() {
+	return std::chrono::duration_cast<std::chrono::milliseconds>(
+		std::chrono::steady_clock::now().time_since_epoch()).count();
+}
 }
 
 AcquisitionWorker::AcquisitionWorker(Device& device, RingBuffer<Sample>& buffer)
@@ -15,6 +20,7 @@ AcquisitionWorker::~AcquisitionWorker() {
 
 void AcquisitionWorker::start() {
 	stop_requested_ = false;
+	last_sample_ms_ = now_ms(); // grace period starts now, not at epoch 0
 	thread_ = std::thread(&AcquisitionWorker::run, this);
 }
 
@@ -32,11 +38,8 @@ void AcquisitionWorker::run() {
 
 			Sample s = device_.read_sample();
 			samples_read_.fetch_add(1);
-
-			if (last_seq_.has_value() && s.seq != *last_seq_ + 1)
-				gap_count_.fetch_add(1);
-			last_seq_ = s.seq;
-
+			last_sample_ms_ = now_ms();
+			sequence_tracker_.observe(s.seq);
 			buffer_.push(s);
 		}
 	} catch (...) {

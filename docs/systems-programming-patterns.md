@@ -185,3 +185,54 @@ acquisition_worker.hpp` + `.cpp`）。
 
 例子：`main.cpp` 里的 `block_shutdown_signals()` +
 `signal_thread`（`userspace/device-service/src/main.cpp`）。
+
+## CMake：用 `find_package`/`pkg_check_modules` 接入第三方库
+
+C++ 项目要用一个别人写好的库（spdlog、nlohmann-json、GoogleTest、
+libsystemd……），标准流程分两半：**先让操作系统装好这个库**（Linux
+上通常是 `apt install lib某某-dev`，这个 `-dev` 包除了库文件本身，还
+带一份头文件和一份"我是谁、我在哪"的元数据），**再让 CMake 找到
+它**。找的方式有两种：
+
+- **`find_package(库名 REQUIRED)`**：库自己提供了一份 CMake 专用的
+  "配置文件"（通常叫 `<库名>Config.cmake`，装库的时候一起装到系统
+  里），`find_package` 找到这份文件后，会自动定义好一个"目标"
+  （target），比如 `spdlog::spdlog`、`nlohmann_json::nlohmann_json`、
+  `GTest::gtest`——之后 `target_link_libraries(你的程序 PRIVATE
+  spdlog::spdlog)` 一行就把头文件路径、库文件路径、这个库自己依赖的
+  其他库全部自动配好，不用手动写任何路径。
+- **`pkg_check_modules(变量名 REQUIRED 库名)`**（`find_package
+  (PkgConfig REQUIRED)` 之后才能用）：给没有提供 CMake 配置文件、但
+  提供了传统 `.pc`（pkg-config）文件的库用的备用方案（这次的
+  `libsystemd` 就是这种情况）。找到后不会自动生成现成的 target，要
+  自己把变量里存的头文件路径/库路径手动接上
+  （`target_include_directories(... ${SYSTEMD_INCLUDE_DIRS})`、
+  `target_link_libraries(... ${SYSTEMD_LIBRARIES})`）。
+
+两种方式选哪个不是你能决定的，取决于这个库自己发布的时候提供了哪种
+元数据——`find_package` 能找到就优先用，找不到再退回
+`pkg_check_modules`。
+
+例子：`userspace/device-service/CMakeLists.txt`（四个库，两种方式都
+出现了：`nlohmann_json`/`spdlog`/`GTest` 用 `find_package`，
+`libsystemd` 用 `pkg_check_modules`）。
+
+## 第三方库的"标准接入姿势"—— 装好之后，代码这边要做的事往往就三步
+
+不管具体是哪个库，模式都很像：**引头文件 → （可能需要）一次性初始
+化 → 用它提供的接口**。三个例子对比一下：
+
+- **spdlog（日志库）**：`#include <spdlog/spdlog.h>` → 用
+  `spdlog::set_pattern()`/`spdlog::set_level()` 配置一次全局默认输
+  出格式/级别 → 之后哪里都能直接调 `spdlog::info(...)`。
+- **nlohmann-json（JSON 解析库）**：`#include <nlohmann/json.hpp>`
+  → 不需要额外初始化 → `nlohmann::json j; f >> j;` 直接从文件流解
+  析，`j.value("key", 默认值)` 取字段。
+- **libsystemd 的 `sd_notify`**：`#include <systemd/sd-daemon.h>` →
+  不需要初始化 → 在该汇报状态的地方调用 `sd_notify(0, "READY=1")`/
+  `sd_notify(0, "WATCHDOG=1")`，没有被 systemd 启动时这个调用自动变
+  成空操作（内部检测有没有 `NOTIFY_SOCKET` 环境变量），不需要自己写
+  "如果不是被 systemd 启动就跳过"这种判断。
+
+理解了"这三步"这个大模式，以后接入任何新库，第一件事就是找它的文档
+里"要不要有一次性初始化"这一条，而不是每次都要重新摸索。

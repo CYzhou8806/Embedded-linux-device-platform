@@ -303,3 +303,13 @@ sudo reboot
   （走调试器 SWD，不经过 SPI），解决"测试完 SPI 还在跑、蜂鸣声关不
   掉"的问题——不用再摸物理复位键。实测验证过：复位前 `kfifo_overflow`
   还在每秒涨几百，复位后 2 秒内完全不再变化。
+
+- 2026-09-02（更后段）：V4 Phase 2 完成——`userspace/device-service/`
+  补上 Configuration（nlohmann-json）、Logging（spdlog）、
+  MetricsReporter（定时读现有状态打日志，不引入新计数器）、Watchdog
+  （ErrorRecovery：超时探活 + 软复位，探活本身失败就转指
+  `tools/mcu-reset.sh`）、systemd 集成（`Type=notify` +
+  `sd_notify`）、14 个 GoogleTest 单元测试。故障恢复链路实测验证过：
+  手动模拟外部关闭采集后，watchdog 探活成功、自动软复位、采集真的恢
+  复。3 分钟稳定性测试跑了 81179 条样本无异常。至此 V4 达到 Plan.md
+  的完成标准。

@@ -1,13 +1,14 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <exception>
-#include <optional>
 #include <thread>
 
 #include "device.hpp"
 #include "ring_buffer.hpp"
+#include "sequence_tracker.hpp"
 
 namespace acq {
 
@@ -27,7 +28,18 @@ public:
 	void stop();
 
 	uint64_t samples_read() const { return samples_read_.load(); }
-	uint64_t gap_count() const { return gap_count_.load(); }
+	uint64_t gap_count() const { return sequence_tracker_.gap_count(); }
+
+	// When the most recent sample was received (steady_clock, immune to
+	// wall-clock adjustments) - reset to "now" by start() so a Watchdog
+	// checking this doesn't see a stale/zero value as an immediate
+	// timeout before acquisition has even had a chance to produce data.
+	// Read from other threads (a Watchdog's own timer), stored as raw
+	// milliseconds in an atomic since std::chrono::time_point itself
+	// isn't atomic-friendly.
+	std::chrono::steady_clock::time_point last_sample_time() const {
+		return std::chrono::steady_clock::time_point(std::chrono::milliseconds(last_sample_ms_.load()));
+	}
 
 	// Re-thrown by the caller (e.g. main) after stop() if the worker
 	// thread exited due to a DeviceError rather than a requested stop.
@@ -41,9 +53,9 @@ private:
 	std::thread thread_;
 	std::atomic<bool> stop_requested_{false};
 	std::atomic<uint64_t> samples_read_{0};
-	std::atomic<uint64_t> gap_count_{0};
-	std::optional<uint32_t> last_seq_;
+	SequenceTracker sequence_tracker_;
 	std::exception_ptr last_error_;
+	std::atomic<int64_t> last_sample_ms_{0};
 };
 
 } // namespace acq

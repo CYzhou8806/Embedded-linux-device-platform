@@ -188,3 +188,15 @@ bind to.
   without touching the physical reset button. Verified against a live
   case: `kfifo_overflow` was still climbing by several hundred per
   second before the reset, completely flat for 2s immediately after.
+- 2026-09-02 (still later): V4 Phase 2 done —
+  `userspace/device-service/` gained Configuration (nlohmann-json),
+  Logging (spdlog), a MetricsReporter (periodically logs existing
+  state rather than introducing a second counting system), a Watchdog
+  (ErrorRecovery: timeout-triggered liveness probe plus soft reset,
+  falling back to pointing at `tools/mcu-reset.sh` if the probe itself
+  fails), systemd integration (`Type=notify` + `sd_notify`), and 14
+  GoogleTest unit tests. The recovery path was verified live:
+  externally stopping acquisition to simulate an interruption, the
+  watchdog probed successfully and the soft reset genuinely restarted
+  acquisition. A 3-minute stability soak ran 81179 samples with no
+  issues. V4 now meets Plan.md's stated completion criteria.

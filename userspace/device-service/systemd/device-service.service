@@ -1,0 +1,22 @@
+[Unit]
+Description=custom-acq device service
+# spi0.0 (the custom-acq driver) has to be bound before this can open
+# /dev/acq0. There's no formal systemd dependency edge for "a specific
+# kernel driver has finished probing a specific SPI device" — sysinit /
+# multi-user ordering is a practical approximation, not a guarantee.
+After=multi-user.target
+
+[Service]
+Type=notify
+ExecStart=/opt/device-service/device-service /opt/device-service/config.json
+Restart=on-failure
+RestartSec=2
+# Pairs with the sd_notify(WATCHDOG=1) call piggybacked on
+# MetricsReporter's own tick (see main.cpp) — if that heartbeat stops
+# arriving (the process hung, not just exited), systemd kills and
+# restarts it. Kept comfortably above metrics_interval_ms in
+# config.json so a couple of missed ticks don't false-trigger.
+WatchdogSec=15
+
+[Install]
+WantedBy=multi-user.target

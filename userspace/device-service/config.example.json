@@ -1,0 +1,8 @@
+{
+  "dev_path": "/dev/acq0",
+  "sysfs_dir": "/sys/bus/spi/devices/spi0.0/",
+  "log_level": "info",
+  "buffer_capacity": 4096,
+  "liveness_timeout_ms": 3000,
+  "metrics_interval_ms": 5000
+}
