@@ -74,12 +74,39 @@ CMSIS-DAP 等）插在 Windows 上，通过 usbipd-win + USB/IP 直通进 VM，V
   前提是项目本身用 CMake + CMakePresets.json 组织（preset 名要叫
   `Debug`/`Release`）。v1/v2 不满足这个前提，用不了。
 
+- **`mcu-reset.sh`**：纯软件触发的 MCU 硬件复位，通过调试器（SWD）直接
+  发复位信号，不经过 SPI，所以就算 SPI 协议本身卡住了也能用。
+
+  ```bash
+  bash tools/mcu-reset.sh
+  ```
+
+  用途：树莓派侧做硬件测试（比如 `/dev/acq0` 压力测试）结束后，不管测
+  试成功还是失败都跑一下，保证 MCU 一定回到刚上电的干净状态——不用再
+  摸板子上的物理复位键。跟 `build-flash.sh` 一样默认按 CMSIS-DAP +
+  STM32F1 配置，换调试器/芯片型号用同样的环境变量覆盖：
+
+  ```bash
+  OPENOCD_TARGET_CFG=target/stm32f4x.cfg bash tools/mcu-reset.sh
+  ```
+
+  前提跟 `build-flash.sh` 一样，先跑一遍 `debug-connect.sh` 把调试器接
+  进来。实测验证过：一次持续 SPI 通信（`kfifo_overflow` 每秒还在涨几百）
+  的场景下，跑完这个脚本 2 秒内 `kfifo_overflow` 完全不再变化，确认 MCU
+  真的被复位、SPI 活动彻底停止了。
+
 ## 日常使用顺序
 
 ```
 sudo bash tools/debug-connect.sh
 cd 具体MCU项目目录
 bash build-flash.sh
+```
+
+树莓派侧硬件测试做完（不管成功失败）：
+
+```
+bash tools/mcu-reset.sh
 ```
 
 需要单步调试的话再去 VS Code 里跑对应项目 `.vscode/launch.json` 里配
