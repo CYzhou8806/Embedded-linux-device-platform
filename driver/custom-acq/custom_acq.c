@@ -3,12 +3,10 @@
  * Kernel driver for the custom STM32 acquisition peripheral
  * (v1-spi-slave-handshake firmware).
  *
- * V3 progress: probe/remove + SPI register read (DEVICE_ID/FW_VERSION via
- * sysfs), control/fifo_level/data_val sysfs attributes to drive real
- * acquisition, a GPIO threaded IRQ on DATA_READY that drains the MCU's
- * hardware FIFO into a kernel kfifo (kfifo_level/kfifo_overflow sysfs
- * attributes for visibility — there's no /dev/acq0 yet to read the samples
- * out through, that's the last V3 sub-milestone, Plan.md "第四版").
+ * V3 complete: probe + SPI register read/write (sysfs), a GPIO threaded
+ * IRQ on DATA_READY that drains the MCU's hardware FIFO into a kernel
+ * kfifo, and /dev/acq0 (misc device) exposing that kfifo to userspace via
+ * open/read/poll/close (Plan.md "第四版").
  *
  * Wire protocol (matches v1-spi-slave-handshake/v1.3 firmware and
  * RaspPi/testv13.py): 5-byte frames, [cmd, data_be32]. A register read is
@@ -24,8 +22,11 @@
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/kfifo.h>
-#include <linux/spinlock.h>
 #include <linux/mutex.h>
+#include <linux/miscdevice.h>
+#include <linux/fs.h>
+#include <linux/poll.h>
+#include <linux/wait.h>
 
 #define REG_DEVICE_ID	0x00
 #define REG_FW_VERSION	0x01
@@ -59,13 +60,18 @@ struct custom_acq {
 	struct gpio_desc *data_ready;
 
 	/* Filled by custom_acq_irq_thread() (producer), drained by
-	 * /dev/acq0's read() once that exists (consumer). The spinlock
-	 * guards against that future concurrent reader — the IRQ thread
-	 * itself is already serialized against re-entry by the IRQ core.
+	 * custom_acq_read() (consumer). A mutex, not a spinlock: the reader
+	 * side uses kfifo_to_user(), which does copy_to_user() and can take
+	 * a page fault (i.e. can sleep) — not legal while holding a
+	 * spinlock. Both producer and consumer only ever run in process
+	 * context (the IRQ thread is threaded, never hard-IRQ), so a mutex
+	 * is safe here on both sides.
 	 */
 	DECLARE_KFIFO(samples, struct custom_acq_sample, SAMPLE_KFIFO_SIZE);
-	spinlock_t fifo_lock;
+	struct mutex fifo_lock;
 	u32 kfifo_overflow;
+	wait_queue_head_t data_wq;	/* woken whenever the IRQ thread adds samples */
+	struct miscdevice miscdev;	/* registers /dev/acq0 */
 
 	/* Serializes each full reg_read/reg_write "logical operation" (its
 	 * two SPI frames, address + NOP, back to back). Individual
@@ -318,17 +324,102 @@ static irqreturn_t custom_acq_irq_thread(int irq, void *data)
 			break;
 		}
 
-		spin_lock(&priv->fifo_lock);
+		mutex_lock(&priv->fifo_lock);
 		if (!kfifo_put(&priv->samples, s))
 			priv->kfifo_overflow++;
-		spin_unlock(&priv->fifo_lock);
+		mutex_unlock(&priv->fifo_lock);
 
 		drained++;
 		level--;
 	}
 
+	if (drained)
+		wake_up_interruptible(&priv->data_wq);
+
 	dev_dbg(&priv->spi->dev, "IRQ: DATA_READY fired, drained %u sample(s)\n", drained);
 	return IRQ_HANDLED;
+}
+
+/* file->private_data is set to the struct miscdevice* before open() runs
+ * (misc_open() in the misc-device core does this); swap it for our own
+ * priv struct so every other file_operations callback can just read
+ * file->private_data directly, same as the sysfs callbacks use dev.
+ */
+static int custom_acq_open(struct inode *inode, struct file *file)
+{
+	struct miscdevice *mdev = file->private_data;
+	struct custom_acq *priv = container_of(mdev, struct custom_acq, miscdev);
+
+	file->private_data = priv;
+	return 0;
+}
+
+static int custom_acq_release(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
+/* Copies whole samples only — count is rounded down to a multiple of
+ * sizeof(struct custom_acq_sample), matching kfifo's "record" is really
+ * just a fixed-size element here, not the length-prefixed kfifo_rec
+ * variant.
+ */
+static ssize_t custom_acq_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+{
+	struct custom_acq *priv = file->private_data;
+	unsigned int copied;
+	int ret;
+
+	count -= count % sizeof(struct custom_acq_sample);
+	if (count == 0)
+		return -EINVAL;
+
+	if (kfifo_is_empty(&priv->samples)) {
+		if (file->f_flags & O_NONBLOCK)
+			return -EAGAIN;
+
+		ret = wait_event_interruptible(priv->data_wq, !kfifo_is_empty(&priv->samples));
+		if (ret)
+			return ret;
+	}
+
+	mutex_lock(&priv->fifo_lock);
+	ret = kfifo_to_user(&priv->samples, buf, count, &copied);
+	mutex_unlock(&priv->fifo_lock);
+	if (ret)
+		return ret;
+
+	return copied;
+}
+
+static __poll_t custom_acq_poll(struct file *file, poll_table *wait)
+{
+	struct custom_acq *priv = file->private_data;
+	__poll_t mask = 0;
+
+	poll_wait(file, &priv->data_wq, wait);
+	if (!kfifo_is_empty(&priv->samples))
+		mask |= EPOLLIN | EPOLLRDNORM;
+
+	return mask;
+}
+
+static const struct file_operations custom_acq_fops = {
+	.owner = THIS_MODULE,
+	.open = custom_acq_open,
+	.release = custom_acq_release,
+	.read = custom_acq_read,
+	.poll = custom_acq_poll,
+};
+
+/* There is no devm_misc_register() in this kernel; wire misc_deregister()
+ * up as a devres cleanup action ourselves so /dev/acq0 goes away
+ * automatically on probe failure/unbind, same as the other devm_* resources
+ * in probe().
+ */
+static void custom_acq_misc_deregister(void *data)
+{
+	misc_deregister(data);
 }
 
 static int custom_acq_probe(struct spi_device *spi)
@@ -344,8 +435,9 @@ static int custom_acq_probe(struct spi_device *spi)
 	priv->spi = spi;
 	spi_set_drvdata(spi, priv);
 	INIT_KFIFO(priv->samples);
-	spin_lock_init(&priv->fifo_lock);
+	mutex_init(&priv->fifo_lock);
 	mutex_init(&priv->spi_lock);
+	init_waitqueue_head(&priv->data_wq);
 
 	spi->mode = SPI_MODE_0;
 	spi->bits_per_word = 8;
@@ -372,6 +464,17 @@ static int custom_acq_probe(struct spi_device *spi)
 					 "custom-acq", priv);
 	if (ret)
 		return dev_err_probe(&spi->dev, ret, "failed to request IRQ\n");
+
+	priv->miscdev.minor = MISC_DYNAMIC_MINOR;
+	priv->miscdev.name = "acq0";
+	priv->miscdev.fops = &custom_acq_fops;
+	ret = misc_register(&priv->miscdev);
+	if (ret)
+		return dev_err_probe(&spi->dev, ret, "failed to register /dev/acq0\n");
+
+	ret = devm_add_action_or_reset(&spi->dev, custom_acq_misc_deregister, &priv->miscdev);
+	if (ret)
+		return dev_err_probe(&spi->dev, ret, "failed to register /dev/acq0 cleanup\n");
 
 	dev_info(&spi->dev, "custom-acq bound, DEVICE_ID=0x%08x\n", device_id);
 	return 0;

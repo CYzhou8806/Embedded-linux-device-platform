@@ -257,3 +257,29 @@ sudo reboot
   用真实的启动/停止测试验证：`kfifo_level` 从 `0` 变成 `1`，没有再出
   现帧错位报错。至此 V3 前三个子里程碑（overlay+基础 driver、GPIO 中
   断、kfifo）全部完成，只剩最后的 `/dev/acq0` 字符设备。
+
+- 2026-09-02：V3"第四版"（`/dev/acq0`）写完并在硬件上验证通过，至此
+  V3 四个子里程碑全部完成。用内核的 misc device 框架注册了一个字符设
+  备节点，核心是一张 `file_operations` 函数指针表（`open`/`read`/
+  `poll`/`release`），把用户空间的系统调用跟驱动里管理 `kfifo` 的代
+  码连了起来。新增 `wait_queue_head_t` 等待队列：IRQ 线程每次往
+  `kfifo` 塞完数据就 `wake_up_interruptible()` 一下，`read()` 没数据
+  时用 `wait_event_interruptible()` 睡眠等待（`O_NONBLOCK` 时改为直
+  接返回 `-EAGAIN`），`poll()` 用 `poll_wait()` 登记到同一个等待队
+  列，非空时报 `EPOLLIN`。`fifo_lock` 顺带从 `spinlock_t` 换成了
+  `struct mutex`——因为 `kfifo_to_user()` 内部会 `copy_to_user()`，可
+  能触发缺页中断（可以睡眠），这在自旋锁里是不允许的；生产者和消费
+  者都只跑在进程上下文，换成 mutex 没有副作用。
+
+  实现过程中踩了一个坑：一开始写的 `devm_misc_register()` 这个函数根
+  本不存在（记混了），编译报 `implicit declaration of function`。改
+  用标准的 `misc_register()` + `devm_add_action_or_reset()` 手动登记
+  一个自动清理动作，效果跟其他 `devm_*` 资源一样。
+
+  硬件测试全部通过：`insmod`/`rmmod` 全程 `dmesg` 干净无报错，
+  `/dev/acq0` 正确出现/消失；`read()` 在数据到达前正确阻塞、到达后正
+  确返回，`timeout` 杀死阻塞中的 `dd` 验证了阻塞路径没有死循环空转；
+  `poll()` 在采集开始前超时、开始后立刻收到 `EPOLLIN` 事件；
+  `kfifo_overflow` 全程为 0。Plan.md V3 的完成标准（`modprobe` 干净、
+  `/dev/acq0` 出现、`read()` 拿到数据、`poll()` 正确阻塞唤醒）全部
+  满足。

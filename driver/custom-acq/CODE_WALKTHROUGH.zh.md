@@ -278,18 +278,31 @@ struct custom_acq {
 	struct spi_device *spi;
 	struct gpio_desc *data_ready;
 	DECLARE_KFIFO(samples, struct custom_acq_sample, SAMPLE_KFIFO_SIZE);
-	spinlock_t fifo_lock;
+	struct mutex fifo_lock;
 	u32 kfifo_overflow;
+	wait_queue_head_t data_wq;
+	struct miscdevice miscdev;
 	struct mutex spi_lock;
 };
 ```
-第一部分说过"这个结构体会随功能增长"，这次正好印证了——多了四个字
+第一部分说过"这个结构体会随功能增长"，这次正好印证了——多了好几个字
 段。`struct gpio_desc *` 是**固定类型**（内核对"一根 GPIO 线"的标准
 抽象，任何用到 GPIO 的 driver 都用这个类型存）；`DECLARE_KFIFO(...)`
 是**固定宏**（内核 `kfifo` 的标准用法，任何想要环形缓冲区的 driver
 都这么声明）；哪些字段、为什么需要——`data_ready` 存哪根线、
 `kfifo_overflow` 记丢了几条数据、两把锁分别保护什么——这是这次业务
 相关的设计决定。
+
+`fifo_lock` 一开始写的是 `spinlock_t`，后来改成了 `struct mutex`——
+不是想清楚就一步到位的，是加 `/dev/acq0` 时才发现的问题：
+`custom_acq_read()` 要用 `kfifo_to_user()` 把数据拷到用户空间，这个
+函数内部会调 `copy_to_user()`，而 `copy_to_user()` 可能触发缺页中断
+（page fault，可以睡眠）——这在持有 spinlock 的时候是不允许的。生产
+者（IRQ 线程）和消费者（`read()`）两边其实都只跑在 process context
+（进程上下文，允许睡眠），从来不在 hard IRQ 里碰这把锁，所以换成
+mutex 没有任何副作用，还顺便解决了 `kfifo_to_user()` 的睡眠问题。
+`wait_queue_head_t data_wq` 和 `struct miscdevice miscdev` 是这次
+`/dev/acq0` 新加的，作用见下面单独一节。
 
 ## `custom_acq_reg_write()` —— 跟 `reg_read` 对称的写操作
 
@@ -371,20 +384,25 @@ static irqreturn_t custom_acq_irq_thread(int irq, void *data)
 	while (level > 0) {
 		ret = custom_acq_read_sample(priv->spi, &s);
 		...
-		spin_lock(&priv->fifo_lock);
+		mutex_lock(&priv->fifo_lock);
 		if (!kfifo_put(&priv->samples, s))
 			priv->kfifo_overflow++;
-		spin_unlock(&priv->fifo_lock);
+		mutex_unlock(&priv->fifo_lock);
 		...
 		level--;
 	}
+	if (drained)
+		wake_up_interruptible(&priv->data_wq);
 	return IRQ_HANDLED;
 }
 ```
 函数签名 `irqreturn_t xxx(int irq, void *data)`、返回 `IRQ_HANDLED`
-是**固定模板**——内核规定中断处理函数必须长这样。`spin_lock`/
-`spin_unlock` 包住 `kfifo_put` 也是**固定套路**（内核 `kfifo` 文档就
-是这么要求的：多个执行流会碰这个队列时，用锁保护每一次存取）。
+是**固定模板**——内核规定中断处理函数必须长这样。`mutex_lock`/
+`mutex_unlock` 包住 `kfifo_put` 也是**固定套路**（内核 `kfifo` 文档
+就是这么要求的：多个执行流会碰这个队列时，用锁保护每一次存取；这里
+用 mutex 而不是 spinlock 的原因见上一节）。`wake_up_interruptible`
+是这次 `/dev/acq0` 加的一行——排空循环结束后，只要真的搬了新数据
+（`drained > 0`），就把等待队列上睡着的 `read()`/`poll()` 都叫醒。
 
 **业务相关、也是这次最值得记的设计**：为什么要用 `while (level > 0)`
 循环，而不是读一条就返回？因为 DATA_READY 是"电平"信号（case-03 验
@@ -418,14 +436,115 @@ ret = devm_request_threaded_irq(&spi->dev, ret, NULL, custom_acq_irq_thread,
 同一批还加了：
 ```c
 INIT_KFIFO(priv->samples);
-spin_lock_init(&priv->fifo_lock);
+mutex_init(&priv->fifo_lock);
 mutex_init(&priv->spi_lock);
+init_waitqueue_head(&priv->data_wq);
 ```
-三个初始化调用都是**固定套路**（任何用到这些内核基础设施的 driver,
+四个初始化调用都是**固定套路**（任何用到这些内核基础设施的 driver,
 用之前都要这样初始化一次），顺序上要放在"这些字段第一次可能被用到
 之前"——`mutex_init` 必须在第一次调用 `custom_acq_reg_read()` 之前
 （因为读写函数内部现在会去拿这把锁），这一点是这次改动里容易踩坑的
 细节。
+
+## `/dev/acq0`（misc device）—— 让用户空间能读到 kfifo 里的数据
+
+这是这次改动新加的一整块，`custom_acq_open/release/read/poll` 四个
+函数 + `custom_acq_fops` 这张表 + `probe()` 里的注册代码。原理详见
+`docs/learning-qa.md` Q25，这里按"固定模板 vs 业务相关"补一下代码层
+面的细节。
+
+```c
+static int custom_acq_open(struct inode *inode, struct file *file)
+{
+	struct miscdevice *mdev = file->private_data;
+	struct custom_acq *priv = container_of(mdev, struct custom_acq, miscdev);
+	file->private_data = priv;
+	return 0;
+}
+```
+`open()` 的签名是**固定模板**。函数体这几行是**固定套路**：misc
+device 框架在调用我们的 `open()` 之前，会先把 `file->private_data`
+设成指向 `struct miscdevice` 的指针（这是框架自己的行为，不是我们写
+的），所以第一次进来时它指向的是 `priv->miscdev` 这个内嵌字段,不是
+整个 `priv`。用 `container_of()` 从"内嵌字段的地址"反推出"外层结构
+体的地址"（这个宏在第一部分的 `spi_get_drvdata`/`dev_get_drvdata`
+链路里没直接出现过，但原理是一回事——都是"已知一个东西在结构体里的
+相对位置，反着算出结构体首地址"），然后把 `private_data` 换成
+`priv`，这样后面 `read()`/`poll()` 就能直接拿到完整的 `priv`，不用
+每次都再 `container_of` 一遍。
+
+```c
+static ssize_t custom_acq_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+{
+	struct custom_acq *priv = file->private_data;
+	count -= count % sizeof(struct custom_acq_sample);
+	if (count == 0)
+		return -EINVAL;
+
+	if (kfifo_is_empty(&priv->samples)) {
+		if (file->f_flags & O_NONBLOCK)
+			return -EAGAIN;
+		ret = wait_event_interruptible(priv->data_wq, !kfifo_is_empty(&priv->samples));
+		if (ret)
+			return ret;
+	}
+
+	mutex_lock(&priv->fifo_lock);
+	ret = kfifo_to_user(&priv->samples, buf, count, &copied);
+	mutex_unlock(&priv->fifo_lock);
+	...
+	return copied;
+}
+```
+`read()` 的签名 `(struct file *, char __user *, size_t, loff_t *)`
+是**固定模板**（内核规定字符设备的 read 必须长这样，`__user` 只是
+个标注，提醒这是用户空间指针不能直接解引用，得用专门的拷贝函数）。
+`wait_event_interruptible(等待队列, 条件)` 也是**固定套路**：给它一
+个等待队列和一个条件表达式，它自己处理"条件已经成立就不睡直接返回、
+不成立就挂起、被唤醒后重新检查条件、收到信号就提前返回"这一整套逻
+辑，不用自己写循环。**业务相关的只是"条件"这一项**（这里是
+`!kfifo_is_empty(...)`）和"数据怎么拷出去"（`kfifo_to_user()`，
+`kfifo` 自带的、专门对接用户空间的接口，内部做的就是
+`copy_to_user()`）。`count -= count % sizeof(...)` 这行是业务决定：
+只返回整条整条的采样，不返回半条。
+
+```c
+static __poll_t custom_acq_poll(struct file *file, poll_table *wait)
+{
+	struct custom_acq *priv = file->private_data;
+	__poll_t mask = 0;
+	poll_wait(file, &priv->data_wq, wait);
+	if (!kfifo_is_empty(&priv->samples))
+		mask |= EPOLLIN | EPOLLRDNORM;
+	return mask;
+}
+```
+`poll()` 的签名和 `poll_wait()` 的调用方式是**固定模板**——
+`poll_wait()` 不会真的让进程睡眠，只是把当前进程"登记"到这个等待队
+列上（跟 `read()` 用的是同一个 `data_wq`），真正的睡眠和被唤醒是
+`select`/`poll`/`epoll` 系统调用自己在更外层处理的。**业务相关的只
+是"用什么条件判断可读"**（`!kfifo_is_empty(...)`，跟 `read()` 里判
+断要不要阻塞用的是同一个条件）和返回哪个标志位（`EPOLLIN` 表示"有数
+据可读"）。
+
+```c
+priv->miscdev.minor = MISC_DYNAMIC_MINOR;
+priv->miscdev.name = "acq0";
+priv->miscdev.fops = &custom_acq_fops;
+ret = misc_register(&priv->miscdev);
+...
+ret = devm_add_action_or_reset(&spi->dev, custom_acq_misc_deregister, &priv->miscdev);
+```
+`MISC_DYNAMIC_MINOR`（让内核自动分配次设备号，不用自己管理）和
+`misc_register()` 的调用方式是**固定套路**。`"acq0"` 这个名字是业务
+相关（决定了设备节点叫 `/dev/acq0`）。踩过的一个坑：一开始想当然地
+写了 `devm_misc_register()`，以为跟 `devm_gpiod_get`、
+`devm_request_threaded_irq` 一样有个自动清理版本——实际上内核里根本
+没有这个函数，编译直接报 `implicit declaration of function`。正确
+做法是普通的 `misc_register()`，再手动用 `devm_add_action_or_reset()`
+把"卸载时要调用 `misc_deregister()`"这个清理动作登记成一个 devres
+资源，效果和其他 `devm_*` 一样——`probe()` 出错或者 driver 被卸载
+时自动执行，不用自己在 `.remove` 里写。
 
 ## 并发 bug（case-04）为什么会发生、怎么修的
 
@@ -454,9 +573,13 @@ control` 触发采集的同时,中断线程几乎立刻就会被数据到达唤�
 8. `control`/`fifo_level`/`data_val`/`kfifo_level`/`kfifo_overflow`
    具体读写哪个寄存器/哪个内部状态
 9. `IRQF_TRIGGER_RISING` 这个触发方式的选择
+10. `custom_acq_read()`/`custom_acq_poll()` 里判断"可读"用的条件
+    （`!kfifo_is_empty(...)`）和 `count` 按整条采样对齐这条业务规则
+11. `"acq0"` 这个设备名，决定了节点叫 `/dev/acq0`
 
 其余的结构（私有数据结构体模式、`devm_kzalloc`、sysfs 属性宏、driver
 注册骨架、`module_spi_driver`、`gpiod_get`/`gpiod_to_irq`/
-`request_threaded_irq` 的调用方式、`kfifo`/`spinlock`/`mutex` 的初
-始化和加锁写法）都是**换任何类似的中断驱动采集类 driver 都长这样**
-的固定套路，理解一次，以后照抄结构、只换业务细节。
+`request_threaded_irq` 的调用方式、`kfifo`/`mutex`/等待队列的初始化
+和加锁写法、misc device 的 `open`/`read`/`poll` 固定签名和
+`file_operations` 表的搭法）都是**换任何类似的中断驱动采集类
+driver 都长这样**的固定套路，理解一次，以后照抄结构、只换业务细节。

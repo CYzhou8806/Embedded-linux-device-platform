@@ -132,3 +132,32 @@ bind to.
   sequencing. Fixed with a per-device mutex around each full
   read/write operation. Verified clean after the fix: `kfifo_level`
   correctly reflects drained samples with no echo-mismatch errors.
+- 2026-09-02: V3's fourth and final sub-milestone (`/dev/acq0`) done and
+  verified on hardware — all four V3 sub-milestones now complete.
+  Registered a misc device backed by a `file_operations` table
+  (`open`/`read`/`poll`/`release`), wiring userspace syscalls to the
+  driver's `kfifo`. Added a `wait_queue_head_t`: the IRQ thread calls
+  `wake_up_interruptible()` after draining new samples; `read()` blocks
+  via `wait_event_interruptible()` when empty (`-EAGAIN` under
+  `O_NONBLOCK`); `poll()` registers on the same queue via `poll_wait()`
+  and reports `EPOLLIN` when non-empty. `fifo_lock` was converted from
+  `spinlock_t` to `struct mutex` in the process, since
+  `kfifo_to_user()`'s internal `copy_to_user()` can page-fault (sleep),
+  which isn't legal under a spinlock; both producer and consumer only
+  ever run in process context, so the switch has no downside.
+
+  Hit one build error along the way: `devm_misc_register()` doesn't
+  exist in this kernel (mis-remembered — no devm-managed variant of
+  `misc_register()` exists upstream either). Fixed with plain
+  `misc_register()` plus `devm_add_action_or_reset()` to register a
+  manual cleanup action, same effect as the other `devm_*` resources.
+
+  Hardware tests all passed: clean `dmesg` across `insmod`/`rmmod`,
+  `/dev/acq0` appears/disappears correctly; `read()` blocks correctly
+  before data arrives and returns correctly after (verified the
+  blocking path doesn't busy-loop by killing a blocked `dd` with
+  `timeout`); `poll()` times out before acquisition starts and reports
+  `EPOLLIN` immediately after; `kfifo_overflow` stayed 0 throughout.
+  Plan.md's stated V3 completion criteria (clean `modprobe`, `/dev/acq0`
+  appears, `read()` gets data, `poll()` blocks/wakes correctly) are all
+  satisfied.
