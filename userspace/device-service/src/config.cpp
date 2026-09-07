@@ -24,6 +24,10 @@ Config Config::load(const std::string& path) {
 	cfg.buffer_capacity = j.value("buffer_capacity", cfg.buffer_capacity);
 	cfg.liveness_timeout_ms = j.value("liveness_timeout_ms", cfg.liveness_timeout_ms);
 	cfg.metrics_interval_ms = j.value("metrics_interval_ms", cfg.metrics_interval_ms);
+	cfg.latency_log_path = j.value("latency_log_path", cfg.latency_log_path);
+	cfg.lock_memory = j.value("lock_memory", cfg.lock_memory);
+	cfg.sched_fifo_priority = j.value("sched_fifo_priority", cfg.sched_fifo_priority);
+	cfg.cpu_affinity_core = j.value("cpu_affinity_core", cfg.cpu_affinity_core);
 
 	return cfg;
 }

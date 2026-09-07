@@ -7,11 +7,16 @@
 namespace acq {
 
 // Matches driver/custom-acq/custom_acq.c's struct custom_acq_sample exactly
-// (seq then value, both u32, no padding on this arch) — this is what
-// read() on /dev/acq0 hands back, 8 bytes at a time.
+// (seq, value, then irq_ts_ns — u32/u32/s64, naturally aligned, no padding
+// on this arch) — this is what read() on /dev/acq0 hands back, 16 bytes at
+// a time. irq_ts_ns is CLOCK_MONOTONIC-equivalent (ktime_get_ns() and
+// std::chrono::steady_clock share the same underlying clock on Linux, so
+// they're directly comparable) — see AcquisitionWorker/LatencyLogger for
+// what it's used for (Plan.md V7).
 struct Sample {
 	uint32_t seq;
 	uint32_t value;
+	int64_t irq_ts_ns;
 };
 
 class DeviceError : public std::runtime_error {

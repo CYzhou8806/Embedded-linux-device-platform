@@ -4,11 +4,16 @@
 // spdlog logging, MetricsReporter, Watchdog (ErrorRecovery), and systemd
 // readiness/watchdog notifications (sd_notify) — GoogleTest unit tests
 // live under tests/.
+#include <cerrno>
 #include <chrono>
 #include <csignal>
 #include <cstdio>
+#include <cstring>
 #include <exception>
 #include <thread>
+
+#include <sched.h>
+#include <sys/mman.h>
 
 #include <spdlog/spdlog.h>
 #include <systemd/sd-daemon.h>
@@ -16,6 +21,7 @@
 #include "acquisition_worker.hpp"
 #include "config.hpp"
 #include "device.hpp"
+#include "latency_logger.hpp"
 #include "metrics.hpp"
 #include "ring_buffer.hpp"
 #include "watchdog.hpp"
@@ -50,6 +56,40 @@ int main(int argc, char** argv) {
 	acq::Config cfg = (argc > 1) ? acq::Config::load(argv[1]) : acq::Config{};
 	init_logging(cfg.log_level);
 
+	// mlockall() before any real work starts, and non-fatal on failure -
+	// a scheduler-comparison knob (Plan.md V7), not something ordinary
+	// runs should depend on. MCL_FUTURE covers thread stacks/heap growth
+	// from here on, not just what's already mapped.
+	if (cfg.lock_memory) {
+		if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0)
+			spdlog::warn("mlockall failed (need CAP_IPC_LOCK / root?): {}", std::strerror(errno));
+		else
+			spdlog::info("mlockall: locked");
+	}
+
+	// Applies to every thread this process later spawns too - both are
+	// process-wide, set before the worker/watchdog/metrics threads start.
+	if (cfg.sched_fifo_priority > 0) {
+		struct sched_param param{};
+		param.sched_priority = cfg.sched_fifo_priority;
+		if (sched_setscheduler(0, SCHED_FIFO, &param) != 0)
+			spdlog::warn("sched_setscheduler(SCHED_FIFO, {}) failed (need CAP_SYS_NICE / root?): {}",
+				     cfg.sched_fifo_priority, std::strerror(errno));
+		else
+			spdlog::info("scheduler: SCHED_FIFO priority {}", cfg.sched_fifo_priority);
+	}
+
+	if (cfg.cpu_affinity_core >= 0) {
+		cpu_set_t set;
+		CPU_ZERO(&set);
+		CPU_SET(cfg.cpu_affinity_core, &set);
+		if (sched_setaffinity(0, sizeof(set), &set) != 0)
+			spdlog::warn("sched_setaffinity(core {}) failed: {}",
+				     cfg.cpu_affinity_core, std::strerror(errno));
+		else
+			spdlog::info("CPU affinity: pinned to core {}", cfg.cpu_affinity_core);
+	}
+
 	sigset_t shutdown_set;
 	block_shutdown_signals(shutdown_set);
 
@@ -73,7 +113,10 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	acq::AcquisitionWorker worker(device, buffer);
+	acq::LatencyLogger latency_logger(cfg.latency_log_path);
+	if (latency_logger.enabled())
+		spdlog::info("latency logging enabled: {}", cfg.latency_log_path);
+	acq::AcquisitionWorker worker(device, buffer, &latency_logger);
 
 	std::thread signal_thread([&] {
 		int sig = 0;

@@ -22,6 +22,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/kfifo.h>
+#include <linux/ktime.h>
 #include <linux/mutex.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
@@ -34,8 +35,35 @@
 #define REG_FIFO_LEVEL	0x05
 #define REG_DATA_SEQ	0x06
 #define REG_DATA_VAL	0x07
+#define REG_SPI_REARM_FAIL	0x09
+#define REG_SPI_ERROR_COUNT	0x0A
 #define CMD_NOP		0x7F
 #define CMD_WRITE_FLAG	0x80
+
+/* Gap between the two frames of a pipelined register read/write, in
+ * microseconds. A module parameter (not just a compile-time constant) so
+ * a V7 experiment can try different values against real hardware without
+ * a rebuild - see docs/debugging/case-06-*.md's "Next steps".
+ *
+ * 100 (not the original 500, and not RaspPi/testv13.py's INTER_FRAME
+ * default) based on a real measurement sweep on hardware, 2026-09-04 (see
+ * docs/session-log.md for the full table): each sample costs 3 of these
+ * two-frame register reads (REG_FIFO_LEVEL + REG_DATA_SEQ + REG_DATA_VAL),
+ * so this gap dominates per-sample latency. 500us measured a clean but
+ * MCU-rate-limited ~520 samples/sec; sweeping down was *not* monotonic -
+ * 200-300us landed in a worse "valley" (~640/s but with real kfifo
+ * overflow/sequence gaps) than either 500us or anything at/below ~100us,
+ * which reliably reached the MCU's apparent ~1000/s production ceiling.
+ * Not proven bit-perfect on every run at this value (occasional single-
+ * digit sequence gaps did show up in one 45s run at 100us) - "clean at
+ * 500us" was itself a claim from testv13.py that this sweep directly
+ * contradicts (0-50us ran clean too), so treat any specific number here
+ * as a measured data point, not a hardware-verified safety margin.
+ */
+static unsigned int inter_frame_us = 100;
+module_param(inter_frame_us, uint, 0644);
+MODULE_PARM_DESC(inter_frame_us,
+		  "Gap (us) between the address and NOP frames of a register op");
 
 /* Must be a power of 2 (kfifo requirement). One IRQ can drain many MCU
  * FIFO entries at once (see custom_acq_irq_thread), so this needs enough
@@ -44,20 +72,36 @@
  */
 #define SAMPLE_KFIFO_SIZE	128
 
+/* irq_ts_ns: CLOCK_MONOTONIC-equivalent (ktime_get_ns()) timestamp of the
+ * hard-IRQ that triggered this sample's drain (Plan.md V7 latency work).
+ * Placed last so seq/value keep their existing 8-byte layout for anything
+ * still assuming that; adds 8 bytes, still naturally aligned (no padding).
+ * One hard-IRQ firing can drain many MCU FIFO entries in one thread pass
+ * (see custom_acq_irq_thread) - all samples from the same drain share the
+ * same irq_ts_ns, so this is "when we started reacting to this batch",
+ * not a true per-sample production time. Good enough to bound
+ * IRQ-to-userspace latency; does not cover MCU-sample-produced-to-GPIO-edge,
+ * which needs a logic analyzer on a dedicated MCU pin (not wired up yet).
+ */
 struct custom_acq_sample {
 	u32 seq;
 	u32 value;
+	s64 irq_ts_ns;
 };
-
-/* Gap between the two frames of a pipelined register read. Matches
- * RaspPi/testv13.py's INTER_FRAME; empirically the margin the firmware
- * needs to finish handling one frame's SPI ISR before the next one lands.
- */
-#define INTER_FRAME_US	500
 
 struct custom_acq {
 	struct spi_device *spi;
 	struct gpio_desc *data_ready;
+
+	/* V7: optional spare Pi GPIO toggled in custom_acq_irq_hard(), for a
+	 * logic analyzer to capture alongside the MCU's own sample-produced
+	 * marker pin (v1-spi-slave-handshake/v1.3's PA9) - two edges on the
+	 * analyzer's own single clock, no cross-clock-domain correlation
+	 * needed to compute the MCU-to-hard-IRQ latency. NULL if the
+	 * "irq-marker-gpios" DT property isn't present - existing overlays
+	 * without it keep working unchanged. */
+	struct gpio_desc *irq_marker;
+	bool irq_marker_state;
 
 	/* Filled by custom_acq_irq_thread() (producer), drained by
 	 * custom_acq_read() (consumer). A mutex, not a spinlock: the reader
@@ -72,6 +116,14 @@ struct custom_acq {
 	u32 kfifo_overflow;
 	wait_queue_head_t data_wq;	/* woken whenever the IRQ thread adds samples */
 	struct miscdevice miscdev;	/* registers /dev/acq0 */
+
+	/* Set by custom_acq_irq_hard() (hard-IRQ context, so this has to be a
+	 * plain scalar, not something that needs locking) and read back by
+	 * custom_acq_irq_thread() right after IRQ_WAKE_THREAD hands off - no
+	 * lock needed since the two only ever run for the same IRQ activation,
+	 * never concurrently for the same priv.
+	 */
+	s64 irq_ts_ns;
 
 	/* Serializes each full reg_read/reg_write "logical operation" (its
 	 * two SPI frames, address + NOP, back to back). Individual
@@ -113,7 +165,7 @@ static int custom_acq_reg_read(struct spi_device *spi, u8 addr, u32 *val)
 	if (ret)
 		goto out;
 
-	usleep_range(INTER_FRAME_US, INTER_FRAME_US + 100);
+	usleep_range(inter_frame_us, inter_frame_us + 100);
 
 	ret = custom_acq_xfer(spi, CMD_NOP, 0, rx);
 	if (ret)
@@ -145,7 +197,7 @@ static int custom_acq_reg_write(struct spi_device *spi, u8 addr, u32 val)
 	if (ret)
 		goto out;
 
-	usleep_range(INTER_FRAME_US, INTER_FRAME_US + 100);
+	usleep_range(inter_frame_us, inter_frame_us + 100);
 
 	ret = custom_acq_xfer(spi, CMD_NOP, 0, rx);
 	if (ret)
@@ -264,6 +316,43 @@ static ssize_t fw_version_show(struct device *dev, struct device_attribute *attr
 }
 static DEVICE_ATTR_RO(fw_version);
 
+/* MCU-side diagnostic counters (Plan.md V7 / case-06): spi_rearm_fail
+ * increments when the firmware's HAL_SPI_ErrorCallback()/TxRxCpltCallback()
+ * fails to re-arm HAL_SPI_TransmitReceive_IT() for the next frame;
+ * spi_error_count increments on every SPI-slave error the firmware sees.
+ * Existed as MCU registers since early firmware versions but were never
+ * read from this driver before - added to correlate their growth against
+ * the RP1 SPI controller stall (docs/debugging/case-06-*.md's "Next
+ * steps"), not because the driver itself does anything with these values.
+ */
+static ssize_t spi_rearm_fail_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	u32 val;
+	int ret;
+
+	ret = custom_acq_reg_read(spi, REG_SPI_REARM_FAIL, &val);
+	if (ret)
+		return ret;
+
+	return sysfs_emit(buf, "%u\n", val);
+}
+static DEVICE_ATTR_RO(spi_rearm_fail);
+
+static ssize_t spi_error_count_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	u32 val;
+	int ret;
+
+	ret = custom_acq_reg_read(spi, REG_SPI_ERROR_COUNT, &val);
+	if (ret)
+		return ret;
+
+	return sysfs_emit(buf, "%u\n", val);
+}
+static DEVICE_ATTR_RO(spi_error_count);
+
 static struct attribute *custom_acq_attrs[] = {
 	&dev_attr_device_id.attr,
 	&dev_attr_fw_version.attr,
@@ -272,6 +361,8 @@ static struct attribute *custom_acq_attrs[] = {
 	&dev_attr_data_val.attr,
 	&dev_attr_kfifo_level.attr,
 	&dev_attr_kfifo_overflow.attr,
+	&dev_attr_spi_rearm_fail.attr,
+	&dev_attr_spi_error_count.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(custom_acq);
@@ -292,11 +383,27 @@ static int custom_acq_read_sample(struct spi_device *spi, struct custom_acq_samp
 	return custom_acq_reg_read(spi, REG_DATA_VAL, &s->value);
 }
 
-/* Threaded handler only (no hard-IRQ handler) because acknowledging
- * DATA_READY means talking to the MCU over SPI, which can sleep — not
- * allowed in hard-IRQ context.
- *
- * DATA_READY is level-driven (high while the MCU's FIFO is non-empty,
+/* Hard-IRQ top half: only job is to stamp "when did we first react to
+ * this edge" as early as possible, before anything that can sleep (the
+ * SPI drain below) has a chance to add scheduling jitter to the number.
+ * Everything else - acknowledging DATA_READY means talking to the MCU
+ * over SPI, which can sleep - stays in the threaded handler.
+ */
+static irqreturn_t custom_acq_irq_hard(int irq, void *data)
+{
+	struct custom_acq *priv = data;
+
+	priv->irq_ts_ns = ktime_get_ns();
+
+	if (priv->irq_marker) {
+		priv->irq_marker_state = !priv->irq_marker_state;
+		gpiod_set_value(priv->irq_marker, priv->irq_marker_state);
+	}
+
+	return IRQ_WAKE_THREAD;
+}
+
+/* DATA_READY is level-driven (high while the MCU's FIFO is non-empty,
  * see docs/debugging/case-03-data-ready-gpio-verification.md), and we
  * only get the rising edge once when it goes from empty to non-empty —
  * so one IRQ can mean "many samples arrived", not just one. Drain the
@@ -338,6 +445,7 @@ static irqreturn_t custom_acq_irq_thread(int irq, void *data)
 			dev_err(&priv->spi->dev, "IRQ: failed to read sample: %d\n", ret);
 			break;
 		}
+		s.irq_ts_ns = priv->irq_ts_ns;
 
 		mutex_lock(&priv->fifo_lock);
 		if (!kfifo_put(&priv->samples, s))
@@ -468,12 +576,18 @@ static int custom_acq_probe(struct spi_device *spi)
 		return dev_err_probe(&spi->dev, PTR_ERR(priv->data_ready),
 				      "failed to get data-ready gpio\n");
 
+	priv->irq_marker = devm_gpiod_get_optional(&spi->dev, "irq-marker", GPIOD_OUT_LOW);
+	if (IS_ERR(priv->irq_marker))
+		return dev_err_probe(&spi->dev, PTR_ERR(priv->irq_marker),
+				      "failed to get irq-marker gpio\n");
+
 	ret = gpiod_to_irq(priv->data_ready);
 	if (ret < 0)
 		return dev_err_probe(&spi->dev, ret,
 				      "failed to map data-ready gpio to irq\n");
 
-	ret = devm_request_threaded_irq(&spi->dev, ret, NULL, custom_acq_irq_thread,
+	ret = devm_request_threaded_irq(&spi->dev, ret, custom_acq_irq_hard,
+					 custom_acq_irq_thread,
 					 IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 					 "custom-acq", priv);
 	if (ret)

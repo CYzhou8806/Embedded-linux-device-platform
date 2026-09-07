@@ -460,6 +460,22 @@ int main(void)
   /* DATA_READY 初始拉低 */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
 
+  /* V7: PA9 as a dedicated sample-produced marker pin for a logic
+   * analyzer, physically adjacent to PA8 (DATA_READY) on this board's
+   * header - not a CubeMX-managed pin (not in the .ioc), added here by
+   * hand since GPIOA's clock is already enabled by MX_GPIO_Init() above.
+   * Toggled once per sample in HAL_TIM_PeriodElapsedCallback() below,
+   * right after fifo_push(). */
+  {
+    GPIO_InitTypeDef sample_mark_init = {0};
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
+    sample_mark_init.Pin = GPIO_PIN_9;
+    sample_mark_init.Mode = GPIO_MODE_OUTPUT_PP;
+    sample_mark_init.Pull = GPIO_NOPULL;
+    sample_mark_init.Speed = GPIO_SPEED_FREQ_HIGH;
+    HAL_GPIO_Init(GPIOA, &sample_mark_init);
+  }
+
   /* 启动 SPI 中断接收 —— 调用后立刻返回，不阻塞 */
   HAL_SPI_TransmitReceive_IT(&hspi2, tx_buf, rx_buf, FRAME_LEN);
 
@@ -565,6 +581,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       uint32_t sample_value = seq_counter & 0xFFFFu;
       fifo_push(sample_value);
       update_data_ready_gpio();
+      /* V7: mark the exact moment this sample was produced, for a logic
+       * analyzer on PA9 - see gpio.c's USER CODE 2 block for pin init. */
+      HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_9);
     }
   }
 }

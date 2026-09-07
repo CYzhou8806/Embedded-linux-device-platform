@@ -14,7 +14,7 @@ import select
 import struct
 import subprocess
 
-SAMPLE_STRUCT = struct.Struct("<II")  # matches struct custom_acq_sample: u32 seq, u32 value
+SAMPLE_STRUCT = struct.Struct("<IIq")  # matches struct custom_acq_sample: u32 seq, u32 value, s64 irq_ts_ns (V7)
 
 
 class AcqStall(Exception):
@@ -74,11 +74,13 @@ class AcqDevice:
     def stop(self) -> None:
         self._write_sysfs("control", "0")
 
-    def read_sample(self, timeout_s: float | None = None) -> tuple[int, int]:
-        """Reads one sample. If timeout_s is given, raises AcqStall instead
-        of blocking forever when no data shows up in time - see AcqStall's
-        docstring for why that's a real, expected failure mode here, not
-        just defensive paranoia."""
+    def read_sample_full(self, timeout_s: float | None = None) -> tuple[int, int, int]:
+        """Reads one sample as (seq, value, irq_ts_ns) - irq_ts_ns is the
+        kernel's ktime_get_ns() at the hard-IRQ that drained this sample
+        (V7 latency work, driver/custom-acq/custom_acq.c). If timeout_s is
+        given, raises AcqStall instead of blocking forever when no data
+        shows up in time - see AcqStall's docstring for why that's a real,
+        expected failure mode here, not just defensive paranoia."""
         assert self._fd is not None, "call open() first"
         buf = b""
         while len(buf) < SAMPLE_STRUCT.size:
@@ -95,6 +97,13 @@ class AcqDevice:
             buf += chunk
         return SAMPLE_STRUCT.unpack(buf)
 
+    def read_sample(self, timeout_s: float | None = None) -> tuple[int, int]:
+        """Reads one sample as (seq, value) - the pre-V7 shape, kept as the
+        default for callers that don't care about the latency timestamp
+        (most of tests/integration and tests/hardware)."""
+        seq, value, _irq_ts_ns = self.read_sample_full(timeout_s)
+        return seq, value
+
     def device_id(self) -> int:
         return int(self._read_sysfs("device_id"), 0)
 
@@ -103,3 +112,11 @@ class AcqDevice:
 
     def kfifo_overflow(self) -> int:
         return int(self._read_sysfs("kfifo_overflow"), 0)
+
+    def spi_rearm_fail(self) -> int:
+        """MCU-side counter (Plan.md V7 / case-06 diagnostics)."""
+        return int(self._read_sysfs("spi_rearm_fail"), 0)
+
+    def spi_error_count(self) -> int:
+        """MCU-side counter (Plan.md V7 / case-06 diagnostics)."""
+        return int(self._read_sysfs("spi_error_count"), 0)

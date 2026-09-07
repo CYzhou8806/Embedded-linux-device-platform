@@ -23,6 +23,7 @@ add_executable(device-service
 	src/read_exact.cpp
 	src/acquisition_worker.cpp
 	src/config.cpp
+	src/latency_logger.cpp
 	src/metrics.cpp
 	src/watchdog.cpp
 )

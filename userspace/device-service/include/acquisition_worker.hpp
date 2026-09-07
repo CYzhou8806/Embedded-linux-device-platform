@@ -7,6 +7,7 @@
 #include <thread>
 
 #include "device.hpp"
+#include "latency_logger.hpp"
 #include "ring_buffer.hpp"
 #include "sequence_tracker.hpp"
 
@@ -18,7 +19,12 @@ namespace acq {
 // here), and pushes each sample into the shared RingBuffer.
 class AcquisitionWorker {
 public:
-	AcquisitionWorker(Device& device, RingBuffer<Sample>& buffer);
+	// latency_logger may be null (default) - meaning "not logging",
+	// matching LatencyLogger's own no-op-when-path-is-empty behavior one
+	// layer up. Kept as a pointer rather than a reference so callers that
+	// don't care about V7 latency logging (tests, ad hoc tools) don't need
+	// to construct a LatencyLogger just to pass one in.
+	AcquisitionWorker(Device& device, RingBuffer<Sample>& buffer, LatencyLogger* latency_logger = nullptr);
 	~AcquisitionWorker();
 
 	void start();
@@ -50,6 +56,7 @@ private:
 
 	Device& device_;
 	RingBuffer<Sample>& buffer_;
+	LatencyLogger* latency_logger_;
 	std::thread thread_;
 	std::atomic<bool> stop_requested_{false};
 	std::atomic<uint64_t> samples_read_{0};

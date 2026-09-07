@@ -30,3 +30,20 @@ Prints a report to stdout and writes the same text to
 read, sequence gaps, `kfifo_overflow` before/after, throughput, and
 whether the run ended in a detected stall. Exit code is `1` on a stall,
 `0` otherwise.
+
+## Case 06 root-cause tracing (V7)
+
+`case06_ftrace_spi.sh` runs `stress_test.py` under `ftrace`
+(`function_graph`, filtered to every function with "spi" in its name) and
+saves the trace plus the MCU's own `spi_rearm_fail`/`spi_error_count`
+diagnostic counters (new sysfs attributes, V7) to
+`results/ftrace/<timestamp>.txt`. Needs to run as root on the Pi itself
+(uses `/sys/kernel/debug/tracing`):
+
+```bash
+sudo bash tests/hardware/case06_ftrace_spi.sh 30
+```
+
+It captures evidence, it doesn't diagnose - reading the resulting trace
+to find where a stall actually blocks is manual analysis, see
+`docs/debugging/case-06-spi-controller-stall-under-sustained-load.md`.

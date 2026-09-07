@@ -95,6 +95,17 @@ CMSIS-DAP 等）插在 Windows 上，通过 usbipd-win + USB/IP 直通进 VM，V
   的场景下，跑完这个脚本 2 秒内 `kfifo_overflow` 完全不再变化，确认 MCU
   真的被复位、SPI 活动彻底停止了。
 
+- **`analyze-latency.py`**：读 `device-service` 的 `latency_log_path`
+  产出的 CSV（`seq,irq_ts_ns,recv_ts_ns,latency_ns`，V7 新加，见
+  `userspace/device-service/include/latency_logger.hpp`），算出 Plan.md
+  V7 报告格式要求的那几个数：median/p99/p99.9/最大观测值（不叫"worst
+  case"——有限时间的一次测试测不出理论上界，只能报告"这次跑到的最大
+  值"）。纯标准库实现，不依赖 numpy/pandas，可以直接在树莓派上跑：
+
+  ```bash
+  python3 tools/analyze-latency.py results/latency/某次运行.csv --label "SCHED_FIFO+mlockall"
+  ```
+
 ## 日常使用顺序
 
 ```

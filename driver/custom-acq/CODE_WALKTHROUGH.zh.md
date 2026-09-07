@@ -596,3 +596,158 @@ control` 触发采集的同时,中断线程几乎立刻就会被数据到达唤�
 和加锁写法、misc device 的 `open`/`read`/`poll` 固定签名和
 `file_operations` 表的搭法）都是**换任何类似的中断驱动采集类
 driver 都长这样**的固定套路，理解一次，以后照抄结构、只换业务细节。
+
+---
+
+# 第三部分：V7 新加的代码（hard-IRQ 时间戳）
+
+**一句话总结**：Plan.md V7 要测"MCU 产生数据到 userspace 收到"这条链
+路的延迟，第一步是让 driver 能报告"内核什么时候第一次反应到这次中
+断"，作为这条延迟链的起点之一。
+
+```c
+static irqreturn_t custom_acq_irq_hard(int irq, void *data)
+{
+	struct custom_acq *priv = data;
+	priv->irq_ts_ns = ktime_get_ns();
+	return IRQ_WAKE_THREAD;
+}
+```
+**函数签名、返回 `IRQ_WAKE_THREAD` 是固定模板**——这是内核"两段式中
+断处理"（threaded IRQ）机制规定的：`devm_request_threaded_irq()` 可
+以同时注册一个硬中断上半部（"hard handler"，第三个参数）和一个线程
+下半部（第四个参数，也就是 `custom_acq_irq_thread`）。之前这个项目只
+注册了下半部（第三个参数传 `NULL`）——原因是原来没有任何逻辑需要在硬
+中断上下文（不能睡眠）里跑。这次新加硬中断上半部**唯一的目的就是尽
+早拿一个时间戳**：`ktime_get_ns()` 是固定 API（内核标准的"现在几纳
+秒"查询,底层是 CLOCK_MONOTONIC 语义,不受系统时间被手动调整影响),
+**放在硬中断里调用是业务决定**——硬中断上下文是内核对这次中断反应最
+早的时刻,比线程下半部（要等内核调度器真的把这个线程排上 CPU 才会执
+行,中间可能有调度延迟)更接近"真实中断到达时间"。返回 `IRQ_WAKE_THREAD`
+是固定套路：告诉内核"硬中断部分做完了,去唤醒线程部分接着跑"。
+
+```c
+struct custom_acq_sample {
+	u32 seq;
+	u32 value;
+	s64 irq_ts_ns;
+};
+```
+在原来 `seq`/`value` 后面加了 `irq_ts_ns` 字段，**这是这次业务决定**：
+让每条从内核传给用户态的采样都自带"这次中断是什么时候到的"，`/dev/acq0`
+的调用方本来就在读这个结构体，加一个字段不用另开一条新通道。字段放在
+最后、用 `s64` 是为了不引入内存对齐的空隙（两个 `u32` 共 8 字节，
+`s64` 天然对齐在 8 字节边界上，凑巧不需要 padding）。
+
+```c
+if (drained)
+	...
+s.irq_ts_ns = priv->irq_ts_ns;
+```
+在 `custom_acq_irq_thread()` 排空循环里，每读到一条样本就把
+`priv->irq_ts_ns`（硬中断里存的那个时间戳）复制进去，再 `kfifo_put()`。
+**业务决定，值得记住的限制**：DATA_READY 是电平信号，一次硬中断触发
+之后，线程可能在循环里一口气排空 MCU 好几条数据（前面案例 05 讲过的
+"为什么要循环重读 FIFO_LEVEL"）——这些数据实际上不是同一时刻产生的，
+但目前只有"这次中断什么时候到"这一个时间戳，同一批里的每条样本都会
+共享同一个值。这只能测出"IRQ 到 userspace"这一段延迟的上界近似，不
+是逐条样本的精确产生时刻——要做到逐条精确，需要 MCU 侧每产生一条数据
+就翻转一次专用测量引脚，配合逻辑分析仪单独测（这部分还没做，是 V7
+后续阶段的工作）。
+
+**真机验证过这个限制的严重程度，比预想的大得多**：抓了一段真实运行
+的 CSV，发现设备持续满载运行时，`irq_ts_ns` 可以连续近一万条样本共
+享同一个值（对应线程下半部一次排空循环几十秒没退出过，因为
+`DATA_READY` 电平持续保持高——本质是 case-05 记录过的吞吐瓶颈：
+device-service 大约 520 samples/sec，追不上 MCU 产生速度）。也就是
+说这个指标在设备持续满载时基本不可用，得先解决吞吐问题（或者换一种
+不依赖"同一批样本是否共享一次中断"的测量口径），这个延迟指标才有
+意义——详见 `docs/session-log.md` 2026-09-04 第三轮的记录。
+
+**2026-09-07 更新：上面说的"这部分还没做"现在做了。** `struct
+custom_acq` 加了个可选字段：
+
+```c
+struct gpio_desc *irq_marker;
+bool irq_marker_state;
+```
+
+`probe()` 里用 `devm_gpiod_get_optional()`（不是 `devm_gpiod_get()`）
+拿这个 GPIO——"optional" 意味着如果设备树里没配这个属性，
+`priv->irq_marker` 就是 `NULL`，驱动照常工作，不会报错，老的 overlay
+不会因为这个改动被破坏。`custom_acq_irq_hard()` 里紧跟着打时间戳之后
+多了几行：
+
+```c
+if (priv->irq_marker) {
+	priv->irq_marker_state = !priv->irq_marker_state;
+	gpiod_set_value(priv->irq_marker, priv->irq_marker_state);
+}
+```
+
+每次硬中断触发就翻转一次这个引脚（`device-tree/custom-acq-overlay.dts`
+里配的是树莓派 `GPIO27`，物理引脚 13）。配合 MCU 固件那边新加的
+`PA9`（每产生一条样本翻转一次，`v1-spi-slave-handshake/v1.3`），用逻
+辑分析仪同时抓两个引脚——**两个事件现在落在分析仪自己同一个时钟上，
+不需要跨时钟域对齐**，直接量出"MCU 产生样本"到"树莓派硬中断响应"这
+一段真实延迟。真机测出来中位数 3.5us、最大 10.4us（`docs/
+performance.md`"MCU-produced to hard-IRQ"一节），证实这一段极小、几
+乎可以忽略，瓶颈完全在硬中断之后的软件路径上。
+
+```c
+ret = devm_request_threaded_irq(&spi->dev, ret, custom_acq_irq_hard,
+				 custom_acq_irq_thread,
+				 IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+				 "custom-acq", priv);
+```
+跟原来的区别只是把第三个参数从 `NULL` 换成了 `custom_acq_irq_hard`，
+其余不变——**固定的注册方式，换的只是"要不要提供硬中断上半部"这个业
+务选择**。
+
+## V7 顺带加的两样东西：`inter_frame_us` 模块参数 + Case 06 诊断计数器
+
+这两样跟延迟时间戳没有直接关系，是趁着这一轮改动，把 case-06（SPI 控
+制器卡死，还没根因定位）"Next steps" 清单里两个可以不用上真机就先做
+好的准备工作提前做掉：
+
+```c
+static unsigned int inter_frame_us = 500;
+module_param(inter_frame_us, uint, 0644);
+MODULE_PARM_DESC(inter_frame_us, "...");
+```
+把原来写死的 `#define INTER_FRAME_US 500` 换成了 `module_param`。
+**`module_param` 宏本身是固定套路**——内核标准的"允许 `insmod`/
+`modprobe` 时传参数，或者事后通过 `/sys/module/custom_acq/parameters/
+inter_frame_us` 读写"这套机制。**改成可调参数是业务决定**：case-06
+文档里怀疑协议这 500us 帧间隔可能是导致 RP1 SPI 控制器卡死的一个诱因，
+之前想验证这个假设得改代码重新编译，现在只要
+`echo 800 > /sys/module/custom_acq/parameters/inter_frame_us` 就能试
+不同的值，不用重新烧模块。
+
+**这个参数后来真的在真机上扫过一遍，而且直接改变了默认值**：
+2026-09-04 用这个参数在真机上系统性地测了 500/300/250/200/150/100/
+50/20/10/0 这几个值，发现关系完全不是线性的——200-300us 反而是个"坑"
+（比 500us 和更激进的值都更容易丢数据/kfifo 溢出），继续调低到
+100us 以下才真正追上 MCU 的产生速度（吞吐从 ~520/s 冲到 ~1000/s，
+`gap_count`/`kfifo_overflow` 大多数时候是 0）。默认值改成了
+`100`（原来的 `500` 从没被真机数据验证过，代码里那句"经验上固件需要
+的余量"其实只是抄自 `testv13.py` 的旧假设，这次实测直接推翻了）。完
+整数据表和方法论见 `docs/session-log.md` 2026-09-04 第四轮的记录。
+这次顺带还发现，吞吐追上之后，V7 那个 IRQ 时间戳延迟指标也终于变得
+有意义了——之前吞吐跟不上时，`irq_ts_ns` 会连续上万条样本共享同一个
+值（前面那节讲过的批处理污染问题），现在同一段时间能看到一万多个不
+同的时间戳值，测出来的延迟稳定在 1ms 以内，这才是这个指标本来该有的
+样子。
+
+```c
+static ssize_t spi_rearm_fail_show(...) { ... REG_SPI_REARM_FAIL ... }
+static ssize_t spi_error_count_show(...) { ... REG_SPI_ERROR_COUNT ... }
+```
+跟 `device_id_show`/`fw_version_show` 完全一样的写法（**固定模板**），
+读的是 MCU 固件里本来就有、但这份 driver 之前从来没读过的两个寄存器
+（`0x09`/`0x0A`）——固件自己的 SPI 错误恢复逻辑（`HAL_SPI_ErrorCallback`
+等）会累加这两个计数器，之前只是没人从 Linux 这边去看。**暴露成 sysfs
+是业务决定**：下次真的复现 case-06 的卡死，可以顺手看一眼这两个数字有
+没有涨，帮助判断问题是不是出在 MCU 固件的重新武装（re-arm）逻辑这一
+侧，而不是只能瞎猜。这两个计数器本身不会主动修复或影响任何行为，纯粹
+是诊断用的观察窗口，跟 `kfifo_level`/`kfifo_overflow` 是同一个定位。

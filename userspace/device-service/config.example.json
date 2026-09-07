@@ -4,5 +4,9 @@
   "log_level": "info",
   "buffer_capacity": 4096,
   "liveness_timeout_ms": 3000,
-  "metrics_interval_ms": 5000
+  "metrics_interval_ms": 5000,
+  "latency_log_path": "",
+  "lock_memory": false,
+  "sched_fifo_priority": 0,
+  "cpu_affinity_core": -1
 }

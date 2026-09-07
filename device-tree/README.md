@@ -258,3 +258,56 @@ bind to.
   (`recipes-kernel/custom-acq-driver`, `recipes-apps/device-service`,
   `recipes-support/configuration`, `recipes-core/images`) - none written
   yet.
+- 2026-09-04: V7 Phase 1 - first step of the end-to-end latency
+  instrumentation (Plan.md V7). Added a real hard-IRQ top half
+  (`custom_acq_irq_hard()`) to the driver alongside the existing threaded
+  handler - previously only the threaded handler was registered (no
+  logic needed to run in hard-IRQ context until now), so the earliest
+  reachable timestamp was "IRQ thread got scheduled", not "IRQ actually
+  fired". The hard handler now stamps `ktime_get_ns()` and hands off via
+  `IRQ_WAKE_THREAD`; that timestamp rides along on every
+  `struct custom_acq_sample` (new `irq_ts_ns` field, 8 bytes appended,
+  naturally aligned) through the kfifo to `/dev/acq0`. `device-service`
+  mirrors the struct layout, stamps its own receive time with
+  `std::chrono::steady_clock` (same underlying clock as the kernel's
+  `ktime_get`, so directly comparable, no epoch conversion), and can
+  optionally log every `(seq, irq_ts_ns, recv_ts_ns, latency_ns)` row to
+  a CSV via a new `latency_log_path` config option (off by default - a
+  V7 experiment knob, not a production feature) through a new
+  `LatencyLogger` class. Verified: driver builds clean against this VM's
+  host kernel headers (a real out-of-tree module build, not just a
+  syntax check); the new userspace code passes a dependency-free syntax
+  check (nlohmann-json/spdlog aren't installed on this VM outside the
+  Yocto sysroot, so a full CMake build wasn't run here - the actual build
+  verification is via `bitbake device-service`, not yet re-run this
+  round). Known, documented limitation: one hard-IRQ firing can drain
+  several MCU FIFO entries in one threaded-handler pass (DATA_READY is
+  level-driven, see case-03/case-05), so all samples in the same drain
+  share one `irq_ts_ns` - this measures "IRQ-to-userspace" latency, not
+  true per-sample "MCU-produced-to-received" latency. That fuller chain
+  (MCU toggles a dedicated measurement GPIO per sample, captured on a
+  logic analyzer) is a later V7 phase, not done yet. Not yet
+  rebuilt/flashed/tested on real hardware this round.
+- 2026-09-04 (later, real hardware verification): deployed the V7
+  driver/service to the running Pi over SSH and found a real root cause
+  for Case 05's throughput ceiling - each sample costs 3 register reads
+  (`REG_FIFO_LEVEL`+`REG_DATA_SEQ`+`REG_DATA_VAL`), not the 2 assumed
+  before, so the `inter_frame_us` gap between SPI frames dominates
+  per-sample cost. A hardware sweep of that value (now a runtime module
+  parameter) found a non-monotonic relationship - 200-300us is a worse
+  "valley" than either the old 500us default or anything at/below
+  ~100us, which reliably reaches the MCU's apparent ~1000 samples/sec
+  ceiling (up from ~520/s) with `kfifo_overflow`/`gap_count` mostly at
+  0. Driver's compile-time default changed to 100us on this evidence.
+  This also directly fixed the earlier-discovered latency-metric
+  pollution: with throughput caught up, `irq_ts_ns` now varies across
+  ~14k distinct values in an 8s capture instead of thousands of samples
+  sharing one stale timestamp, and measured IRQ-to-userspace latency
+  came out sane (median ~971us, p99 ~976us, max ~1163us). Also found and
+  fixed a real deployment mistake of my own along the way: `bitbake
+  <recipe> -c compile -f` doesn't rerun `do_install`/`do_package`, so an
+  earlier round had been deploying a stale pre-V7 binary without
+  realizing it - a full `bitbake device-service` fixed that. Full
+  methodology, data table, and honest caveats (results weren't
+  bit-identical run to run at the same setting) in
+  `docs/session-log.md`.

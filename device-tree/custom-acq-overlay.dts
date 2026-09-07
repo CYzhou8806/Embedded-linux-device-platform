@@ -55,6 +55,19 @@
 				 * the C preprocessor first.
 				 */
 				data-ready-gpios = <&gpio 17 0>;
+
+				/* V7: optional marker pin, Pi GPIO27
+				 * (physical pin 13) - toggled by the driver
+				 * in custom_acq_irq_hard() so a logic
+				 * analyzer can capture it alongside the
+				 * MCU's own PA9 sample-produced marker
+				 * (v1-spi-slave-handshake/v1.3), both on the
+				 * analyzer's single clock. Free pin, not
+				 * used by SPI0 (GPIO7-11) or DATA_READY
+				 * (GPIO17). Optional in the driver (gpiod_get_optional)
+				 * so this property can be omitted with no
+				 * effect on normal operation. */
+				irq-marker-gpios = <&gpio 27 0>;
 			};
 		};
 	};
