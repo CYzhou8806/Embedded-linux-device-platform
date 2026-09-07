@@ -51,7 +51,7 @@ real hardware, not simulated.
 
 ## Results
 
-![Scheduler configuration comparison: p99.9 and max latency across load/tuning configs](results/latency/comparison_bar.png)
+![Scheduler configuration comparison: median p99.9 and max latency across load/tuning configs, 3x repeated per config, whiskers show the full range across repeats](results/latency/comparison_bar.png)
 
 ![MCU-to-hard-IRQ latency: PA9 (sample produced) and GPIO27 (hard-IRQ handler) captured on one logic analyzer clock](results/latency/mcu_to_hard_irq_zoomed.png)
 

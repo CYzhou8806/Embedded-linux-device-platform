@@ -55,7 +55,7 @@ transients, raw CSVs in `results/latency/`.
 | Under load, + SCHED_FIFO only (`fifo_load`) | 947.9 | 949.7 | 951.8 | 1146.9 | 0 |
 | Under load, all three combined (`all_load`) | 945.5 | 946.8 | 948.3 | 1136.8 | 0 |
 
-![Bar chart comparing p99.9 and max observed latency across all eight configurations](../results/latency/comparison_bar.png)
+![Bar chart comparing median p99.9 and max observed latency across all eight configurations, 3x repeated per config (see the "Repeat" sections below), whiskers show the full range across repeats](../results/latency/comparison_bar.png)
 
 ![Per-sample latency over time, log scale, one row per configuration](../results/latency/comparison_timeline.png)
 
