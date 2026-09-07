@@ -4,7 +4,7 @@
 只有 `meta-device-platform/`（这个项目自己写的层）进这个 git 仓库；
 `poky`/`meta-openembedded`/`meta-raspberrypi`（官方/社区维护的上游
 层）和 `build/`（编译产物、缓存，几十 GB）都不进——概念上的原因见
-`docs/systems-programming-patterns.md`的"Yocto/BitBake"一节。
+`docs/notes/systems-programming-patterns.md`的"Yocto/BitBake"一节。
 
 ## 一次性环境准备
 
@@ -119,4 +119,4 @@ Imager 的"Use custom"能直接选 `.wic.bz2`；如果选择框只认识 `.img`
 bunzip2 -k -c device-platform-image-raspberrypi5.rootfs.wic.bz2 > device-platform-image-raspberrypi5.img
 ```
 
-写卡验证结果见 `docs/session-log.md`。
+写卡验证结果见 `private/session-log.md`。

@@ -1,9 +1,18 @@
-# Case 06: SPI Controller Stalls Under Sustained Load (Open — Root Cause Unresolved)
+# Case 06: SPI Controller Stall Under Sustained Load
 
 **Platform:** STM32F103VET6 (SPI slave) + Raspberry Pi 5 (RP1 SPI controller), `driver/custom-acq/custom_acq.c`
 **Occurred:** V5, while writing the Python integration tests (`tests/integration/`) against sustained multi-second acquisition runs
 
-Unlike the other cases in this directory, this one does **not** end with a fix — it ends with a documented, worked-around limitation and an open question for V7 (Plan.md's end-to-end performance analysis stage, which has the right tools — `ftrace`, a logic analyzer — for what's needed next). Recording it now because V5's whole point is to make instability like this visible and repeatable instead of something that only shows up once, gets shrugged off, and comes back later.
+Unlike the other cases in this directory, this one doesn't end with a
+single root cause — it ends with a systematic elimination process
+(V5, then a dedicated V7 instrumentation pass) that narrowed the
+search space a great deal without pinning down a final answer, plus a
+mitigation (detect-and-report instead of hang-forever) that makes the
+rest of the system robust to it regardless. Recording it because V5's
+whole point is to make instability like this visible and repeatable
+instead of something that only shows up once, gets shrugged off, and
+comes back later. See "Current status" at the bottom for where this
+stands after V7's testing.
 
 ## Symptom 1: a genuine kernel-level stall
 
@@ -93,4 +102,24 @@ Two things learned from this even without catching an anomaly:
 
 - ~~Expose `REG_SPI_REARM_FAIL`/`REG_SPI_ERROR_COUNT` as new sysfs attributes~~ — done (`spi_rearm_fail`/`spi_error_count`, `driver/custom-acq/custom_acq.c`). Correlated against a real burst event on 2026-09-07 (see Update above): both stayed at 0 across two `kfifo_overflow` bursts, so the MCU-side rearm-failure/error-count path is **not** what's causing the echo-mismatch bursts — narrows it back toward the Pi-side SPI controller/timing theory below. Still not correlated against an actual Symptom-1 `D`-state stall, since none has recurred yet.
 - Trace the RP1 SPI controller driver directly (`ftrace`, `spi_sync` entry/exit) during a sustained run to see whether transfer completion itself is what's delayed. `tests/hardware/case06_ftrace_spi.sh` was written for this but assumes on-target `python3`/`bash`/`timeout`, none of which exist on this minimal Yocto image — actually run on 2026-09-07 as a VM-driven SSH-polling equivalent instead (see Update above). That run's filter had a substring bug (`grep -i spi` also matched `spin_lock`) that wasted the whole 30-minute capture on spinlock noise — **still need a real, correctly-filtered ftrace capture correlated with an actual error burst**, this hasn't been obtained yet.
-- ~~Try lengthening `INTER_FRAME_US` as a cheap experiment~~ — done, with a real finding, though not the one this bullet expected. Swept `inter_frame_us` (now a runtime module parameter) across 500/300/250/200/150/100/50/20/10/0us on real hardware, 2026-09-04 (see `docs/session-log.md`'s fourth round that day for the full table). Relationship is *not* monotonic: 200-300us is a worse "valley" (more kfifo overflow/sequence gaps) than either 500us or anything at/below ~100us. Below ~100us throughput jumps from Case 05's ~520 samples/sec ceiling to ~1000/sec (matching the MCU's apparent production rate) with `kfifo_overflow`/`gap_count` mostly at 0. **Driver's compile-time default changed from 500 to 100us on the strength of this data.** This directly explains a large chunk of Case 05's throughput gap (per-sample cost was 3 register reads × the frame gap, not 1) - it does not, on its own, explain or reproduce Symptom 1's hard `D`-state stall, which still hasn't recurred under the new default. Worth revisiting whether a shorter gap changes Symptom 1's odds, but that needs an actual reproduction of the stall to test against, which still hasn't happened.
+- ~~Try lengthening `INTER_FRAME_US` as a cheap experiment~~ — done, with a real finding, though not the one this bullet expected. Swept `inter_frame_us` (now a runtime module parameter) across 500/300/250/200/150/100/50/20/10/0us on real hardware, 2026-09-04 (see `private/session-log.md`'s fourth round that day for the full table). Relationship is *not* monotonic: 200-300us is a worse "valley" (more kfifo overflow/sequence gaps) than either 500us or anything at/below ~100us. Below ~100us throughput jumps from Case 05's ~520 samples/sec ceiling to ~1000/sec (matching the MCU's apparent production rate) with `kfifo_overflow`/`gap_count` mostly at 0. **Driver's compile-time default changed from 500 to 100us on the strength of this data.** This directly explains a large chunk of Case 05's throughput gap (per-sample cost was 3 register reads × the frame gap, not 1) - it does not, on its own, explain or reproduce Symptom 1's hard `D`-state stall, which still hasn't recurred under the new default. Worth revisiting whether a shorter gap changes Symptom 1's odds, but that needs an actual reproduction of the stall to test against, which still hasn't happened.
+
+## Current status (2026-09-07)
+
+Symptom 1 (the hard `D`-state stall) has not recurred since the
+`INTER_FRAME_US` default changed, including across two independent
+30-minute sustained-load runs run specifically to try to catch it
+again. Symptom 2 (bursty overflow) did show up once, and was narrowed
+down about as far as it can be without a live capture: not MCU-side
+(rearm/error counters stayed at 0 through the burst), and the actual
+controller involved is now known (`spi_dw`, confirmed via `ftrace`,
+correcting this doc's earlier guess of `bcm2835_spi`).
+
+Chasing this further would mean instrumenting `spi_dw`'s own driver
+source directly and waiting on a low-probability event to reproduce —
+a large time investment for a bug that is, at this point, mitigated
+(tests detect and report it instead of hanging) and hasn't reappeared
+under real sustained load. Given that cost/benefit, this is where V7
+leaves it: not root-caused, but well-characterized, well-mitigated,
+and not currently reproducible. Worth reopening if it resurfaces on
+different hardware or under different load.

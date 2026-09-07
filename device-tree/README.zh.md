@@ -338,7 +338,7 @@ sudo reboot
   `rpi-bootfiles` 是独立于任何具体镜像的共享 recipe）；
   `core-image-minimal` 根本不装 `packagegroup-base`，所以 WiFi 固件/
   内核模块虽然编译出来了但从没进镜像，得在 `IMAGE_INSTALL` 里手动
-  加。完整排查过程见 `docs/session-log.md`。留了一个没修的已知问题：
+  加。完整排查过程见 `private/session-log.md`。留了一个没修的已知问题：
   MCU 没通电时 `device-service` 会疯狂崩溃重启，报错信息只有一个裸
   的"stoul"看不出所以然——这是 `device-service`（V4 范围）自身的健
   壮性问题，不是这次 Yocto 打包的问题。
@@ -403,4 +403,4 @@ sudo reboot
   `bitbake <recipe> -c compile -f` 不会重新跑 `do_install`/
   `do_package`，之前一轮其实一直在部署没同步的旧二进制，改跑完整的
   `bitbake device-service` 解决。完整方法论、数据表、诚实的局限性说
-  明（同一个值不同次测试结果不完全一致）见 `docs/session-log.md`。
+  明（同一个值不同次测试结果不完全一致）见 `private/session-log.md`。

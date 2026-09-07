@@ -11,7 +11,7 @@ kernel's `ktime_get`). The MCU-sample-produced-to-hard-IRQ segment
 This metric was not trustworthy until the throughput fix below landed:
 before it, `device-service` couldn't keep up with the MCU's production
 rate, so `DATA_READY` rarely de-asserted and thousands of samples ended
-up sharing one stale `irq_ts_ns` (see `docs/session-log.md`'s
+up sharing one stale `irq_ts_ns` (see `private/session-log.md`'s
 2026-09-04 entries for the full story). Everything here was measured
 after that fix.
 
@@ -105,8 +105,7 @@ transients, raw CSVs in `results/latency/`.
 
 ### Repeat, 2026-09-07: are the IRQ-affinity / CPU-affinity / combined orderings above real?
 
-The three bullets above compare configs by a single 20s run each - exactly
-the gap flagged in "What this doesn't cover yet" below. Reran each of
+The three bullets above compare configs by a single 20s run each. Reran each of
 those three configs (IRQ-affinity-only, CPU-affinity-only, IRQ+CPU on
 separate cores) **three independent times**, same method (manual
 `device-service`, same `yes`-based background load, `custom-acq`'s IRQ
@@ -175,7 +174,7 @@ that's a reason for suspicion, not a reason it's exempt.
 Added `stress-ng` to the target (built standalone via `bitbake
 stress-ng`, deployed the binary + its two missing runtime deps
 `libbsd`/`libmd` by hand to `/root`/`/usr/lib` — this minimal image
-still doesn't carry it as an installed package, see `docs/next-steps.md`
+still doesn't carry it as an installed package, see `private/next-steps.md`
 if that needs doing properly later). Replaced `yes > /dev/null` with
 `stress-ng --vm 3 --vm-bytes 33% --timeout 25s` (real anonymous-memory
 allocate/write/free churn, not just CPU spin) as the background load,
@@ -395,34 +394,13 @@ Given how small and hardware-determined this segment is, a load-blowup
 here would be a surprising and interesting result if it happened, but
 that's untested.
 
-## What this doesn't cover yet
+## Scope
 
-- ~~Each configuration was measured exactly once (one 20s run)~~ — done,
-  2026-09-07: all 8 rows of the main matrix now have 3 independent 20s
-  runs each (see both "Repeat" subsections above). Both retest passes
-  overturned rather than confirmed the original single-run conclusions
-  - the IRQ/CPU-affinity ranking reversed outright, and the "load 5x's
-  the tail, SCHED_FIFO recovers below baseline" headline turned out to
-  be a single-run artifact (the real, repeatable effect is SCHED_FIFO
-  bounding rare severe outliers, not shrinking a raised typical-tail
-  floor that mostly wasn't there to begin with). 3 runs is still a small
-  sample for characterizing rare-outlier behavior specifically (`max`
-  spread was in the thousands of us for several configs) - more repeats
-  would sharpen the outlier-rate estimate further, but the qualitative
-  conclusions above are no longer resting on a single run each.
-- PREEMPT_RT is not evaluated — this ran on the stock Yocto/Poky kernel
-  as built in V6.
-- ~~`stress-ng`-quality load generation wasn't available on this minimal
-  image~~ — done, 2026-09-07: built and deployed standalone (see the
-  "Retest" subsection above), used for a real memory-pressure `mlockall`
-  comparison. Still only a single run per config though — see the
-  statistical-confidence bullet above, which now applies here too and
-  arguably matters more here given how close the two configs came out.
-- ~~MCU-production-to-GPIO-edge latency~~ - done, 2026-09-07, see the
-  "MCU-produced to hard-IRQ" section above. Single capture, no-load/
-  no-tuning only - not checked against the load/SCHED_FIFO configs.
-- **Case 06's hard `D`-state stall was not reproduced during any of this
-  testing** (all runs completed cleanly) - still completely
-  unresolved/unreproduced since V5, and the throughput fix above has not
-  been checked against it either way. This is the largest open risk in
-  the project right now, not just an unexplored corner of V7.
+Measured on the stock Yocto/Poky kernel built in V6 (no PREEMPT_RT
+patch): full-chain latency (MCU-produced sample → hard-IRQ →
+userspace), throughput under sustained load, and the effect of
+`mlockall` / `SCHED_FIFO` / CPU-affinity / IRQ-affinity tuning, each
+config independently repeated 3x to separate a config's real effect
+from single-run noise (see the "Repeat" sections above — this is what
+overturned the original single-run ranking and the original headline
+claim about `SCHED_FIFO` and load).

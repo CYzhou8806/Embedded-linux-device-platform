@@ -232,7 +232,7 @@ bind to.
   `core-image-minimal` never pulls in `packagegroup-base`, so WiFi
   firmware/kernel-modules had to be added explicitly to
   `IMAGE_INSTALL` even though they'd already been built. See
-  `docs/session-log.md` for the full list of what got debugged. One
+  `private/session-log.md` for the full list of what got debugged. One
   open gap noted but not fixed: `device-service` crash-loops with an
   unhelpful bare "stoul" error when the MCU isn't powered at startup -
   a real device-service (V4-scoped) robustness issue, not a Yocto
@@ -310,4 +310,4 @@ bind to.
   realizing it - a full `bitbake device-service` fixed that. Full
   methodology, data table, and honest caveats (results weren't
   bit-identical run to run at the same setting) in
-  `docs/session-log.md`.
+  `private/session-log.md`.

@@ -15,7 +15,7 @@ in sync.
 - `meta-openembedded/meta-oe` (nlohmann-json, spdlog)
 - `meta-raspberrypi` (MACHINE=raspberrypi5 support)
 
-All three live outside this repo (see `docs/session-log.md`'s V6 entries
+All three live outside this repo (see `private/session-log.md`'s V6 entries
 for the exact clone/setup steps) - only this layer's own source is
 tracked here.
 
@@ -44,7 +44,7 @@ bitbake device-platform-image
 ```
 
 Verified end to end on real Pi 5 + MCU hardware - see
-`docs/session-log.md`'s 2026-09-03 V6 entries for what was tested and
+`private/session-log.md`'s 2026-09-03 V6 entries for what was tested and
 the environment-specific gotchas that came up (RPI_EXTRA_CONFIG scope,
 core-image-minimal not pulling in WiFi firmware/kernel-modules by
 default).

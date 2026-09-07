@@ -47,14 +47,14 @@
 /* USER CODE BEGIN PV */
 
 /* ═══════════════════════════════════════════
- *  协议常量
+ *  Protocol constants
  * ═══════════════════════════════════════════ */
 #define FRAME_LEN 5
 #define CMD_WRITE_FLAG 0x80
 #define CMD_ADDR_MASK 0x7F
 
 /* ═══════════════════════════════════════════
- *  寄存器地址
+ *  Register addresses
  * ═══════════════════════════════════════════ */
 #define REG_DEVICE_ID 0x00
 #define REG_FW_VERSION 0x01
@@ -70,7 +70,7 @@
 #define REG_NOP 0x7F
 
 /* ═══════════════════════════════════════════
- *  STATUS 位定义
+ *  STATUS bit definitions
  * ═══════════════════════════════════════════ */
 #define ST_RUNNING (1u << 0)
 #define ST_CMD_ERR (1u << 1)
@@ -78,13 +78,13 @@
 #define ST_SPI_RESYNC (1u << 3)
 
 /* ═══════════════════════════════════════════
- *  SPI 缓冲区
+ *  SPI buffers
  * ═══════════════════════════════════════════ */
 static uint8_t rx_buf[FRAME_LEN];
 static uint8_t tx_buf[FRAME_LEN];
 
 /* ═══════════════════════════════════════════
- *  寄存器状态
+ *  Register state
  * ═══════════════════════════════════════════ */
 static volatile uint32_t reg_status = 0;
 static volatile uint32_t reg_control = 0;
@@ -102,27 +102,29 @@ typedef struct
 } FifoItem;
 
 static FifoItem fifo_buf[FIFO_DEPTH];
-static volatile uint16_t fifo_head = 0;     /* 下一个写入位置 */
-static volatile uint16_t fifo_tail = 0;     /* 下一个读出位置 */
-static volatile uint32_t fifo_overflow = 0; /* 溢出累计 */
-static volatile uint32_t seq_counter = 0;   /* 全局递增序列号 */
+static volatile uint16_t fifo_head = 0;     /* next write slot */
+static volatile uint16_t fifo_tail = 0;     /* next read slot */
+static volatile uint32_t fifo_overflow = 0; /* cumulative drop count */
+static volatile uint32_t seq_counter = 0;   /* global monotonic sequence number */
 
-/* 诊断计数器：HAL_SPI_TransmitReceive_IT 重新挂起失败次数，
- * 用来验证"锁死后从此再也接收不到新数据"这个假设是否成立 */
+/* Diagnostic counter: how many times HAL_SPI_TransmitReceive_IT failed to
+ * re-arm. Used to check whether "once wedged, no further data ever comes
+ * in" actually holds. */
 static volatile uint32_t spi_rearm_fail = 0;
 
-/* 诊断计数器：HAL_SPI_ErrorCallback 总共被调用了几次。
- * 用来区分"CPU 还活着、SPI 硬件层面持续出错" 还是
- * "从某一刻起 CPU/中断整体停止响应"（这个数字会保持不再增长） */
+/* Diagnostic counter: total number of HAL_SPI_ErrorCallback invocations.
+ * Used to distinguish "CPU still alive, SPI hardware keeps erroring" from
+ * "CPU/interrupts stopped responding entirely at some point" (in the
+ * latter case this counter simply stops increasing). */
 static volatile uint32_t spi_error_count = 0;
 
-/* peek/pop 中间状态 */
+/* peek/pop intermediate state */
 static uint32_t last_seq = 0;
 static uint32_t last_val = 0;
 static uint8_t item_peeked = 0;
 
 /* ═══════════════════════════════════════════
- *  外设 handle（CubeMX 会在别处声明，这里 extern）
+ *  Peripheral handles (declared elsewhere by CubeMX, externed here)
  * ═══════════════════════════════════════════ */
 extern SPI_HandleTypeDef hspi2;
 extern TIM_HandleTypeDef htim2;
@@ -151,7 +153,7 @@ static uint8_t fifo_pop(void);
 /* USER CODE BEGIN 0 */
 
 /* ═══════════════════════════════════════════
- *  工具函数
+ *  Utility functions
  * ═══════════════════════════════════════════ */
 static uint32_t unpack_u32(const uint8_t *p)
 {
@@ -168,7 +170,7 @@ static void pack_u32(uint8_t *p, uint32_t v)
 }
 
 /* ═══════════════════════════════════════════
- *  FIFO 操作
+ *  FIFO operations
  * ═══════════════════════════════════════════ */
 static uint16_t fifo_level(void) {
     uint16_t h = fifo_head;
@@ -180,13 +182,13 @@ static uint16_t fifo_level(void) {
 static void fifo_push(uint32_t value) {
     uint16_t next = (fifo_head + 1) % FIFO_DEPTH;
     if (next == fifo_tail) {
-        /* 满了，丢弃 */
+        /* full - drop the sample */
         fifo_overflow++;
         return;
     }
     fifo_buf[fifo_head].sequence = seq_counter++;
     fifo_buf[fifo_head].value    = value;
-    fifo_head = next;  /* 这一步让新数据对消费者可见 */
+    fifo_head = next;  /* this is what makes the new item visible to the consumer */
 }
 
 static uint8_t fifo_peek(uint32_t *seq_out, uint32_t *val_out) {
@@ -224,14 +226,14 @@ static void update_data_ready_gpio(void)
 }
 
 /* ═══════════════════════════════════════════
- *  定时器频率更新
+ *  Timer rate update
  * ═══════════════════════════════════════════ */
 static void update_timer_rate(uint32_t rate_hz)
 {
   /*
-   * 基频 = 72 MHz / 7200 = 10000 Hz
+   * base freq = 72 MHz / 7200 = 10000 Hz
    * period = 10000 / rate_hz
-   * rate_hz 合法范围 1–10000 → period 范围 1–10000
+   * rate_hz valid range 1-10000 -> period range 1-10000
    */
   uint32_t period = 10000 / rate_hz;
   if (period < 1)
@@ -242,7 +244,7 @@ static void update_timer_rate(uint32_t rate_hz)
 }
 
 /* ═══════════════════════════════════════════
- *  SPI 错误恢复
+ *  SPI error recovery
  * ═══════════════════════════════════════════ */
 static void spi_resync(void)
 {
@@ -256,9 +258,10 @@ static void spi_resync(void)
 
   hspi2.State = HAL_SPI_STATE_READY;
   hspi2.ErrorCode = HAL_SPI_ERROR_NONE;
-  hspi2.Lock = HAL_UNLOCKED; /* 防止上次错误路径没释放锁，导致之后所有
-                                HAL_SPI_TransmitReceive_IT 调用永久返回
-                                HAL_BUSY 而悄悄失效 */
+  hspi2.Lock = HAL_UNLOCKED; /* guards against the previous error path leaving
+                                the lock held, which would make every future
+                                HAL_SPI_TransmitReceive_IT call silently
+                                return HAL_BUSY forever */
 
   reg_status |= ST_SPI_RESYNC;
 
@@ -266,18 +269,18 @@ static void spi_resync(void)
 }
 
 /* ═══════════════════════════════════════════
- *  寄存器读
+ *  Register read
  * ═══════════════════════════════════════════ */
 static uint32_t reg_read(uint8_t addr)
 {
   switch (addr)
   {
-  /* ── V1.2 原有 ── */
+  /* -- carried over from V1.2 -- */
   case REG_DEVICE_ID:
     return 0xAC00ACC0u;
 
   case REG_FW_VERSION:
-    return 0x00010300u; /* V1.3 → 0x00010300 */
+    return 0x00010300u; /* V1.3 -> 0x00010300 */
 
   case REG_STATUS:
     return reg_status;
@@ -291,7 +294,7 @@ static uint32_t reg_read(uint8_t addr)
   case REG_NOP:
     return 0;
 
-  /* ── V1.3 新增 ── */
+  /* -- new in V1.3 -- */
   case REG_FIFO_LEVEL:
     return fifo_level();
 
@@ -335,7 +338,7 @@ static uint32_t reg_read(uint8_t addr)
 }
 
 /* ═══════════════════════════════════════════
- *  寄存器写
+ *  Register write
  * ═══════════════════════════════════════════ */
 static void reg_write(uint8_t addr, uint32_t val)
 {
@@ -376,7 +379,7 @@ static void reg_write(uint8_t addr, uint32_t val)
     if (val >= 1u && val <= 10000u)
     {
       reg_sample_rate = val;
-      /* 如果正在采集，立刻更新频率 */
+      /* if acquisition is running, apply the new rate immediately */
       if (reg_control & 0x01u)
       {
         update_timer_rate(val);
@@ -389,14 +392,14 @@ static void reg_write(uint8_t addr, uint32_t val)
     break;
 
   default:
-    /* 只读寄存器或未定义地址 */
+    /* read-only register or undefined address */
     reg_status |= ST_CMD_ERR;
     break;
   }
 }
 
 /* ═══════════════════════════════════════════
- *  帧处理（SPI 回调里调用）
+ *  Frame handling (called from the SPI callback)
  * ═══════════════════════════════════════════ */
 static void handle_frame(void)
 {
@@ -453,11 +456,11 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
-  /* 准备第一帧 tx_buf（上电后第一帧 slave 回的是这个） */
+  /* prepare the first tx_buf frame (what the slave replies with right after power-on) */
   tx_buf[0] = REG_NOP;
   pack_u32(&tx_buf[1], 0);
 
-  /* DATA_READY 初始拉低 */
+  /* DATA_READY starts low */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
 
   /* V7: PA9 as a dedicated sample-produced marker pin for a logic
@@ -476,7 +479,7 @@ int main(void)
     HAL_GPIO_Init(GPIOA, &sample_mark_init);
   }
 
-  /* 启动 SPI 中断接收 —— 调用后立刻返回，不阻塞 */
+  /* start interrupt-mode SPI receive - returns immediately, non-blocking */
   HAL_SPI_TransmitReceive_IT(&hspi2, tx_buf, rx_buf, FRAME_LEN);
 
   /* USER CODE END 2 */
@@ -534,14 +537,14 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 
 /* ═══════════════════════════════════════════
- *  SPI 中断回调：一帧收发完成
+ *  SPI interrupt callback: one frame's TX/RX complete
  * ═══════════════════════════════════════════ */
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {
   if (hspi->Instance == SPI2)
   {
     handle_frame();
-    /* 立刻准备接收下一帧 */
+    /* immediately re-arm for the next frame */
     if (HAL_SPI_TransmitReceive_IT(&hspi2, tx_buf, rx_buf, FRAME_LEN) != HAL_OK)
     {
       spi_rearm_fail++;
@@ -550,7 +553,7 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 }
 
 /* ═══════════════════════════════════════════
- *  SPI 错误回调
+ *  SPI error callback
  * ═══════════════════════════════════════════ */
 void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
 {
@@ -566,7 +569,7 @@ void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
 }
 
 /* ═══════════════════════════════════════════
- *  定时器中断回调：产生一个 sample
+ *  Timer interrupt callback: produce one sample
  * ═══════════════════════════════════════════ */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -575,8 +578,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     if (reg_control & 0x01u)
     {
       /*
-       * 合成数据：用序列号的低 16 位作为值
-       * 你也可以换成正弦查表、三角波等任何合成波形
+       * synthesized data: use the low 16 bits of the sequence number
+       * as the value - swap in a sine LUT, triangle wave, or anything
+       * else you want here
        */
       uint32_t sample_value = seq_counter & 0xFFFFu;
       fifo_push(sample_value);

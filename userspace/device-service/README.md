@@ -30,10 +30,6 @@ and Phase 2 (everything else).
 7. On `SIGINT`/`SIGTERM`: stops acquisition, drains/joins the worker,
    metrics, and watchdog threads, and prints a final shutdown report.
 
-See `docs/learning-qa.md` Q25–Q29 for how `/dev/acq0` itself works, and
-`CODE_WALKTHROUGH.zh.md` (Chinese) for a line-by-line walkthrough of this
-directory's code.
-
 ## Build
 
 ```bash

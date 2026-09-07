@@ -1,10 +1,9 @@
-# ── macOS ──
+# macOS
 .DS_Store
 .AppleDouble
 .LSOverride
 
-# ── STM32CubeIDE / CMake 构建产物 ──
-# CMake + Ninja 编译出来的所有中间文件和最终产物，都是可以从源码重新生成的
+# CMake / Ninja build output
 build/
 CMakeFiles/
 CMakeCache.txt
@@ -13,7 +12,7 @@ compile_commands.json
 *.ninja_log
 *.ninja_deps
 
-# 编译产物（目标文件、调试符号、链接产物）
+# compiled objects, debug symbols, link output
 *.o
 *.obj
 *.su
@@ -24,7 +23,7 @@ compile_commands.json
 *.list
 *.list.txt
 
-# ── 编辑器 / IDE ──
+# editors / IDEs
 .vscode/
 !v1-spi-slave-handshake/v1.3/MCU_v1-MCU-device-control/.vscode/
 !v1-spi-slave-handshake/v1.3/MCU_v1-MCU-device-control/.vscode/*.json
@@ -33,13 +32,15 @@ compile_commands.json
 *.swo
 *~
 
-# ── Python ──
+# Python
 __pycache__/
 *.pyc
 *.pyo
 
-# ── 逻辑分析仪导出文件（体积大、是分析中间产物，不需要进版本库）──
+# logic-analyzer exports (large, intermediate)
 *.sr
+*.dsl
 DSLogic*.csv
 
-Plan.md
+C*.md
+private/
