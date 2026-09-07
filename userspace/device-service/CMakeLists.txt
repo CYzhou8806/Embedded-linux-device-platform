@@ -31,6 +31,11 @@ target_include_directories(device-service PRIVATE include ${SYSTEMD_INCLUDE_DIRS
 target_link_libraries(device-service PRIVATE Threads::Threads nlohmann_json::nlohmann_json spdlog::spdlog ${SYSTEMD_LIBRARIES})
 target_compile_options(device-service PRIVATE -Wall -Wextra)
 
+# Matches README.md's manual install convention (/opt/device-service/) and
+# systemd/device-service.service's ExecStart - both the manual and the
+# Yocto recipe (yocto/meta-device-platform) install paths agree.
+install(TARGETS device-service RUNTIME DESTINATION /opt/device-service)
+
 option(BUILD_TESTING "Build device-service-tests (requires GTest)" ON)
 if(BUILD_TESTING)
 	enable_testing()

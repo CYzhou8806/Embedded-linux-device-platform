@@ -218,3 +218,43 @@ bind to.
   `docs/debugging/case-06-spi-controller-stall-under-sustained-load.md`.
   Deliberately left open for V7 (which has the right tools); V5's tests
   are built to detect and report the stall rather than hang on it.
+- 2026-09-03 (later): V6's second round - all four custom Yocto recipe
+  categories (`yocto/meta-device-platform/`) written, individually
+  verified, assembled into `device-platform-image`, flashed to real Pi 5
+  hardware and confirmed end to end with the real MCU powered: driver
+  auto-loads, `/dev/acq0` exists, `device-service` is `active` under
+  systemd and reading genuine incrementing samples over SSH (dropbear +
+  WiFi via wpa_supplicant/systemd-networkd, real credentials kept
+  entirely outside the repo). Found two environment-scoped gotchas only
+  visible on hardware: `RPI_EXTRA_CONFIG` has to live in the layer's
+  global `conf/layer.conf`, not the image recipe (rpi-bootfiles is a
+  shared recipe unaware of any one image's variable scope); and
+  `core-image-minimal` never pulls in `packagegroup-base`, so WiFi
+  firmware/kernel-modules had to be added explicitly to
+  `IMAGE_INSTALL` even though they'd already been built. See
+  `docs/session-log.md` for the full list of what got debugged. One
+  open gap noted but not fixed: `device-service` crash-loops with an
+  unhelpful bare "stoul" error when the MCU isn't powered at startup -
+  a real device-service (V4-scoped) robustness issue, not a Yocto
+  packaging one.
+- 2026-09-03: V6's stop-loss checkpoint ("if the most basic helloworld
+  image doesn't build within two weeks, pause V6") cleared on the first
+  attempt. Set up `/opt/yocto` with poky + meta-openembedded +
+  meta-raspberrypi on the Scarthgap (5.0 LTS) branch, `MACHINE =
+  "raspberrypi5"`, conservative `BB_NUMBER_THREADS`/`PARALLEL_MAKE` (this
+  VM's resources were bumped first: 5.4GB→14GB RAM, 61GB→193GB free disk,
+  since the Hyper-V VHDX had been resized without the guest's
+  partition/LVM/filesystem catching up). `bitbake core-image-minimal`
+  built clean (3729/3729 tasks, 0 errors). Flashed to a spare SD card and
+  booted on real Pi 5 hardware: reached the `raspberrypi5 login:` prompt,
+  `root` with no password (Yocto's default `debug-tweaks` image feature)
+  logged in successfully. This image is entirely stock - no custom-acq
+  driver, no device-service, no Device Tree overlay, no WiFi/SSH (only
+  `busybox-udhcpc` is installed) - it exists purely to validate the
+  toolchain and meta-raspberrypi recognize the Pi 5. The SD card
+  currently running the existing dev setup (SSH, driver, device-service)
+  was untouched; this used a separate blank card. Next round: plan the
+  four custom recipe categories Plan.md's V6 calls for
+  (`recipes-kernel/custom-acq-driver`, `recipes-apps/device-service`,
+  `recipes-support/configuration`, `recipes-core/images`) - none written
+  yet.

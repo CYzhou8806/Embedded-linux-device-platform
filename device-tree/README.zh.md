@@ -326,3 +326,37 @@ sudo reboot
   `docs/debugging/case-06-spi-controller-stall-under-sustained-load.md`，
   标记为留给 V7（正好是那个阶段该用的工具），V5 这边只做到"测试能检
   测到、优雅报告，不会跟着一起卡死"。
+
+- 2026-09-03（更后段）：V6 第二轮——Plan.md 说的四类自定义 Yocto
+  recipe（`yocto/meta-device-platform/`）全部写完、单独验证过，组装
+  成 `device-platform-image`，写卡到真实 Pi 5、真实 MCU 通电，端到端
+  验证通过：驱动自动加载、`/dev/acq0` 存在、`device-service` 在
+  systemd 下是 `active`，SSH 上去能看到真实递增的样本数据（dropbear
+  + WiFi，走 wpa_supplicant/systemd-networkd，真实密码完全不在仓库
+  里）。踩了两个只有上真机才暴露的坑：`RPI_EXTRA_CONFIG` 必须放在这
+  层的全局 `conf/layer.conf` 里，放镜像 recipe 里完全没用（
+  `rpi-bootfiles` 是独立于任何具体镜像的共享 recipe）；
+  `core-image-minimal` 根本不装 `packagegroup-base`，所以 WiFi 固件/
+  内核模块虽然编译出来了但从没进镜像，得在 `IMAGE_INSTALL` 里手动
+  加。完整排查过程见 `docs/session-log.md`。留了一个没修的已知问题：
+  MCU 没通电时 `device-service` 会疯狂崩溃重启，报错信息只有一个裸
+  的"stoul"看不出所以然——这是 `device-service`（V4 范围）自身的健
+  壮性问题，不是这次 Yocto 打包的问题。
+
+- 2026-09-03：V6 的止损线检查点（"两周内跑不通最基础的 helloworld
+  image 就暂停 V6"）一次通过。`/opt/yocto` 下配好了 poky +
+  meta-openembedded + meta-raspberrypi（Scarthgap 5.0 LTS 分支），
+  `MACHINE = "raspberrypi5"`，`BB_NUMBER_THREADS`/`PARALLEL_MAKE` 保
+  守设置（先把这台 VM 的资源扩了一遍：内存 5.4GB→14GB，磁盘可用
+  61GB→193GB——Hyper-V 那边扩过 VHDX 之后 Linux 这边的分区表/LVM/文件
+  系统没跟着扩，得手动补）。`bitbake core-image-minimal` 编译干净
+  （3729 个任务全过，0 报错）。写进一张空 SD 卡、接实机树莓派 5 开
+  机验证：看到 `raspberrypi5 login:`，`root` 空密码（Yocto 默认
+  `debug-tweaks` 特性）登录成功。这个镜像完全是"素的"——没有
+  `custom_acq` 驱动、没有 `device-service`、没有 Device Tree
+  overlay、没有 WiFi/SSH（只装了 `busybox-udhcpc`），纯粹用来验证工
+  具链和 `meta-raspberrypi` 认得 Pi 5 这一件事。现在树莓派正在用的
+  那张卡（跑着 SSH/驱动/device-service 的那套开发环境）完全没动，这
+  次单独用了一张空卡。下一轮要规划 Plan.md V6 说的四类自定义
+  recipe（内核模块、`device-service`、配置/WiFi/SSH 使能、镜像组
+  装）——目前一个都还没写。
