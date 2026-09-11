@@ -6,6 +6,8 @@ interrupts: firmware, Device Tree, kernel driver, C++ device service,
 Yocto image, and end-to-end performance diagnostics — all verified on
 real hardware, not simulated.
 
+![The physical setup: STM32F103 dev board with a CMSIS-DAP debugger, breadboard GPIO wiring for logic-analyzer markers, and the Raspberry Pi 5 (right, with cooling fan)](docs/images/hardware-setup.jpg)
+
 ```
 ┌────────────────────────────────┐
 │  MCU Acquisition Peripheral    │  STM32F103, bare-metal C
