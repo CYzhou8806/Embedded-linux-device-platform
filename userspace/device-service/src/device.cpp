@@ -93,4 +93,12 @@ uint32_t Device::read_kfifo_overflow() {
 	return std::stoul(read_sysfs("kfifo_overflow"), nullptr, 0);
 }
 
+uint32_t Device::read_sample_rate() {
+	return std::stoul(read_sysfs("sample_rate"), nullptr, 0);
+}
+
+void Device::write_sample_rate(uint32_t hz) {
+	write_sysfs("sample_rate", std::to_string(hz));
+}
+
 } // namespace acq

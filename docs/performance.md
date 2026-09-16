@@ -394,6 +394,333 @@ Given how small and hardware-determined this segment is, a load-blowup
 here would be a surprising and interesting result if it happened, but
 that's untested.
 
+## M0: Overload Behavior
+
+Everything above runs the MCU at its default 1000Hz — comfortably
+inside the pipeline's own capacity, so the buffers never fill and the
+drop logic never triggers. Plan.md's V2/M0 asks a different question:
+push the MCU's actual production rate (not just the driver's
+`inter_frame_us` frame-gap knob, which the "Prerequisite" section above
+already swept) up until something breaks, and find where.
+
+**New capability needed first**: `REG_SAMPLE_RATE` (the MCU protocol
+register that sets its production rate, 1-10000Hz,
+`v1-spi-slave-handshake/v1.3`'s `main.c`) had no sysfs path — the driver
+never exposed it. Added a `sample_rate` `DEVICE_ATTR_RW` to
+`driver/custom-acq/custom_acq.c` (read/writes `REG_SAMPLE_RATE`,
+rejects out-of-firmware-range writes with `-EINVAL` before they reach
+the MCU). This is also the same mechanism M0's backpressure item needs
+(userspace writing this down when it can't keep up) — one addition
+serves both.
+
+**Method**: `device-service` run manually (as in the scheduler matrix
+above), no background load. For each target rate: write `sample_rate`
+via sysfs, run 8-15s, compute delivered rate and sequence-loss
+percentage from the LatencyLogger CSV's `seq` column (gap size summed,
+not gap *count* — an early pass at this data mixed the two up and
+underreported loss by nearly 50x before being caught against the
+`kfifo_overflow` counter, the same mistake noted in `private/session-log.md`'s
+2026-09-07 entry about not diffing cumulative counters — worth
+remembering as a category of mistake, not just a one-off). Latency
+percentiles use the existing IRQ-to-userspace metric, but only where
+loss stays under ~1% — past that point the metric degenerates the same
+way `docs/debugging/case-07-*.md` found on the RT-comparison card (the
+MCU's hardware FIFO stops emptying, so nearly all samples in a run share
+one stale `irq_ts_ns`), so those points are reported as loss-only, not
+plotted as latency.
+
+![Delivered throughput and sequence loss vs. requested MCU sample rate (top), latency percentiles in the clean regime only (bottom)](../results/overload/overload_curve.png)
+
+| Requested rate (Hz) | Delivered rate (/s) | Sequence loss | Median latency (us) | p99.9 latency (us) |
+|---|---|---|---|---|
+| 1000 (default) | 1000.1 | 0.00% | 973.4 | 977.0 |
+| 1050 | 1111.2 | 0.00% | 1028.6 | 1868.9 |
+| 1100 | 1111.2 | 0.00% | 1024.1 | 1868.7 |
+| 1200 | 1250.2 | 0.00% | 1726.2 | 2516.0 |
+| 1220 | 1262.6 | 0.00% | 1722.1 | 2515.3 |
+| 1250 | 1250.0 | 0.00% | 1719.8 | 2514.8 |
+| 1270 | 627.7 | 53.71% | (metric invalid, see above) | — |
+| 1300-5000 | ~641-656 | ~53-54% | (metric invalid) | — |
+| ≥~5100 (state-dependent, see below) | 0 | 100% (watchdog stall) | — | — |
+
+**Finding: this is a cliff, not a curve.** Between a requested 1250Hz
+(still 0% loss, 1250/s delivered) and 1270Hz (53.7% loss, throughput
+collapsed to ~628/s), there is no gradual transition — every 10-20Hz
+step in between was tested and lands cleanly on one side or the other.
+The *leading indicator* is visible before the cliff, though: median
+latency climbs steadily through the clean zone as the requested rate
+approaches it (973 → 1024-1029 → ~1720-1726us at 1000 → 1050-1100 →
+1200-1250Hz) even while loss stays at exactly 0% — the pipeline is
+visibly straining before it actually drops anything, which is the kind
+of leading indicator a real backpressure controller (M0's next item)
+would want to watch rather than waiting for loss to appear.
+
+Past the cliff, throughput clamps at ~641-656 samples/sec regardless of
+how much higher the requested rate goes (1300 through 5000Hz all landed
+in the same narrow band) — this is the same intrinsic per-transaction
+SPI throughput ceiling `docs/debugging/case-07-*.md` found on the
+RT-comparison card, now confirmed to be a property of the driver/MCU
+protocol itself rather than something specific to that card's OS: it
+shows up here on the clean, minimal Yocto image too, once the MCU is
+actually pushed past what the drain loop can sustain.
+
+**A second, less clean-cut breakdown above ~5000Hz**: requesting
+5000Hz still delivered the clamped ~642/s with ~53% loss (same regime
+as 1300-5000), but requesting 5500Hz and above (and, on a later sweep,
+even 5100-5400Hz) produced a near-total communication breakdown instead
+— a handful of samples (or none) followed by the watchdog's "no sample
+received" timeout. Unlike the sharp, repeatable 1250→1270Hz cliff, this
+second boundary did **not** land on a fixed number across repeated
+sweeps: 5000Hz stayed in the clamped-with-loss regime on one pass but a
+later pass saw 5100Hz already collapse to total stall. Every stall
+recovered cleanly on the next run at a lower rate (`fifo_level` back to
+0, no persistent wedge, no `dmesg` errors, no `rmmod` hang) — so this
+isn't `docs/debugging/case-06-*.md`'s Symptom 1 (`D`-state hang)
+recurring, it's a different failure mode specific to extreme
+overload, and its exact threshold looks state/history-dependent rather
+than a fixed number. Not root-caused further — plausibly the MCU
+firmware's own timer ISR (STM32F103, not a fast core) falling behind
+its own FIFO bookkeeping at these rates, but that's a hypothesis, not
+confirmed.
+
+**Repeat, 2026-09-16**: the cliff itself (not the second, less-defined
+boundary above) is the load-bearing claim in this section, so it's what
+got the repeated-measurement treatment M1's scheduler matrix already
+showed single runs can't be trusted for. Reran 1250Hz and 1270Hz — the
+two points straddling the cliff — three independent times each
+(`results/overload/repeat-20260916/`):
+
+| Run | 1250Hz loss | 1270Hz loss |
+|---|---|---|
+| 1 | 0.00% | 53.65% |
+| 2 | 0.00% | 53.64% |
+| 3 | 0.00% | 53.72% |
+
+Fully reproducible, tight variance (53.64-53.72% is a 0.08-point spread)
+— this cliff is a real, stable property of the pipeline, not a
+single-run artifact.
+
+## M0: Drop-Policy Comparison
+
+Three ways to behave once the kfifo can't keep up, added as a
+`drop_policy` module param on `driver/custom-acq/custom_acq.c`
+(`newest`/`oldest`/`downsample`, `oldest`/`downsample`'s drops counted
+separately in a new `policy_dropped` sysfs attribute so `kfifo_overflow`
+keeps meaning exactly what it always meant for the `newest` default):
+
+- **`newest`** (default, unchanged): `kfifo_put()` fails when full,
+  the incoming sample is rejected, everything already queued stays.
+- **`oldest`**: when full, evict the queue's oldest entry first, then
+  the put always succeeds — keeps the most recent data, discards
+  buffered history the consumer hasn't read yet.
+- **`downsample`**: deterministically keep 1 in `downsample_n` drained
+  samples, discarding the rest *before* the kfifo is even touched,
+  regardless of whether it's full.
+
+**A real bug found along the way, worth recording as its own lesson**:
+the first working version of this compared identically across all three
+policies — because `echo oldest > .../drop_policy` sends a trailing
+`\n` that `param_set_charp()` preserves verbatim, so a plain
+`strcmp(drop_policy, "oldest")` never matched and every write silently
+fell through to the `newest` default. Comparing kfifo_overflow deltas
+before/after confirmed it (`oldest` produced the exact same drop count
+as `newest`, statistically impossible if eviction were actually firing).
+Fixed with `sysfs_streq()` — the kernel's own helper for exactly this
+mismatch, tolerant of one trailing newline. Two mistakes caught in this
+same M0 pass now (the seq-gap-count-vs-gap-size miscalculation above,
+and this one) share a theme: **a plausible-looking number that isn't
+cross-checked against an independent signal (here, the raw counter
+delta) is where these bugs hide.**
+
+**Method**: forced into the already-characterized collapsed regime
+(2000Hz requested, comfortably past the ~1250-1270Hz cliff), each policy
+run for 12s, `kfifo_overflow`/`policy_dropped` read immediately before
+and after each run (not trusted as an absolute reading — cumulative
+counters, same pitfall as `private/session-log.md`'s 2026-09-07 entry).
+
+| Policy | Delivered rate | Sequence loss | `kfifo_overflow` Δ | `policy_dropped` Δ |
+|---|---|---|---|---|
+| `newest` | 641.8/s | 53.63% | 8900 | 0 |
+| `oldest` | 642.1/s | 53.13% | 0 | 8897 |
+| `downsample` (n=2) | 640.3/s | 53.33% | 615 | 8311 |
+
+**Finding 1 — `newest` vs. `oldest`: same aggregate loss, by
+construction different data survives.** The counters confirm the
+mechanism switched cleanly (100% of `newest`'s drops move to
+`policy_dropped` under `oldest`), but total loss is statistically
+indistinguishable (53.13% vs 53.63%) — expected, since both are reacting
+to the exact same upstream congestion severity, just evicting from
+opposite ends of the same queue. The real difference isn't visible in
+an aggregate percentage: `oldest` guarantees the consumer always gets
+the *freshest* available sample once caught up (recent data always
+wins), `newest` guarantees it always gets a *complete, ordered* run of
+whatever made it in the door first (no reordering-by-eviction, but
+that data can be arbitrarily stale by the time the buffer drains). Which
+one matters depends on the consumer: a live dashboard wants `oldest`
+(freshness), a strict-ordering logger wants `newest`.
+
+**Finding 2 — `downsample` doesn't help here, and the reason is
+architectural, not a bug.** Naively, keeping 1-in-2 samples at a
+2000Hz request should offer the kfifo only ~1000Hz — inside the
+~1250Hz clean capacity found in the overload sweep above, so loss
+should drop close to zero. It didn't (53.33%, same as the other two).
+The `policy_dropped`/`kfifo_overflow` split shows why: this
+implementation decimates *after* `custom_acq_read_sample()` has already
+paid the two-frame SPI cost for every drained item — the exact
+intrinsic per-transaction pacing `docs/debugging/case-07-*.md`
+identified as the real bottleneck. Skipping the `kfifo_put()` for a
+discarded sample doesn't refund that cost. Worse, it can't be
+restructured to skip the read either: reading `REG_DATA_VAL` is what
+pops the MCU's own hardware FIFO (`docs/notes/v1.3-code-walkthrough.zh.md`),
+so *some* read has to happen per produced sample regardless of whether
+the driver keeps the result — there's no "skip N" in this protocol.
+Downsampling at the driver layer, in other words, can smooth *kfifo*
+pressure but structurally cannot relieve *SPI* pressure, which is the
+layer that's actually saturated once past the cliff. A downsample that
+mattered here would have to live upstream of the SPI cost entirely —
+i.e., writing a lower `REG_SAMPLE_RATE` to the MCU itself, which is
+exactly M0's next (and last) item, backpressure.
+
+**Repeat, 2026-09-16**: each policy rerun two more independent times at
+the same forced 2000Hz overload (`results/overload/repeat-20260916/`):
+
+| Policy | Run 1 | Run 2 | Run 3 |
+|---|---|---|---|
+| `newest` | 53.63% | 53.61% | 53.64% |
+| `oldest` | 53.13% | 53.12% | 53.12% |
+| `downsample` | 53.33% | 53.23% | 53.24% |
+
+All three policies land in a tight, stable band across repeats (spreads
+of 0.03-0.10 points) — the "newest and oldest are statistically
+indistinguishable in aggregate" finding above is a repeatable property,
+not a coincidence that a second run would have overturned.
+
+## M0: Backpressure
+
+The drop-policy section above showed no in-kernel policy can substitute
+for actually telling the MCU to slow down once the pipeline's real
+ceiling (the ~1250-1270Hz cliff) is passed — this closes that loop.
+Added `BackpressureController` (`userspace/device-service/src/
+backpressure_controller.cpp`), its own thread polling
+`Device::read_kfifo_overflow()` every `backpressure_check_interval_ms`:
+any movement halves `REG_SAMPLE_RATE` (via the `sample_rate` sysfs path
+from the overload-sweep section, floored at `backpressure_min_hz`); a
+clean window steps it back up by `backpressure_recovery_step_hz` toward
+`backpressure_target_hz`. Off by default (`backpressure_enabled`), so
+existing deployments are unaffected. The rate-adjustment arithmetic is
+factored into a pure `next_backpressure_rate()` function with its own
+unit tests (`tests/test_backpressure_controller.cpp`) — the only part of
+this that's meaningfully testable without real hardware.
+
+**This is a reactive signal, explicitly not the better one already
+found.** The overload sweep above found latency climbing steadily
+*before* any loss starts (973 → 1720us, still 0% loss, right up to the
+cliff) — that would be a predictive trigger. `kfifo_overflow` only moves
+once loss has already begun. Used it anyway because it's already
+observable via existing sysfs with no new `AcquisitionWorker`/
+`LatencyLogger` plumbing required; wiring in the latency-climb signal
+instead is a real, identified improvement, not done here.
+
+**Verified on real hardware**: `sample_rate` set to 3000Hz externally
+(deep overload) before launching `device-service` with
+`backpressure_enabled=true` (defaults: 500ms check interval, halve on
+overflow, floor 200Hz, +100Hz/window recovery, target 1000Hz):
+
+```
+13:03:39  device online, acquisition starts at the forced 3000Hz
+13:03:40  backing MCU off 3000 -> 1500 Hz   (kfifo_overflow moved)
+13:03:41  backing MCU off 1500 -> 750 Hz    (kfifo_overflow moved)
+13:03:41  backing MCU off  750 -> 375 Hz    (kfifo_overflow moved)
+13:03:42  ramping MCU back up  375 -> 475 Hz  (clean window)
+   ...    (six more +100Hz clean-window steps)
+13:03:45  ramping MCU back up  975 -> 1000 Hz (clean window, hits target)
+13:03:45-13:03:57  rate holds at 1000.0/s, kfifo_overflow flat at 10637,
+                    gap_count flat at 8 (all from the initial forced
+                    overload, before backpressure engaged - zero new
+                    gaps for the remaining 12+ seconds)
+```
+
+Three back-off steps (3000→1500→750→375Hz) took the whole 1.5s to find a
+loss-free floor; eight recovery steps (375→1000Hz) took ~3s more to
+climb back to a fully clean, stable 1000/s — after which the link ran
+loss-free for the rest of the observed window. **The link genuinely
+responds**: not just a log message claiming a rate change, but a
+real, sustained recovery to zero ongoing loss confirmed by the same
+`kfifo_overflow`/`gap_count` counters this whole M0 section has been
+built on.
+
+**Repeat, 2026-09-16**: the 3000Hz-forced-overload recovery reran two
+more independent times. Both reproduced the exact same step sequence as
+the original run, timing and all: 3000→1500→750→375Hz on overflow (3
+steps, ~1.5s), then 375→475→...→1000Hz on eight consecutive clean
+windows (~4s) to a fully stable target. Since `next_backpressure_rate()`
+is a deterministic pure function and the underlying congestion threshold
+is itself stable (see this section's other two "Repeat" notes above),
+an identical trajectory on every rerun is the expected result, not a
+coincidence - included here mainly to confirm nothing environmental
+(scheduling jitter, a flaky read) perturbs it in practice.
+
+M0 is now complete: overload sweep (the cliff and its leading
+indicator), drop-policy comparison (`newest`/`oldest`/`downsample`, and
+why downsampling can't help at this layer), and backpressure (closing
+the loop by controlling the actual production rate) all build on each
+other and on the same `sample_rate` sysfs path added at the start of
+this section.
+
+## M3: Clock Drift (MCU Timer vs. Pi System Clock)
+
+Plan.md §12.4 M3 asks for data-source timestamps aligned to the Linux
+system clock, with drift measured and compensated. The full version
+needs an FPGA counter as a second source (M2), not available yet, but
+the MCU-vs-Pi half doesn't need new hardware or an MCU firmware change:
+the protocol has no MCU-originated timestamp field, but a fixed,
+precisely-known `REG_SAMPLE_RATE` (the overload-sweep and drop-policy
+sections above already established this is exactly controllable) makes
+the MCU's own timer a usable second clock on its own — samples arrive
+at a known nominal spacing (1/rate seconds), so comparing that nominal
+spacing against what the Pi's clock actually measures reveals the
+frequency mismatch between the two crystals, the same principle a
+frequency counter uses.
+
+**Method**: 1000Hz (comfortably inside the ~1250Hz clean ceiling found
+above — this needs a genuinely fresh `irq_ts_ns` per sample, which only
+holds in the clean regime; the collapsed regime's one-IRQ-per-run
+behavior from `docs/debugging/case-07-*.md` would make this
+meaningless), 300s sustained capture (`results/clock-drift/
+1000hz_300s.csv`, 295,015 samples after trimming the first 5s), every
+sample carrying its own distinct `irq_ts_ns` (confirmed: 295,015
+distinct values for 295,015 samples — real per-sample resolution, not
+one shared batch timestamp). Ordinary least-squares fit of `irq_ts_ns`
+against `seq` gives the *actual* measured inter-sample spacing; the gap
+between that and the nominal `1e9/1000` ns is the drift.
+
+![Top: cumulative timing error assuming exactly 1000Hz forever, grows linearly to ~19ms over 5 minutes. Bottom: the same error after fitting the measured rate instead of the nominal one, bounded to roughly ±5us (one outlier to -17us)](../results/clock-drift/drift_correction.png)
+
+**Result: -64.42 ppm drift** between the MCU's timer and the Pi's
+`steady_clock` — small, well within typical low-cost crystal tolerance
+(±20-100ppm is normal), but not zero, and **not negligible if
+uncompensated over time**: assuming the MCU produces at exactly the
+requested nominal rate forever accumulates ~19ms of error over this
+5-minute run alone — that error is unbounded and keeps growing for as
+long as the run continues, not a one-time constant to shrug off.
+Fitting the actual measured rate instead (rather than trusting the
+nominal one) collapses the residual to a few microseconds, bounded, no
+trend — a real, demonstrated compensation, not just a measurement.
+
+**Not fully explained**: the compensated-error plot's bottom panel
+shows a slow, wavy oscillation (peaks/troughs a few seconds apart) on
+top of the per-sample jitter, rather than pure flat noise. Plausibly
+thermal drift in the MCU's internal oscillator (STM32F103's HSI is not
+temperature-compensated) over the 5-minute run, but that's a guess from
+one run, not confirmed — would need a repeat under a controlled
+temperature or a much longer capture to see whether the same wave
+period recurs.
+
+**What this doesn't cover yet**: this is one clock pair (MCU vs. Pi),
+one direction. M2's FPGA counter as a third, independent clock source
+(and, per Plan.md, optionally PTP between two Linux boxes) is still
+pending M2 itself — this section only closes the non-FPGA half of M3.
+
 ## Scope
 
 Measured on the stock Yocto/Poky kernel built in V6 (no PREEMPT_RT
@@ -403,4 +730,13 @@ userspace), throughput under sustained load, and the effect of
 config independently repeated 3x to separate a config's real effect
 from single-run noise (see the "Repeat" sections above — this is what
 overturned the original single-run ranking and the original headline
-claim about `SCHED_FIFO` and load).
+claim about `SCHED_FIFO` and load). **M0's three sections above add a
+different axis** (MCU production rate, not scheduling): each section's
+central, load-bearing claim (the cliff's exact location, the three drop
+policies' aggregate loss rates, the backpressure recovery trajectory)
+has since been repeated 3x too (each section's own "Repeat,
+2026-09-16" note) and held up - unlike the scheduler matrix, nothing
+here got overturned on repeat. The *full* 17-point overload sweep and
+every individual data point in it is still single-pass, though; only
+the specific claims called out as repeated should be read as
+repeat-confirmed.

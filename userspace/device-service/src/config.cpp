@@ -28,6 +28,12 @@ Config Config::load(const std::string& path) {
 	cfg.lock_memory = j.value("lock_memory", cfg.lock_memory);
 	cfg.sched_fifo_priority = j.value("sched_fifo_priority", cfg.sched_fifo_priority);
 	cfg.cpu_affinity_core = j.value("cpu_affinity_core", cfg.cpu_affinity_core);
+	cfg.backpressure_enabled = j.value("backpressure_enabled", cfg.backpressure_enabled);
+	cfg.backpressure_check_interval_ms = j.value("backpressure_check_interval_ms", cfg.backpressure_check_interval_ms);
+	cfg.backpressure_min_hz = j.value("backpressure_min_hz", cfg.backpressure_min_hz);
+	cfg.backpressure_target_hz = j.value("backpressure_target_hz", cfg.backpressure_target_hz);
+	cfg.backpressure_backoff_divisor = j.value("backpressure_backoff_divisor", cfg.backpressure_backoff_divisor);
+	cfg.backpressure_recovery_step_hz = j.value("backpressure_recovery_step_hz", cfg.backpressure_recovery_step_hz);
 
 	return cfg;
 }

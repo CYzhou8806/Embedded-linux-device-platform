@@ -29,6 +29,18 @@ and Phase 2 (everything else).
    retrying blindly.
 7. On `SIGINT`/`SIGTERM`: stops acquisition, drains/joins the worker,
    metrics, and watchdog threads, and prints a final shutdown report.
+8. `BackpressureController` (Plan.md V2/M0, off by default —
+   `backpressure_enabled`): its own thread polls `kfifo_overflow`; any
+   movement backs `REG_SAMPLE_RATE` off (halved by default,
+   `backpressure_backoff_divisor`, floored at `backpressure_min_hz`), a
+   clean window steps it back up (`backpressure_recovery_step_hz`)
+   toward `backpressure_target_hz`. Verified on real hardware recovering
+   a deliberately-forced 3000Hz overload back to a stable, loss-free
+   1000Hz in ~6 seconds — see `docs/performance.md`'s "M0: Backpressure"
+   section. Reacts to congestion that's already started (via
+   `kfifo_overflow`), not the earlier-warning latency climb the overload
+   sweep in that same doc found — a real, documented limitation, not an
+   oversight.
 
 ## Build
 

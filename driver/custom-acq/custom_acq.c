@@ -28,10 +28,12 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/wait.h>
+#include <linux/sysfs.h>
 
 #define REG_DEVICE_ID	0x00
 #define REG_FW_VERSION	0x01
 #define REG_CONTROL	0x03
+#define REG_SAMPLE_RATE	0x04
 #define REG_FIFO_LEVEL	0x05
 #define REG_DATA_SEQ	0x06
 #define REG_DATA_VAL	0x07
@@ -64,6 +66,64 @@ static unsigned int inter_frame_us = 100;
 module_param(inter_frame_us, uint, 0644);
 MODULE_PARM_DESC(inter_frame_us,
 		  "Gap (us) between the address and NOP frames of a register op");
+
+/* Plan.md V2/M0: three ways to behave once the in-kernel kfifo can't keep
+ * up with the MCU's production rate (docs/performance.md's "M0: Overload
+ * Behavior" section has the real numbers this compares against):
+ *
+ * - "newest" (default, unchanged behavior): reject the incoming sample
+ *   when the kfifo is full - kfifo_put() fails, priv->kfifo_overflow
+ *   counts it. Keeps everything already queued; the newest data is what
+ *   gets dropped. This is plain kfifo semantics, nothing added.
+ * - "oldest": pop and discard the queue's oldest entry to make room,
+ *   then always succeed the put. Keeps the most recent data at the cost
+ *   of silently rewriting history a consumer may not have read yet.
+ * - "downsample": deterministically keep 1 in every downsample_n drained
+ *   samples and discard the rest *before* ever touching the kfifo,
+ *   regardless of whether it's actually full. Unlike the other two
+ *   (reactive, only kick in once the buffer is already under pressure),
+ *   this proactively reduces the offered rate - trades guaranteed,
+ *   evenly-spaced gaps for (hopefully) avoiding the reactive policies'
+ *   bursty loss entirely.
+ *
+ * "newest"/"oldest" drops are counted in priv->kfifo_overflow (same
+ * counter, same sysfs attribute, so anything already reading it for the
+ * "newest" default keeps working); "downsample" drops go to the separate
+ * priv->policy_dropped/policy_dropped sysfs attribute since they're a
+ * deliberate design choice, not congestion.
+ */
+static char *drop_policy = "newest";
+module_param(drop_policy, charp, 0644);
+MODULE_PARM_DESC(drop_policy,
+		  "kfifo-full policy: newest (reject new, default) | oldest (evict old) | downsample (keep 1 in downsample_n)");
+
+static unsigned int downsample_n = 2;
+module_param(downsample_n, uint, 0644);
+MODULE_PARM_DESC(downsample_n,
+		  "drop_policy=downsample only: keep 1 sample out of every N drained");
+
+enum custom_acq_drop_policy {
+	DROP_POLICY_NEWEST = 0,
+	DROP_POLICY_OLDEST,
+	DROP_POLICY_DOWNSAMPLE,
+};
+
+static enum custom_acq_drop_policy custom_acq_get_drop_policy(void)
+{
+	/* sysfs_streq(), not strcmp(): a sysfs store (e.g. `echo oldest >
+	 * .../drop_policy`) hands param_set_charp() the raw write buffer
+	 * including its trailing '\n', which kstrdup() then preserves
+	 * verbatim in drop_policy - a plain strcmp() against "oldest"
+	 * (no newline) would never match. sysfs_streq() is the kernel's
+	 * standard helper for exactly this: equal ignoring one trailing
+	 * newline on either side.
+	 */
+	if (sysfs_streq(drop_policy, "oldest"))
+		return DROP_POLICY_OLDEST;
+	if (sysfs_streq(drop_policy, "downsample"))
+		return DROP_POLICY_DOWNSAMPLE;
+	return DROP_POLICY_NEWEST;
+}
 
 /* Must be a power of 2 (kfifo requirement). One IRQ can drain many MCU
  * FIFO entries at once (see custom_acq_irq_thread), so this needs enough
@@ -114,6 +174,16 @@ struct custom_acq {
 	DECLARE_KFIFO(samples, struct custom_acq_sample, SAMPLE_KFIFO_SIZE);
 	struct mutex fifo_lock;
 	u32 kfifo_overflow;
+
+	/* drop_policy=downsample only: samples deliberately discarded before
+	 * ever reaching the kfifo (not a kfifo_overflow - see drop_policy's
+	 * comment above), and the running counter used to decide which 1-in-N
+	 * sample to keep. Both only ever touched from custom_acq_irq_thread(),
+	 * which never runs concurrently with itself for one priv, so no lock
+	 * needed.
+	 */
+	u32 policy_dropped;
+	u32 downsample_counter;
 	wait_queue_head_t data_wq;	/* woken whenever the IRQ thread adds samples */
 	struct miscdevice miscdev;	/* registers /dev/acq0 */
 
@@ -239,6 +309,50 @@ static ssize_t control_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_WO(control);
 
+/* REG_SAMPLE_RATE (Hz), MCU-firmware-validated range 1-10000
+ * (v1-spi-slave-handshake/v1.3's main.c - out-of-range values are
+ * rejected on the MCU side via ST_RANGE_ERR, not applied - checked here
+ * too so a bad write fails loudly instead of silently no-op'ing).
+ * Takes effect immediately if acquisition is already running (MCU
+ * re-programs its sample timer live), matching Plan.md V2/M0's
+ * backpressure design: userspace writes this down when it can't keep up,
+ * no stop/restart required.
+ */
+static ssize_t sample_rate_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	u32 val;
+	int ret;
+
+	ret = custom_acq_reg_read(spi, REG_SAMPLE_RATE, &val);
+	if (ret)
+		return ret;
+
+	return sysfs_emit(buf, "%u\n", val);
+}
+
+static ssize_t sample_rate_store(struct device *dev, struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	u32 val;
+	int ret;
+
+	ret = kstrtou32(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val < 1 || val > 10000)
+		return -EINVAL;
+
+	ret = custom_acq_reg_write(spi, REG_SAMPLE_RATE, val);
+	if (ret)
+		return ret;
+
+	return count;
+}
+static DEVICE_ATTR_RW(sample_rate);
+
 static ssize_t fifo_level_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct spi_device *spi = to_spi_device(dev);
@@ -287,6 +401,20 @@ static ssize_t kfifo_overflow_show(struct device *dev, struct device_attribute *
 	return sysfs_emit(buf, "%u\n", priv->kfifo_overflow);
 }
 static DEVICE_ATTR_RO(kfifo_overflow);
+
+/* Counts drops from drop_policy=oldest (evicted to make room) and
+ * drop_policy=downsample (deliberately skipped) - see that module
+ * param's comment. Stays 0 under the default "newest" policy, which
+ * keeps counting its drops in kfifo_overflow instead, unchanged from
+ * before this existed.
+ */
+static ssize_t policy_dropped_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct custom_acq *priv = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%u\n", priv->policy_dropped);
+}
+static DEVICE_ATTR_RO(policy_dropped);
 
 static ssize_t device_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -357,10 +485,12 @@ static struct attribute *custom_acq_attrs[] = {
 	&dev_attr_device_id.attr,
 	&dev_attr_fw_version.attr,
 	&dev_attr_control.attr,
+	&dev_attr_sample_rate.attr,
 	&dev_attr_fifo_level.attr,
 	&dev_attr_data_val.attr,
 	&dev_attr_kfifo_level.attr,
 	&dev_attr_kfifo_overflow.attr,
+	&dev_attr_policy_dropped.attr,
 	&dev_attr_spi_rearm_fail.attr,
 	&dev_attr_spi_error_count.attr,
 	NULL,
@@ -447,7 +577,22 @@ static irqreturn_t custom_acq_irq_thread(int irq, void *data)
 		}
 		s.irq_ts_ns = priv->irq_ts_ns;
 
+		if (custom_acq_get_drop_policy() == DROP_POLICY_DOWNSAMPLE) {
+			priv->downsample_counter++;
+			if (priv->downsample_counter % downsample_n != 0) {
+				priv->policy_dropped++;
+				drained++;
+				continue;
+			}
+		}
+
 		mutex_lock(&priv->fifo_lock);
+		if (custom_acq_get_drop_policy() == DROP_POLICY_OLDEST && kfifo_is_full(&priv->samples)) {
+			struct custom_acq_sample discard;
+
+			kfifo_get(&priv->samples, &discard);
+			priv->policy_dropped++;
+		}
 		if (!kfifo_put(&priv->samples, s))
 			priv->kfifo_overflow++;
 		mutex_unlock(&priv->fifo_lock);
