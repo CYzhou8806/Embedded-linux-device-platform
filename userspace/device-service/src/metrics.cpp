@@ -1,5 +1,7 @@
 #include "metrics.hpp"
 
+#include <chrono>
+
 #include <spdlog/spdlog.h>
 
 namespace acq {
@@ -41,9 +43,16 @@ void MetricsReporter::report_once() {
 		spdlog::warn("metrics: failed to read kfifo_overflow: {}", e.what());
 	}
 
+	// sample_age is the pipeline's leading congestion indicator (see
+	// AcquisitionWorker::sample_age()) and, since 2026-09-20, what
+	// BackpressureController's Warning level triggers on. Reporting it
+	// here so the number a threshold gets set against is one somebody can
+	// actually watch first, rather than a quantity only the controller sees.
+	const auto age_us =
+		std::chrono::duration_cast<std::chrono::microseconds>(worker_.sample_age_ewma()).count();
 	spdlog::info(
-		"metrics: rate={:.1f}/s samples_read={} gap_count={} buffer={} kfifo_overflow={}",
-		rate, samples, worker_.gap_count(), buffer_.size(), kfifo_overflow);
+		"metrics: rate={:.1f}/s samples_read={} gap_count={} buffer={} kfifo_overflow={} sample_age={}us",
+		rate, samples, worker_.gap_count(), buffer_.size(), kfifo_overflow, age_us);
 }
 
 void MetricsReporter::run() {

@@ -27,10 +27,32 @@ add_executable(device-service
 	src/metrics.cpp
 	src/watchdog.cpp
 	src/backpressure_controller.cpp
+	src/sample_publisher.cpp
 )
 
-target_include_directories(device-service PRIVATE include ${SYSTEMD_INCLUDE_DIRS})
-target_link_libraries(device-service PRIVATE Threads::Threads nlohmann_json::nlohmann_json spdlog::spdlog ${SYSTEMD_LIBRARIES})
+# devbus (userspace/devbus) carries the shared-memory pub/sub this service
+# publishes acq/samples on. Two ways to find it, in this order:
+#   1. installed (Yocto: the devbus recipe puts headers and libdevbus.a in
+#      the sysroot, and device-service's recipe DEPENDS on it);
+#   2. the sibling source tree, for a development-host build where nothing
+#      has been installed.
+find_path(DEVBUS_INCLUDE_DIR devbus/devbus.hpp)
+find_library(DEVBUS_LIBRARY devbus)
+if(DEVBUS_INCLUDE_DIR AND DEVBUS_LIBRARY)
+	message(STATUS "devbus: using installed ${DEVBUS_LIBRARY}")
+	set(DEVBUS_TARGET ${DEVBUS_LIBRARY})
+elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../devbus/CMakeLists.txt)
+	message(STATUS "devbus: building the sibling source tree")
+	set(BUILD_TESTING OFF CACHE BOOL "" FORCE) # devbus's own tests need GTest; not our concern here
+	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../devbus ${CMAKE_BINARY_DIR}/devbus EXCLUDE_FROM_ALL)
+	set(DEVBUS_TARGET devbus)
+	set(DEVBUS_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../devbus/include)
+else()
+	message(FATAL_ERROR "devbus not found: install it, or keep userspace/devbus next to this directory")
+endif()
+
+target_include_directories(device-service PRIVATE include ${SYSTEMD_INCLUDE_DIRS} ${DEVBUS_INCLUDE_DIR})
+target_link_libraries(device-service PRIVATE Threads::Threads nlohmann_json::nlohmann_json spdlog::spdlog ${SYSTEMD_LIBRARIES} ${DEVBUS_TARGET})
 target_compile_options(device-service PRIVATE -Wall -Wextra)
 
 # Matches README.md's manual install convention (/opt/device-service/) and

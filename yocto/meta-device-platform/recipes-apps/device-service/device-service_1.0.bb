@@ -5,7 +5,7 @@ root) built and packaged from source unmodified - not copied into this \
 layer."
 LICENSE = "CLOSED"
 
-DEPENDS = "nlohmann-json spdlog systemd"
+DEPENDS = "nlohmann-json spdlog systemd devbus"
 
 inherit cmake pkgconfig systemd
 

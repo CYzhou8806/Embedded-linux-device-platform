@@ -34,6 +34,12 @@ Config Config::load(const std::string& path) {
 	cfg.backpressure_target_hz = j.value("backpressure_target_hz", cfg.backpressure_target_hz);
 	cfg.backpressure_backoff_divisor = j.value("backpressure_backoff_divisor", cfg.backpressure_backoff_divisor);
 	cfg.backpressure_recovery_step_hz = j.value("backpressure_recovery_step_hz", cfg.backpressure_recovery_step_hz);
+	cfg.backpressure_max_sample_age_us = j.value("backpressure_max_sample_age_us", cfg.backpressure_max_sample_age_us);
+	cfg.backpressure_max_devbus_pressure =
+		j.value("backpressure_max_devbus_pressure", cfg.backpressure_max_devbus_pressure);
+	cfg.devbus_service = j.value("devbus_service", cfg.devbus_service);
+	cfg.devbus_max_subscribers = j.value("devbus_max_subscribers", cfg.devbus_max_subscribers);
+	cfg.devbus_queue_capacity = j.value("devbus_queue_capacity", cfg.devbus_queue_capacity);
 
 	return cfg;
 }

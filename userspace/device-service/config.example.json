@@ -14,5 +14,10 @@
   "backpressure_min_hz": 200,
   "backpressure_target_hz": 1000,
   "backpressure_backoff_divisor": 2,
-  "backpressure_recovery_step_hz": 100
+  "backpressure_recovery_step_hz": 100,
+  "backpressure_max_sample_age_us": 0,
+  "backpressure_max_devbus_pressure": 0.0,
+  "devbus_service": "",
+  "devbus_max_subscribers": 4,
+  "devbus_queue_capacity": 16
 }

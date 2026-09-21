@@ -37,10 +37,42 @@ and Phase 2 (everything else).
    toward `backpressure_target_hz`. Verified on real hardware recovering
    a deliberately-forced 3000Hz overload back to a stable, loss-free
    1000Hz in ~6 seconds — see `docs/performance.md`'s "M0: Backpressure"
-   section. Reacts to congestion that's already started (via
-   `kfifo_overflow`), not the earlier-warning latency climb the overload
-   sweep in that same doc found — a real, documented limitation, not an
-   oversight.
+   section.
+9. **The leading signal** (added 2026-09-20). `kfifo_overflow` only moves
+   once data is already gone. Two signals move while the pipeline is
+   merely straining, and either one now produces a `Congestion::Warning`:
+   one gentle step down instead of a halving, and no ramping up.
+   - `backpressure_max_sample_age_us` — how old a sample already is when
+     userspace reads it (`now - irq_ts_ns`), i.e. how long it waited in
+     the driver's kfifo. This is the driver/SPI side falling behind.
+   - `backpressure_max_devbus_pressure` — the deepest devbus subscriber
+     queue as a fraction of its capacity. This is a *consumer* falling
+     behind instead.
+
+   Both are off by default (`0`). Sample age is reported on the metrics
+   line, so a threshold can be set against a number that has been watched
+   first. It is an EWMA, not the last reading and not a window peak —
+   both of those were tried on hardware and were wrong in opposite
+   directions; see the comment on `AcquisitionWorker::sample_age_ewma()`.
+
+   **Verified on hardware (2026-09-20)**: MCU started at 1250 Hz, 10 Hz
+   below the cliff, threshold 1300 µs. The controller eased it to 1150
+   then 1050 Hz and settled between those two, sustaining 1180 samples/s
+   for 25 s with `kfifo_overflow` and `policy_dropped` both moving by
+   exactly 0 — the lagging signal never fired because the leading one had
+   already acted. `results/backpressure/leading-signal-20260920/`.
+10. **devbus publishing** (`devbus_service`, empty by default). Only one
+   process can hold `/dev/acq0`, so anything else that wants the stream
+   would need this service to hand it over. Set `devbus_service` to e.g.
+   `acq/samples` and every sample is republished on devbus shared memory,
+   zero-copy from there on, with each consumer choosing its own overflow
+   policy. `devbus-ls` shows the service; `userspace/devbus/examples/
+   sample_subscriber.cpp` is a consumer to copy.
+
+   Note that `acq-bridge` (in devbus's examples) does the same job as a
+   separate process, reading `/dev/acq0` itself. Use that when you do not
+   want the full service; use this when device-service is already running
+   and should be the one owner of the device.
 
 ## Build
 
@@ -50,6 +82,11 @@ bash build.sh [Debug|Release]
 
 Requires g++ (C++20), cmake, and (installed via apt on the Pi):
 `libspdlog-dev`, `nlohmann-json3-dev`, `libgtest-dev`, `libsystemd-dev`.
+
+It also links `devbus` (`userspace/devbus/`). CMake takes it from the
+sysroot if it is installed there (which is what the Yocto recipes do,
+`device-service` DEPENDS on `devbus`), and otherwise builds the sibling
+source tree directly — so a plain checkout builds with no extra step.
 
 Unit tests build alongside the service (`BUILD_TESTING` CMake option,
 default `ON`) and run via `ctest` from the build directory:
@@ -91,6 +128,25 @@ own tick) rather than cleanly exiting, systemd kills and restarts it
 `restart` all clean, `journalctl` shows the spdlog output, status goes
 `active (running)` only after the startup liveness check succeeds and
 `sd_notify(READY=1)` fires.
+
+## Platform differences
+
+One source tree, two targets — see [`platforms/`](../../platforms/).
+
+- **Yocto Scarthgap (the main line):** built by the
+  `recipes-apps/device-service` recipe as part of `device-platform-image`,
+  not by `build.sh`; dependencies come from the layer, not from `apt`.
+  Started by its systemd unit at boot.
+- **Raspberry Pi OS (the comparison card):** `build.sh` natively on the
+  target, dependencies via `apt` as listed above. Used for kernel
+  comparisons ([case 07](../../docs/debugging/case-07-preempt-rt-comparison-exposes-a-different-bottleneck.md))
+  precisely because installing a whole alternative kernel there is one
+  `apt install`.
+
+The scheduling knobs in the config (`SCHED_FIFO` priority, CPU affinity,
+`mlockall`) behave the same on both, but what they are worth differs — on
+a near-empty Yocto image there is much less to be preempted by. That
+comparison is the reason both platforms are kept.
 
 ## Known limitations (see the plan file for the fuller Phase-by-phase list)
 

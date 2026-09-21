@@ -383,6 +383,8 @@ case's follow-up.
 
 ### How much of the latency is the kernel, and how much is the image?
 
+![p99.9 under load for an untuned consumer, by kernel and platform](../results/devbus/platform-comparison.png)
+
 This is the question the second card exists to answer. Untuned and under
 load, the two distributions are indistinguishable; the preemption model
 is what moves the number.
@@ -447,6 +449,8 @@ instead of ~1070/s — the long-standing puzzle from case 07, resolved in
 that case's follow-up.
 
 ### Throughput is a lagging indicator; queue latency is a leading one
+
+![Median latency climbing 11x while delivered rate stays flat, then both collapsing](../results/devbus/leading-indicator.png)
 
 Sweeping the same parameter with the end-to-end chain running shows why
 throughput alone is not enough to tell whether a pipeline has margin:

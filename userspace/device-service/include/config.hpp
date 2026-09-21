@@ -64,6 +64,31 @@ struct Config {
 	uint32_t backpressure_backoff_divisor = 2;
 	uint32_t backpressure_recovery_step_hz = 100;
 
+	// The leading congestion signal (2026-09-20). kfifo_overflow above only
+	// moves once data has already been lost; these two move while the
+	// pipeline is merely straining, which is where a controller can still
+	// do something cheap about it.
+	//
+	// backpressure_max_sample_age_us: how old a sample may already be when
+	// userspace reads it (AcquisitionWorker::sample_age()) before the
+	// controller eases the MCU off by one step. 0 = disabled. A healthy
+	// 1 kHz link on this hardware reads ~1000-1200 us; measured strain
+	// before collapse reached ~13 000 us. 5000 is a default with room on
+	// both sides, not a tuned value.
+	uint32_t backpressure_max_sample_age_us = 0;
+	// Same idea on the consumer side: deepest devbus subscriber queue as a
+	// fraction of capacity. Only has an effect when devbus_service is set.
+	// 0 = disabled.
+	double backpressure_max_devbus_pressure = 0.0;
+
+	// Publish every sample on devbus under this service name so other
+	// processes can consume the stream without opening /dev/acq0
+	// themselves. Empty (default) = don't publish, and device-service does
+	// not touch devbus at all.
+	std::string devbus_service;
+	uint32_t devbus_max_subscribers = 4;
+	uint32_t devbus_queue_capacity = 16;
+
 	static Config load(const std::string& path);
 };
 

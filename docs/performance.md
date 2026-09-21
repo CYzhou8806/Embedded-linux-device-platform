@@ -19,6 +19,26 @@ Reported as median / p99 / p99.9 / **maximum observed** — never "worst
 case", since a finite run doesn't measure a theoretical upper bound, only
 what actually happened during it.
 
+**Where the rest of the numbers are.** This document covers the
+kernel-to-userspace acquisition path on the stock Yocto kernel. Two
+later axes are measured in
+[`docs/devbus-experiments.md`](devbus-experiments.md) instead, and that
+document is the authority on both:
+
+- **The `devbus` middleware** — inter-process latency vs. payload size
+  (zero-copy loan/send against a copy and against a Unix socket), wait
+  strategies, drop policies, and the full MCU → driver → `acq-bridge` →
+  `devbus` → consumer chain end to end.
+- **Kernel comparison, including `PREEMPT_RT`** — the same workload on
+  three kernels on this platform (stock 6.6, and a self-built 6.18 pair
+  differing only in `CONFIG_PREEMPT_RT`), with `cyclictest` alongside.
+  The scheduler-tuning conclusions below are extended there by a
+  *kernel-level* axis (core isolation, `nohz_full`, `rcu_nocbs`), which
+  turned out to matter more than the preemption model itself.
+
+Which platform each set of numbers comes from, and how the two
+platforms differ: [`platforms/`](../platforms/).
+
 ## Prerequisite: the throughput fix
 
 Each sample cost 3 register reads (`REG_FIFO_LEVEL` + `REG_DATA_SEQ` +
@@ -455,6 +475,46 @@ visibly straining before it actually drops anything, which is the kind
 of leading indicator a real backpressure controller (M0's next item)
 would want to watch rather than waiting for loss to appear.
 
+> **The cliff's location is a property of `inter_frame_us`, not of the
+> hardware (2026-09-20).** This sweep ran with the driver's old default
+> of 100 µs. Rerunning it at 50 µs moved the cliff from ~1255 Hz to
+> between 1666 and ~1700 samples/s — the same link, the same MCU, **~34%
+> more headroom from a module parameter**:
+>
+> | MCU rate | `inter_frame_us` = 100 | `inter_frame_us` = 50 |
+> | --- | --- | --- |
+> | 1000 Hz | 973 µs, clean | 773 µs, clean |
+> | 1250 Hz | 1 480 µs, clean | 770 µs, clean |
+> | 1260 Hz | **collapsed**, 642/s | 721 µs, clean (1430/s) |
+> | 1650 Hz | — | 726 µs, clean (1666/s) |
+> | 1700 Hz | — | **collapsed**, 643/s |
+>
+> The collapsed rate is ~642-645/s in every one of these, which is the
+> same degraded regime reached by every other route (see
+> [case 07](debugging/case-07-preempt-rt-comparison-exposes-a-different-bottleneck.md)'s
+> follow-up). The driver's default is now 50 µs.
+>
+> One thing this does **not** show: at 50 µs the age stayed at ~720 µs
+> right up to the last clean point and then jumped to seconds, with no
+> resolvable strain band — unlike the wide 973 → 1 480 µs band at
+> 100 µs. Whether the band is absent there or merely narrower than this
+> MCU's rate granularity could resolve (1650 Hz requested produced
+> 1666/s, the next step collapsed) was not established. **The leading
+> indicator below was demonstrated in the near-saturation configuration;
+> it is not a guarantee that every configuration warns before it
+> breaks.**
+
+> **Confirmed on a second, independent axis (2026-09-20).** The same
+> signature appeared on the Raspberry Pi OS card while sweeping the
+> driver's `inter_frame_us` frame gap — a knob that has nothing to do
+> with the MCU's production rate. Through 90 µs every operator-visible
+> metric stayed healthy (full 1000/s, zero sequence gaps, zero
+> `kfifo_overflow`) while median end-to-end latency climbed **11×**,
+> from 1 167 µs to 13 290 µs, as a standing backlog built up in the
+> queue. At 100 µs the pipeline collapsed to 686/s. Two unrelated axes,
+> the same shape: **latency leads, loss and throughput lag.** Table and
+> raw data in [`docs/devbus-experiments.md`](devbus-experiments.md).
+
 Past the cliff, throughput clamps at ~641-656 samples/sec regardless of
 how much higher the requested rate goes (1300 through 5000Hz all landed
 in the same narrow band) — this is the same intrinsic per-transaction
@@ -620,6 +680,41 @@ once loss has already begun. Used it anyway because it's already
 observable via existing sysfs with no new `AcquisitionWorker`/
 `LatencyLogger` plumbing required; wiring in the latency-climb signal
 instead is a real, identified improvement, not done here.
+
+> **2026-09-20 — quantified, then implemented.** The `inter_frame_us`
+> sweep quantifies what the improvement buys: `kfifo_overflow` does not
+> move at all until the pipeline has already collapsed, whereas sample
+> age starts rising three sweep points earlier and climbs 11× first.
+> That interval is the entire window a controller has to act in, and the
+> original signal gave it none of it.
+>
+> `BackpressureController` now has a third level between "clean" and
+> "losing data", `Congestion::Warning`, fed by either of two leading
+> signals: the age of a sample when userspace reads it (the driver/SPI
+> side falling behind) or devbus queue pressure (a *consumer* falling
+> behind). A warning eases the rate down by one step and suppresses the
+> ramp-up; only real loss still halves. Both thresholds are off by
+> default (`backpressure_max_sample_age_us`,
+> `backpressure_max_devbus_pressure`).
+>
+> **Verified on hardware, 2026-09-20.** Starting the MCU at 1250 Hz —
+> 10 Hz below the cliff — with a 1300 µs threshold, the controller eased
+> it to 1150 and then 1050 Hz and settled alternating between those two,
+> sustaining 1180 samples/s for 25 s with the age EWMA flat at ~1200 µs.
+> Over the whole run `kfifo_overflow` and `policy_dropped` both moved by
+> **exactly 0**: the lagging signal never fired, because the controller
+> had already acted. Logs and the calibration sweep behind the threshold:
+> [`results/backpressure/leading-signal-20260920/`](../results/backpressure/leading-signal-20260920/).
+>
+> Picking the statistic took two failed attempts, both caught on
+> hardware and both worth recording. The driver drains its kfifo in
+> batches, so the *last* sample's age is biased low (920-950 µs where
+> this section's own median says 1720 µs) and the *window peak* is
+> biased high with a floor set by the batch period, not by load — a
+> threshold against the peak never cleared and ratcheted the MCU from
+> 1250 Hz down to 550 Hz with nothing wrong. An EWMA (α = 1/64) of the
+> age tracks the middle of the sawtooth and reads **973 µs at 1000 Hz**,
+> the same number this document records from an independent measurement.
 
 **Verified on real hardware**: `sample_rate` set to 3000Hz externally
 (deep overload) before launching `device-service` with

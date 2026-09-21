@@ -10,6 +10,7 @@ IMAGE_INSTALL:append = " \
     custom-acq-driver \
     custom-acq-overlay \
     device-service \
+    devbus \
     device-platform-network \
     kernel-modules \
     linux-firmware-rpidistro-bcm43455 \

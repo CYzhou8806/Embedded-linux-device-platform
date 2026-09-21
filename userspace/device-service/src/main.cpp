@@ -10,6 +10,8 @@
 #include <cstdio>
 #include <cstring>
 #include <exception>
+#include <functional>
+#include <memory>
 #include <thread>
 
 #include <sched.h>
@@ -25,6 +27,7 @@
 #include "latency_logger.hpp"
 #include "metrics.hpp"
 #include "ring_buffer.hpp"
+#include "sample_publisher.hpp"
 #include "watchdog.hpp"
 
 namespace {
@@ -117,7 +120,21 @@ int main(int argc, char** argv) {
 	acq::LatencyLogger latency_logger(cfg.latency_log_path);
 	if (latency_logger.enabled())
 		spdlog::info("latency logging enabled: {}", cfg.latency_log_path);
-	acq::AcquisitionWorker worker(device, buffer, &latency_logger);
+
+	// Optional: republish every sample on devbus so other processes can
+	// consume the stream (only one process can hold /dev/acq0). A failure
+	// here is not fatal - acquisition is the job, publishing is a bonus.
+	std::unique_ptr<acq::SamplePublisher> sample_publisher;
+	if (!cfg.devbus_service.empty()) {
+		try {
+			sample_publisher = std::make_unique<acq::SamplePublisher>(
+				cfg.devbus_service, cfg.devbus_max_subscribers, cfg.devbus_queue_capacity);
+			spdlog::info("publishing samples on devbus service '{}'", cfg.devbus_service);
+		} catch (const std::exception& e) {
+			spdlog::warn("devbus publishing disabled: {}", e.what());
+		}
+	}
+	acq::AcquisitionWorker worker(device, buffer, &latency_logger, sample_publisher.get());
 
 	std::thread signal_thread([&] {
 		int sig = 0;
@@ -142,9 +159,33 @@ int main(int argc, char** argv) {
 	// header comment on set_on_tick().
 	metrics.set_on_tick([] { sd_notify(0, "WATCHDOG=1"); });
 	acq::Watchdog watchdog(device, worker, std::chrono::milliseconds(cfg.liveness_timeout_ms));
+	// The leading congestion signal, assembled from whichever sources are
+	// configured: sample age covers the driver/SPI side falling behind,
+	// devbus pressure covers a consumer falling behind. Null when neither
+	// is configured, which leaves the controller reacting to
+	// kfifo_overflow alone, exactly as before.
+	std::function<bool()> early_warning;
+	if (cfg.backpressure_max_sample_age_us > 0 || cfg.backpressure_max_devbus_pressure > 0.0) {
+		const auto max_age = std::chrono::microseconds(cfg.backpressure_max_sample_age_us);
+		const double max_pressure = cfg.backpressure_max_devbus_pressure;
+		acq::SamplePublisher* pub = sample_publisher.get();
+		early_warning = [&worker, pub, max_age, max_pressure] {
+			// The smoothed average, not the instantaneous reading and not
+			// the window peak - see AcquisitionWorker::sample_age_ewma()
+			// for what each of those measured on hardware.
+			if (max_age.count() > 0 && worker.sample_age_ewma() > max_age)
+				return true;
+			if (pub && max_pressure > 0.0 && static_cast<double>(pub->pressure()) > max_pressure)
+				return true;
+			return false;
+		};
+		spdlog::info("backpressure leading signal: max sample age {} us, max devbus pressure {}",
+			      cfg.backpressure_max_sample_age_us, cfg.backpressure_max_devbus_pressure);
+	}
 	acq::BackpressureController backpressure(device, std::chrono::milliseconds(cfg.backpressure_check_interval_ms),
 						  cfg.backpressure_min_hz, cfg.backpressure_target_hz,
-						  cfg.backpressure_backoff_divisor, cfg.backpressure_recovery_step_hz);
+						  cfg.backpressure_backoff_divisor, cfg.backpressure_recovery_step_hz,
+						  std::move(early_warning));
 
 	try {
 		device.start_acquisition();
