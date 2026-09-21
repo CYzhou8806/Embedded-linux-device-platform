@@ -48,8 +48,11 @@ real hardware, not simulated.
 | Kernel | Device Tree overlay + out-of-tree SPI driver: threaded IRQ (hard-IRQ timestamping + threaded FIFO drain), `kfifo`-backed buffer, sysfs diagnostics |
 | Userspace | Multithreaded C++17 device service — acquisition worker, ring buffer, structured logging, metrics, config-driven scheduling knobs, systemd unit |
 | Testing | Python integration tests against real hardware, sustained hardware stress tests, unit tests for pure logic |
-| Debugging | 6 documented root-cause investigations (`docs/debugging/`) spanning IRQ priority inversion, protocol race conditions, stale-buffer bugs, and a systematic (if not fully conclusive) elimination process on an intermittent SPI-controller stall |
+| Debugging | 9 documented root-cause investigations (two of which a second platform later corrected, with the corrections kept alongside the originals) (`docs/debugging/`) spanning IRQ priority inversion, protocol race conditions, stale-buffer bugs, an intermittent SPI-controller stall, and two real-time pitfalls found on the target (RT throttling, RCU starvation under PREEMPT_RT) |
 | Performance | Full-chain latency characterization (MCU-produced → hard-IRQ → userspace) with repeated-measurement statistical validation, not single-run numbers |
+| Middleware | `devbus`: zero-copy shared-memory pub/sub between processes on the device (loan/send, per-subscriber lock-free queues and drop policies, crash reclaim via pidfd), measured against Unix sockets |
+| Real-time | Self-built PREEMPT_RT and non-RT kernels from one source, booted on the target through one-shot `tryboot`; kernel × tuning latency matrix with `cyclictest` alongside |
+| Cross-platform | The same source and the same board on two Linux distributions and six kernels (self-built and vendor), to separate what the kernel contributes from what the image does — see [`platforms/`](platforms/) |
 
 ## Results
 
@@ -60,6 +63,10 @@ real hardware, not simulated.
 - **Throughput**: ~1000 samples/sec sustained, matching the MCU's production ceiling, after root-causing and fixing a driver-level SPI framing bottleneck.
 - **Full-chain latency**: MCU-produced-to-hard-IRQ is ~3.5us (median), hard-IRQ-to-userspace is ~950-970us (median) — the electrical/interrupt-delivery segment is under 0.4% of total latency; the bottleneck is entirely in the software path after the interrupt fires.
 - **Scheduling**: every configuration in an 8-way comparison matrix (baseline / CPU affinity / IRQ affinity / `mlockall` / `SCHED_FIFO` / combined) was measured 3x independently — the first-pass single-run conclusions did not hold up and were revised in place with the corrected data kept visible alongside the originals. `SCHED_FIFO`'s real, repeatable effect turned out to be eliminating rare severe scheduling-latency outliers, not shrinking an always-present tail.
+- **Zero copy**: on the Pi 5, a 4 MiB payload reaches another process in the same ~5 µs as a 64-byte one; copying it once costs ~600 µs, a Unix socket ~1.3 ms.
+- **End to end with the middleware**: MCU → driver → `acq-bridge` → devbus → consumer measures 973 µs median (from the driver's hard-IRQ timestamp), with zero sequence gaps over 25 000 samples — the same as the driver-only path, i.e. the pub/sub hop costs single-digit microseconds.
+- **Real-time**: `PREEMPT_RT` cut an untuned consumer's p99.9 latency under load ~100× (3 988 µs → 34 µs). With the critical path isolated and prioritized, all three kernels landed in the same 50-140 µs band — isolation mattered more than the preemption model. Details: [`docs/devbus-experiments.md`](docs/devbus-experiments.md).
+- **Replicated on a second platform**: the whole matrix was rerun on a different distribution (Raspberry Pi OS) using Raspberry Pi's own kernels rather than ones built here. RT's benefit replicated within a few percent (3 959 µs → 38 µs), and the two distributions differed by **0.7%** on p99.9 under load — for this workload the kernel accounts for nearly all the latency, the image for nearly none. Running it twice also corrected two earlier conclusions of this project. See [`platforms/`](platforms/).
 - Full write-up, methodology, and all raw CSVs: [`docs/performance.md`](docs/performance.md) and [`results/`](results/).
 
 ## Repository layout
@@ -67,11 +74,14 @@ real hardware, not simulated.
 ```
 v1-spi-slave-handshake/   MCU firmware (STM32CubeIDE project)
 device-tree/              Device Tree overlay source
-driver/custom-acq/        Kernel driver + code walkthrough
+driver/custom-acq/        Kernel driver (see its README) + code walkthrough
 userspace/device-service/ C++17 device service
+userspace/devbus/         Zero-copy shared-memory pub/sub middleware (see its README)
 tests/                    unit / integration / hardware test suites
 yocto/meta-device-platform/  Custom Yocto layer (driver, service, image recipes)
 experiments/scheduler-baseline/  Standalone cyclictest-style RT probe
+experiments/rt-kernel/    PREEMPT_RT kernel build + safe tryboot deployment for the Pi 5
+platforms/                The two Linux distributions this runs on, and how they differ
 docs/                     Performance report, debugging case studies, walkthroughs
 results/                  Raw latency/throughput data, charts, logic-analyzer captures
 ```

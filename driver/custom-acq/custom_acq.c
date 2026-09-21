@@ -47,22 +47,41 @@
  * a V7 experiment can try different values against real hardware without
  * a rebuild - see docs/debugging/case-06-*.md's "Next steps".
  *
- * 100 (not the original 500, and not RaspPi/testv13.py's INTER_FRAME
- * default) based on a real measurement sweep on hardware, 2026-09-04 (see
- * docs/session-log.md for the full table): each sample costs 3 of these
- * two-frame register reads (REG_FIFO_LEVEL + REG_DATA_SEQ + REG_DATA_VAL),
- * so this gap dominates per-sample latency. 500us measured a clean but
- * MCU-rate-limited ~520 samples/sec; sweeping down was *not* monotonic -
- * 200-300us landed in a worse "valley" (~640/s but with real kfifo
- * overflow/sequence gaps) than either 500us or anything at/below ~100us,
- * which reliably reached the MCU's apparent ~1000/s production ceiling.
- * Not proven bit-perfect on every run at this value (occasional single-
- * digit sequence gaps did show up in one 45s run at 100us) - "clean at
- * 500us" was itself a claim from testv13.py that this sweep directly
- * contradicts (0-50us ran clean too), so treat any specific number here
- * as a measured data point, not a hardware-verified safety margin.
+ * Each sample costs 3 of these two-frame register reads (REG_FIFO_LEVEL +
+ * REG_DATA_SEQ + REG_DATA_VAL), so this gap dominates per-sample latency.
+ *
+ * Was 100 (from a 2026-09-04 sweep on the Yocto card; before that 500,
+ * and before that RaspPi/testv13.py's INTER_FRAME default). Changed to 50
+ * on 2026-09-20 after sweeping it end to end on *both* cards, which is
+ * what made the shape clear:
+ *
+ *   value   Yocto card                    Raspberry Pi OS card
+ *   50      1000/s, 777us median          1001/s, 1220us median
+ *   90      1000/s, 937us median          1070/s, 13290us median (!)
+ *   100     1000/s, 977us median          686/s, kfifo overflowing
+ *   150     998/s,  1226us median         (past the cliff)
+ *   200     641/s,  16 hard IRQs in 18s   (past the cliff)
+ *
+ * Two reasons for 50 rather than 100:
+ *
+ * 1. The cliff is in a different place on each card - ~150-200us on the
+ *    Yocto image, ~95us on Raspberry Pi OS - so 100 is comfortable on one
+ *    and already past the edge on the other. Beyond the cliff the driver
+ *    never catches up, the MCU's FIFO never empties, the threaded IRQ
+ *    handler never returns, and every sample ends up sharing one stale
+ *    irq_ts_ns (16 interrupts in 18 seconds at 200us). That is what
+ *    docs/debugging/case-07 spent M1 chasing.
+ * 2. Inside the clean zone this knob buys latency roughly linearly, about
+ *    4us of median per 1us of gap. 50 is 200us/sample faster than 100 on
+ *    the Yocto card, for free.
+ *
+ * 50 keeps ~3x margin to the nearer of the two cliffs, and the 2026-09-04
+ * sweep found 0-50us clean as well. Still a measured data point, not a
+ * hardware-verified safety margin: the earlier sweep saw occasional
+ * single-digit sequence gaps in one 45s run at 100us, and nothing here
+ * has been run for hours.
  */
-static unsigned int inter_frame_us = 100;
+static unsigned int inter_frame_us = 50;
 module_param(inter_frame_us, uint, 0644);
 MODULE_PARM_DESC(inter_frame_us,
 		  "Gap (us) between the address and NOP frames of a register op");
