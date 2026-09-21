@@ -6,11 +6,14 @@ add_executable(device-service-tests
 	test_config.cpp
 	test_ring_buffer.cpp
 	test_read_exact.cpp
+	test_backpressure_controller.cpp
 	${CMAKE_SOURCE_DIR}/src/config.cpp
 	${CMAKE_SOURCE_DIR}/src/read_exact.cpp
+	${CMAKE_SOURCE_DIR}/src/backpressure_controller.cpp
+	${CMAKE_SOURCE_DIR}/src/device.cpp
 )
 
 target_include_directories(device-service-tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(device-service-tests PRIVATE GTest::gtest GTest::gtest_main Threads::Threads nlohmann_json::nlohmann_json)
+target_link_libraries(device-service-tests PRIVATE GTest::gtest GTest::gtest_main Threads::Threads nlohmann_json::nlohmann_json spdlog::spdlog)
 
 gtest_discover_tests(device-service-tests)

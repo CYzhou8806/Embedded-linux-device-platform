@@ -19,6 +19,7 @@
 #include <systemd/sd-daemon.h>
 
 #include "acquisition_worker.hpp"
+#include "backpressure_controller.hpp"
 #include "config.hpp"
 #include "device.hpp"
 #include "latency_logger.hpp"
@@ -141,6 +142,9 @@ int main(int argc, char** argv) {
 	// header comment on set_on_tick().
 	metrics.set_on_tick([] { sd_notify(0, "WATCHDOG=1"); });
 	acq::Watchdog watchdog(device, worker, std::chrono::milliseconds(cfg.liveness_timeout_ms));
+	acq::BackpressureController backpressure(device, std::chrono::milliseconds(cfg.backpressure_check_interval_ms),
+						  cfg.backpressure_min_hz, cfg.backpressure_target_hz,
+						  cfg.backpressure_backoff_divisor, cfg.backpressure_recovery_step_hz);
 
 	try {
 		device.start_acquisition();
@@ -153,6 +157,8 @@ int main(int argc, char** argv) {
 	worker.start();
 	metrics.start();
 	watchdog.start();
+	if (cfg.backpressure_enabled)
+		backpressure.start();
 
 	uint64_t printed = 0;
 	acq::Sample s{};
@@ -163,6 +169,8 @@ int main(int argc, char** argv) {
 	}
 
 	signal_thread.join();
+	if (cfg.backpressure_enabled)
+		backpressure.stop();
 	watchdog.stop();
 	metrics.stop();
 

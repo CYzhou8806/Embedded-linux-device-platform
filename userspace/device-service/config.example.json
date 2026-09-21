@@ -8,5 +8,11 @@
   "latency_log_path": "",
   "lock_memory": false,
   "sched_fifo_priority": 0,
-  "cpu_affinity_core": -1
+  "cpu_affinity_core": -1,
+  "backpressure_enabled": false,
+  "backpressure_check_interval_ms": 500,
+  "backpressure_min_hz": 200,
+  "backpressure_target_hz": 1000,
+  "backpressure_backoff_divisor": 2,
+  "backpressure_recovery_step_hz": 100
 }

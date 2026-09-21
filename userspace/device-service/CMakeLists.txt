@@ -26,6 +26,7 @@ add_executable(device-service
 	src/latency_logger.cpp
 	src/metrics.cpp
 	src/watchdog.cpp
+	src/backpressure_controller.cpp
 )
 
 target_include_directories(device-service PRIVATE include ${SYSTEMD_INCLUDE_DIRS})

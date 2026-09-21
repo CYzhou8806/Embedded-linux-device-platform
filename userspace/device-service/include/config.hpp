@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 
 namespace acq {
@@ -39,6 +40,29 @@ struct Config {
 	int sched_fifo_priority = 0;
 	// -1 = leave CPU affinity alone (default: any CPU).
 	int cpu_affinity_core = -1;
+
+	// Plan.md V2/M0 backpressure: when the driver's kfifo_overflow counter
+	// moves during a check window (real congestion happening right now),
+	// write REG_SAMPLE_RATE down to ease the MCU off; ramp it back toward
+	// backpressure_target_hz once a window passes with no new overflow.
+	// Off by default - existing deployments/tests that don't set this in
+	// their config keep today's behavior (sample rate never touched).
+	bool backpressure_enabled = false;
+	int backpressure_check_interval_ms = 500;
+	uint32_t backpressure_min_hz = 200;
+	// The rate to ramp back up towards on recovery - not necessarily the
+	// MCU's power-on default (1000Hz): sysfs sample_rate may already have
+	// been set by something else (a load-testing sweep, a previous
+	// backpressure episode) before this process started.
+	uint32_t backpressure_target_hz = 1000;
+	// Applied multiplicatively on backoff (e.g. 2 = halve), additively on
+	// recovery (step_hz added back each clean window) - backing off fast
+	// and recovering gradually is the standard congestion-control shape,
+	// and matches this pipeline's own cliff being sharp on the way down
+	// but the safe zone being wide (see docs/performance.md's overload
+	// sweep - anything <=1250Hz was clean).
+	uint32_t backpressure_backoff_divisor = 2;
+	uint32_t backpressure_recovery_step_hz = 100;
 
 	static Config load(const std::string& path);
 };

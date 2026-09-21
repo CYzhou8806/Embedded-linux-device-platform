@@ -71,6 +71,13 @@ public:
 	uint32_t read_fw_version();
 	uint32_t read_kfifo_overflow();
 
+	// REG_SAMPLE_RATE (Hz, MCU-firmware-validated range 1-10000 -
+	// driver/custom-acq/custom_acq.c's sample_rate sysfs attribute,
+	// Plan.md V2/M0). write_sample_rate() is the backpressure mechanism
+	// BackpressureController uses to slow the MCU down live.
+	uint32_t read_sample_rate();
+	void write_sample_rate(uint32_t hz);
+
 private:
 	std::string write_sysfs(const std::string& name, const std::string& value);
 	std::string read_sysfs(const std::string& name);
