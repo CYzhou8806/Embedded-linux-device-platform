@@ -1,0 +1,4 @@
+bridging /dev/acq0 -> devbus acq/samples
+bridged 10000 samples, 2 subscribers
+bridged 20000 samples, 2 subscribers
+stopped: 27003 samples bridged, 0 short reads

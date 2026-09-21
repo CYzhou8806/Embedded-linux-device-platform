@@ -1,0 +1,17 @@
+rx 1001/s  total 1001  gaps 0  latency p50 1168 us  p99 2131 us  max 2133 us
+rx 1000/s  total 2001  gaps 0  latency p50 1162 us  p99 2132 us  max 2139 us
+rx 1001/s  total 3002  gaps 0  latency p50 1163 us  p99 2131 us  max 2138 us
+rx 1000/s  total 4002  gaps 0  latency p50 1167 us  p99 2128 us  max 2132 us
+rx 999/s  total 5001  gaps 0  latency p50 1161 us  p99 2131 us  max 2134 us
+rx 1000/s  total 6001  gaps 0  latency p50 1170 us  p99 2129 us  max 2134 us
+rx 1001/s  total 7002  gaps 0  latency p50 1168 us  p99 2134 us  max 2140 us
+rx 1000/s  total 8002  gaps 0  latency p50 1169 us  p99 2128 us  max 2134 us
+rx 1000/s  total 9002  gaps 0  latency p50 1161 us  p99 2131 us  max 2133 us
+rx 999/s  total 10001  gaps 0  latency p50 1167 us  p99 2129 us  max 2134 us
+rx 1000/s  total 11001  gaps 0  latency p50 1178 us  p99 2135 us  max 2140 us
+rx 1000/s  total 12001  gaps 0  latency p50 1162 us  p99 2129 us  max 2133 us
+rx 1001/s  total 13002  gaps 0  latency p50 1168 us  p99 2128 us  max 2133 us
+rx 1000/s  total 14002  gaps 0  latency p50 1167 us  p99 2131 us  max 2134 us
+rx 999/s  total 15001  gaps 0  latency p50 1171 us  p99 2126 us  max 2132 us
+rx 1000/s  total 16001  gaps 0  latency p50 1168 us  p99 2135 us  max 2142 us
+publisher gone

@@ -1,0 +1,3 @@
+6.18.39+rpt-rpi-2712
+inter_frame_us=50
+4

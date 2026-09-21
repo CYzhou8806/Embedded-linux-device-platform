@@ -1,0 +1,9 @@
+# kernel: Linux raspberrypi5 6.6.63-v8-16k #1 SMP PREEMPT Fri Dec  6 10:10:05 UTC 2024 aarch64 GNU/Linux
+# cmdline: reboot=w coherent_pool=1M 8250.nr_uarts=1 pci=pcie_bus_safe cgroup_disable=memory numa_policy=interleave  numa=fake=8 system_heap.max_order=0 iommu_dma_numa_policy=interleave smsc95xx.macaddr=2C:CF:67:F3:EE:41 vc_mem.mem_base=0x3fc00000 vc_mem.mem_size=0x40000000  dwc_otg.lpm_enable=0 root=/dev/mmcblk0p2 rootfstype=ext4 rootwait  net.ifnames=0 isolcpus=2,3 nohz_full=2,3 rcu_nocbs=2,3 irqaffinity=0,1
+# realtime: 0
+# isolated: 2-3
+# governor(default): ondemand
+# date: Sat Sep 19 19:49:01 UTC 2026
+# sched_rt_runtime_us: 950000
+# governor -> performance
+# governor -> ondemand

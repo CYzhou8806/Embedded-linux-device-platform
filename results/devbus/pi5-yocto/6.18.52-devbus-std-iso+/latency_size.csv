@@ -1,0 +1,13 @@
+#latency,transport,size_bytes,wait,rate_hz,samples,p50_us,p90_us,p99_us,p999_us,max_us,sub_cpu_pct
+latency,devbus-loan,64,futex,1000,5000,3.87,4.91,6.82,12.74,21.02,0.3
+latency,devbus-copy,64,futex,1000,5000,3.87,4.87,6.91,9.41,10.93,0.3
+latency,uds,64,blocking-read,1000,5000,4.70,5.87,7.82,9.26,12.96,0.3
+latency,devbus-loan,65536,futex,1000,5000,3.85,4.89,6.89,8.93,10.35,0.3
+latency,devbus-copy,65536,futex,1000,5000,7.91,8.26,10.96,12.57,40.09,0.3
+latency,uds,65536,blocking-read,1000,5000,16.41,18.17,24.33,38.89,62.11,1.1
+latency,devbus-loan,1048576,futex,100,500,5.17,5.32,5.80,11.80,11.80,0.0
+latency,devbus-copy,1048576,futex,100,500,124.26,126.28,129.07,134.83,134.83,0.0
+latency,uds,1048576,blocking-read,100,500,288.48,303.07,332.93,390.04,390.04,2.6
+latency,devbus-loan,4194304,futex,100,500,5.17,5.32,5.55,10.35,10.35,0.0
+latency,devbus-copy,4194304,futex,100,500,601.18,606.96,612.50,673.15,673.15,0.0
+latency,uds,4194304,blocking-read,100,500,1510.27,1533.20,1577.64,1807.57,1807.57,13.2

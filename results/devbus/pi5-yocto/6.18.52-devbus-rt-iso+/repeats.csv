@@ -1,0 +1,4 @@
+r1,default-load,latency,devbus-loan,64,futex,1000,60000,4.76,6.89,14.50,29.30,4596.82,0.4
+r1,tuned-futex-load,latency,devbus-loan,64,futex,1000,60000,2.93,3.19,11.74,17.57,49.91,0.3
+r2,default-load,latency,devbus-loan,64,futex,1000,60000,4.74,7.28,14.59,32.22,3211.43,0.4
+r2,tuned-futex-load,latency,devbus-loan,64,futex,1000,60000,2.93,3.15,11.13,17.52,90.57,0.3

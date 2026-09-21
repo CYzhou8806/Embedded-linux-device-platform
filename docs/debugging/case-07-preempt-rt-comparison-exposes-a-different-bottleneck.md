@@ -180,6 +180,10 @@ of left as a guess.
 
 ## What's not explained
 
+> **Resolved 2026-09-20** — see the follow-up at the end of this file.
+> The throughput gap was the `inter_frame_us` module parameter sitting
+> one step past a cliff on this card, not any of the candidates below.
+
 - The ~35% throughput gap between this card (Raspberry Pi OS / Debian
   trixie) and the project's main Yocto image, both reportedly using the
   same `spi_dw` controller and the same driver defaults. Background
@@ -207,3 +211,119 @@ already validated and wasn't touched by any of this. Next up per
 `private/next-steps.md`: M0 (overload the existing STM32 link on its own
 terms, drop-policy comparison, backpressure), fully independent of this
 card or PREEMPT_RT.
+
+---
+
+## Follow-up, 2026-09-20: the ~650/s was a module parameter, not the card
+
+The open question above — why this card sustained only ~640-655
+samples/s where the Yocto card reached ~1000/s, with the same driver and
+the same MCU — is answered. **It was `inter_frame_us`, the driver's own
+SPI frame-gap module parameter, sitting one step past a cliff on this
+card.** None of the candidates listed above (SPI controller version,
+clock rate, DMA vs. PIO, OS overhead) was involved.
+
+The card was brought back with the MCU powered and the driver rebuilt
+natively against its stock `6.18.39+rpt-rpi-2712` kernel. Sweeping the
+parameter, 14 s per point, MCU at 1000 Hz:
+
+| `inter_frame_us` | throughput | `kfifo_overflow` | hard IRQs in 14 s |
+| --- | --- | --- | --- |
+| 20 | 1068/s | 0 | 14 954 |
+| 40 | 1080/s | 0 | 14 999 |
+| 60 | 1071/s | 0 | 14 999 |
+| 80 | 1071/s | 0 | 14 999 |
+| 90 | 1070/s | 0 | 14 999 |
+| **100** (the default, and what this case ran with) | **686/s** | **5 348** | **4 256** |
+| 200 | 680/s | 1 768 | **2** |
+
+At 90 µs the card does ~1070 samples/s with nothing dropped and one hard
+interrupt per sample. At 100 µs it does 686/s. **The transition is a
+cliff, not a slope** — the same shape M0 later found on the MCU's
+production-rate axis.
+
+So this card is not slower than the Yocto card. It needs a slightly
+smaller frame gap to stay on the right side of the same cliff. The
+driver's own source comment records a 2026-09-04 sweep *on the Yocto
+card* finding a bad "valley" at 200-300 µs and clean operation at
+≤100 µs; 100 µs is simply inside that valley here, and the default was
+picked right at its edge.
+
+### Why the hard-IRQ timestamp broke
+
+That also explains this case's other finding mechanically. Past the
+cliff the driver never catches up, so the MCU's hardware FIFO never
+empties, so `custom_acq_irq_thread()` never returns, so no new hard
+interrupt fires — 14 s produced **2** interrupts at 200 µs, against one
+per sample below the cliff. Every sample then shares one stale
+`irq_ts_ns`, which is exactly what made the planned per-sample latency
+metric unusable. Below the cliff the metric works on this card, and a
+30 s end-to-end run measured 1 191 µs median from hard IRQ to a devbus
+consumer, zero gaps in 32 156 samples.
+
+### One regime, three sightings
+
+The degraded branch is an attractor, not a property of any one cause.
+Holding `inter_frame_us` at 50 and raising the MCU's rate instead:
+
+| MCU rate | throughput | `kfifo_overflow` |
+| --- | --- | --- |
+| 1000 Hz | 1072/s | 0 |
+| 1500 Hz | 678/s | 7 880 |
+| 2000 Hz | 687/s | 7 882 |
+
+~680/s whichever way it is pushed over. That unifies three numbers
+previously recorded as separate observations: this case's 640-655/s,
+[M0](../performance.md)'s post-cliff 641-656/s on the Yocto card, and
+this card's 680/s. **They are the same degraded regime**, reached either
+by making each SPI transaction too slow or by making the MCU too fast.
+
+### What this does and does not overturn
+
+- **Stands:** the bottleneck this case identified was the intrinsic cost
+  of each SPI transaction, not scheduling — which is why RT,
+  `SCHED_FIFO`, affinity and `mlockall` all changed nothing. That
+  reasoning was right, and it is now clear *which* cost it was.
+- **Stands:** M1's decision-gate answer for the acquisition pipeline's
+  throughput. No preemption model fixes a driver that is pacing itself.
+- **Overturned:** "~650/s is what this card can do." It is what any card
+  does past this cliff.
+- **Overturned:** the framing that a real per-sample latency metric was
+  impossible here. It was impossible *in that regime*.
+- **Qualified:** "RT made no measurable difference." True for this
+  SPI-bound metric. On a latency-bound workload on the same card,
+  measured 2026-09-20, this card's own vendor RT kernel cut an untuned
+  consumer's p99.9 under load from 3 959 µs to 38 µs — see
+  [`docs/devbus-experiments.md`](../devbus-experiments.md).
+
+### Default changed to 50 µs
+
+`inter_frame_us` defaulted to 100, which this sweep puts directly on the
+cliff edge on the Raspberry Pi OS card. Repeating the sweep on the Yocto
+card (same day, after swapping the card back) settled it:
+
+| `inter_frame_us` | Yocto card | Raspberry Pi OS card |
+| --- | --- | --- |
+| 50 | 1000/s, **777 µs** median | 1001/s, 1 220 µs |
+| 90 | 1000/s, 937 µs | 1070/s, 13 290 µs |
+| 100 | 1000/s, 977 µs | **686/s, overflowing** |
+| 150 | 998/s, 1 226 µs | past the cliff |
+| 200 | **641/s, 16 hard IRQs in 18 s** | past the cliff |
+
+The cliff sits at ~150-200 µs on one card and ~95 µs on the other, so
+100 is comfortable on one and already over the edge on the other. Inside
+the clean zone the knob also buys latency roughly linearly — about 4 µs
+of median per 1 µs of gap — so 50 is 200 µs/sample faster than 100 on the
+Yocto card as well. **The default is now 50**, with the reasoning and
+both sweeps recorded in the driver's own comment.
+
+It also moves the *overload* cliff: at 100 µs the MCU could be pushed to
+~1255 Hz before collapse, at 50 µs to ~1680 — about 34% more headroom
+(`docs/performance.md`, M0). Raw data:
+`results/devbus/pi5-yocto/ifus-sweep/` and
+`results/devbus/pi5-raspios/ifus-sweep/`.
+
+Not verified: the rebuilt module has not been loaded, because this
+workstation has no bitbake environment any more. The *value* is what was
+measured — set at runtime through the module parameter on both cards —
+and the source default only takes effect at the next image build.

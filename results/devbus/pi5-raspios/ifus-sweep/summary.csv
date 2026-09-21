@@ -1,0 +1,18 @@
+# custom-acq inter_frame_us sweep, Raspberry Pi OS card (6.18.39+rpt-rpi-2712, no isolation),
+# MCU at 1000 Hz, acq-bridge (SCHED_FIFO 80, core 2) -> devbus -> drop-oldest subscriber
+# (SCHED_FIFO 70, core 3). 16 s per point, last full second reported.
+# Latency is measured from the driver's hard-IRQ timestamp to the subscriber.
+# Throughput/overflow columns come from a separate 14 s run per point with the
+# same settings; irq_count is the hard-IRQ delta over that run (one per sample
+# means the MCU FIFO really emptied each time).
+inter_frame_us,rx_per_s,gaps,p50_us,p99_us,max_us,throughput_per_s,kfifo_overflow,irq_count
+20,,,,,,1068,0,14954
+30,1001,0,1167,2094,2095,,,
+40,1000,0,1168,2135,2142,1080,0,14999
+50,1001,0,1220,2147,2174,1071,0,14997
+60,1000,0,1242,2244,2274,1071,0,14999
+70,1001,0,2218,3255,4191,1071,0,14999
+80,998,0,3266,7255,7281,1071,0,14999
+90,979,0,13290,27275,28276,1070,0,14999
+100,,,,,,686,5348,4256
+200,,,,,,680,1768,2

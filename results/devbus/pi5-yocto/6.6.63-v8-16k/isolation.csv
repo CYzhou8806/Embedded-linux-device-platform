@@ -1,0 +1,8 @@
+#isolation-sub,slow_policy,role,rate_hz,received,observed_gaps,publisher_side_drops,p50_us,p99_us,max_us
+#isolation-pub,slow_policy,rate_hz,achieved_hz,send_p50_us,send_p99_us,send_max_us
+isolation-sub,drop-oldest,slow,5000,4437,20566,20566,12698.50,12797.85,12808.67
+isolation-sub,drop-oldest,fast,5000,25001,0,0,2.65,6.30,68.78
+isolation-pub,drop-oldest,5000,5000,1.22,2.92,49.24
+isolation-sub,block,fast,5000,25001,0,0,1052.35,2770.79,52533.71
+isolation-sub,block,slow,5000,24872,129,129,67238.41,85555.13,96825.96
+isolation-pub,block,5000,933,1050.89,2769.33,52531.97

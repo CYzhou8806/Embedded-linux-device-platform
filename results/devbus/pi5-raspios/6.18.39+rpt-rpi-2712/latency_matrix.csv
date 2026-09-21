@@ -1,0 +1,6 @@
+#config,latency,transport,size_bytes,wait,rate_hz,samples,p50_us,p90_us,p99_us,p999_us,max_us,sub_cpu_pct
+default-idle,latency,devbus-loan,64,futex,1000,60000,4.15,5.05,6.22,14.81,1361.17,0.3
+default-load,latency,devbus-loan,64,futex,1000,60000,4.54,6.72,14.28,3932.14,9928.78,0.4
+tuned-futex-load,latency,devbus-loan,64,futex,1000,60000,2.24,2.78,7.70,20.68,96.06,0.2
+tuned-spin-load,latency,devbus-loan,64,spin,1000,60000,0.26,0.26,0.28,0.28,0.81,100.0
+tuned-spin-load-nothrottle,latency,devbus-loan,64,spin,1000,60000,0.26,0.26,0.28,0.28,0.93,100.0

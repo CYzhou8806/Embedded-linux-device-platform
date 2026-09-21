@@ -1,0 +1,10 @@
+[Unit]
+Description=Reboot back to the stock kernel if a devbus test kernel has no network
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh /usr/local/sbin/devbus-bootcheck.sh
+
+[Install]
+WantedBy=multi-user.target

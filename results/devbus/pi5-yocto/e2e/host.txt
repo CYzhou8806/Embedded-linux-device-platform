@@ -1,0 +1,3 @@
+# Linux raspberrypi5 6.6.63-v8-16k #1 SMP PREEMPT Fri Dec  6 10:10:05 UTC 2024 aarch64 GNU/Linux
+# device_id=0xac00acc0 fw=0x00010300 rate=1000
+# acq-bridge --prio 80 --cpu 2 | sub1: drop-oldest --prio 70 --cpu 3 | sub2: drop-newest 3000 (untuned)

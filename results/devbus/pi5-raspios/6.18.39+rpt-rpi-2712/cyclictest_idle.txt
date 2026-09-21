@@ -1,0 +1,14 @@
+# /dev/cpu_dma_latency set to 0us
+# Histogram
+000001 047009
+000002 012906
+000003 000083
+000004 000001
+000006 000001
+# Min Latencies: 00001
+# Avg Latencies: 00001
+# Max Latencies: 00006
+# Histogram Overflows: 00000
+# Histogram Overflow at cycle number:
+# Thread 0: 
+

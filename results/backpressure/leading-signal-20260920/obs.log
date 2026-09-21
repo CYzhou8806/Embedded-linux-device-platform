@@ -1,0 +1,43 @@
+[2026-09-20 20:27:07.906] [info] device online: DEVICE_ID=0xac00acc0 FW_VERSION=0x00010300
+[2026-09-20 20:27:07.907] [info] seq=11248 value=11248
+[2026-09-20 20:27:08.107] [info] seq=0 value=0
+[2026-09-20 20:27:08.107] [info] seq=1 value=1
+[2026-09-20 20:27:08.107] [info] seq=2 value=2
+[2026-09-20 20:27:08.107] [info] seq=3 value=3
+[2026-09-20 20:27:08.107] [info] seq=4 value=4
+[2026-09-20 20:27:08.107] [info] seq=5 value=5
+[2026-09-20 20:27:08.107] [info] seq=6 value=6
+[2026-09-20 20:27:08.107] [info] seq=7 value=7
+[2026-09-20 20:27:08.107] [info] seq=8 value=8
+[2026-09-20 20:27:08.107] [info] seq=9 value=9
+[2026-09-20 20:27:08.107] [info] seq=10 value=10
+[2026-09-20 20:27:08.107] [info] seq=11 value=11
+[2026-09-20 20:27:08.107] [info] seq=12 value=12
+[2026-09-20 20:27:08.107] [info] seq=13 value=13
+[2026-09-20 20:27:08.107] [info] seq=14 value=14
+[2026-09-20 20:27:08.107] [info] seq=15 value=15
+[2026-09-20 20:27:08.107] [info] seq=16 value=16
+[2026-09-20 20:27:08.107] [info] seq=17 value=17
+[2026-09-20 20:27:08.107] [info] seq=18 value=18
+[2026-09-20 20:27:08.709] [info] seq=946 value=946
+[2026-09-20 20:27:08.907] [info] metrics: rate=513.0/s samples_read=513 gap_count=4 buffer=0 kfifo_overflow=73059 sample_age=757742us
+[2026-09-20 20:27:09.510] [info] seq=2042 value=2042
+[2026-09-20 20:27:09.907] [info] metrics: rate=644.0/s samples_read=1157 gap_count=10 buffer=0 kfifo_overflow=73798 sample_age=1760408us
+[2026-09-20 20:27:10.312] [info] seq=3136 value=3136
+[2026-09-20 20:27:10.907] [info] metrics: rate=641.0/s samples_read=1798 gap_count=14 buffer=0 kfifo_overflow=74540 sample_age=2762242us
+[2026-09-20 20:27:11.114] [info] seq=4232 value=4232
+[2026-09-20 20:27:11.907] [info] metrics: rate=641.0/s samples_read=2439 gap_count=19 buffer=0 kfifo_overflow=75282 sample_age=3764653us
+[2026-09-20 20:27:11.916] [info] seq=5328 value=5328
+[2026-09-20 20:27:12.718] [info] seq=6423 value=6423
+[2026-09-20 20:27:12.907] [info] metrics: rate=642.0/s samples_read=3081 gap_count=24 buffer=0 kfifo_overflow=76023 sample_age=4767105us
+[2026-09-20 20:27:13.520] [info] seq=7520 value=7520
+[2026-09-20 20:27:13.907] [info] metrics: rate=640.0/s samples_read=3721 gap_count=29 buffer=0 kfifo_overflow=76765 sample_age=5769536us
+[2026-09-20 20:27:14.322] [info] seq=8616 value=8616
+[2026-09-20 20:27:14.907] [info] metrics: rate=643.0/s samples_read=4364 gap_count=35 buffer=0 kfifo_overflow=77505 sample_age=6772523us
+[2026-09-20 20:27:15.124] [info] seq=9710 value=9710
+[2026-09-20 20:27:15.726] [info] seq=10655 value=10655
+[2026-09-20 20:27:15.907] [info] metrics: rate=642.0/s samples_read=5006 gap_count=39 buffer=0 kfifo_overflow=78245 sample_age=7774411us
+[2026-09-20 20:27:16.527] [info] seq=11751 value=11751
+[2026-09-20 20:27:16.905] [info] received signal 2, shutting down...
+[2026-09-20 20:27:16.907] [info] metrics: rate=642.0/s samples_read=5648 gap_count=45 buffer=0 kfifo_overflow=78985 sample_age=8777300us
+[2026-09-20 20:27:16.928] [info] metrics: rate=1.0/s samples_read=5649 gap_count=45 buffer=0 kfifo_overflow=79014 sample_age=8780903us

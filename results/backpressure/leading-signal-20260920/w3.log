@@ -1,0 +1,139 @@
+[2026-09-20 20:27:35.230] [info] device online: DEVICE_ID=0xac00acc0 FW_VERSION=0x00010300
+[2026-09-20 20:27:35.230] [info] backpressure leading signal: max sample age 1300 us, max devbus pressure 0
+[2026-09-20 20:27:35.230] [info] seq=12197 value=12197
+[2026-09-20 20:27:35.230] [info] seq=12198 value=12198
+[2026-09-20 20:27:35.230] [info] seq=12199 value=12199
+[2026-09-20 20:27:35.230] [info] seq=12200 value=12200
+[2026-09-20 20:27:35.230] [info] seq=12201 value=12201
+[2026-09-20 20:27:35.230] [info] seq=12202 value=12202
+[2026-09-20 20:27:35.230] [info] seq=12203 value=12203
+[2026-09-20 20:27:35.230] [info] seq=12204 value=12204
+[2026-09-20 20:27:35.230] [info] seq=12205 value=12205
+[2026-09-20 20:27:35.230] [info] seq=12206 value=12206
+[2026-09-20 20:27:35.230] [info] seq=12207 value=12207
+[2026-09-20 20:27:35.230] [info] seq=12208 value=12208
+[2026-09-20 20:27:35.230] [info] seq=12209 value=12209
+[2026-09-20 20:27:35.230] [info] seq=12210 value=12210
+[2026-09-20 20:27:35.230] [info] seq=12211 value=12211
+[2026-09-20 20:27:35.230] [info] seq=12212 value=12212
+[2026-09-20 20:27:35.230] [info] seq=12213 value=12213
+[2026-09-20 20:27:35.230] [info] seq=12214 value=12214
+[2026-09-20 20:27:35.230] [info] seq=12215 value=12215
+[2026-09-20 20:27:35.230] [info] seq=12216 value=12216
+[2026-09-20 20:27:35.530] [info] seq=373 value=373
+[2026-09-20 20:27:35.932] [info] seq=873 value=873
+[2026-09-20 20:27:36.232] [info] backpressure: strain detected before any loss, easing MCU 1250 -> 1150 Hz
+[2026-09-20 20:27:36.330] [info] seq=1373 value=1373
+[2026-09-20 20:27:36.731] [info] seq=1873 value=1873
+[2026-09-20 20:27:36.734] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:37.181] [info] seq=2373 value=2373
+[2026-09-20 20:27:37.235] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:37.586] [info] seq=2873 value=2873
+[2026-09-20 20:27:37.737] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:38.018] [info] seq=3373 value=3373
+[2026-09-20 20:27:38.231] [info] metrics: rate=1245.7/s samples_read=3737 gap_count=1 buffer=0 kfifo_overflow=79014 sample_age=1203us
+[2026-09-20 20:27:38.239] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:38.442] [info] seq=3873 value=3873
+[2026-09-20 20:27:38.740] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:38.855] [info] seq=4373 value=4373
+[2026-09-20 20:27:39.242] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:39.299] [info] seq=4873 value=4873
+[2026-09-20 20:27:39.700] [info] seq=5373 value=5373
+[2026-09-20 20:27:39.744] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:40.144] [info] seq=5873 value=5873
+[2026-09-20 20:27:40.245] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:40.555] [info] seq=6373 value=6373
+[2026-09-20 20:27:40.747] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:40.981] [info] seq=6873 value=6873
+[2026-09-20 20:27:41.231] [info] metrics: rate=1180.3/s samples_read=7278 gap_count=1 buffer=0 kfifo_overflow=79014 sample_age=1204us
+[2026-09-20 20:27:41.249] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:41.412] [info] seq=7373 value=7373
+[2026-09-20 20:27:41.750] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:41.819] [info] seq=7873 value=7873
+[2026-09-20 20:27:42.252] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:42.269] [info] seq=8373 value=8373
+[2026-09-20 20:27:42.669] [info] seq=8873 value=8873
+[2026-09-20 20:27:42.753] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:43.106] [info] seq=9373 value=9373
+[2026-09-20 20:27:43.255] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:43.525] [info] seq=9873 value=9873
+[2026-09-20 20:27:43.757] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:43.945] [info] seq=10373 value=10373
+[2026-09-20 20:27:44.231] [info] metrics: rate=1180.3/s samples_read=10819 gap_count=1 buffer=0 kfifo_overflow=79014 sample_age=1201us
+[2026-09-20 20:27:44.258] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:44.381] [info] seq=10873 value=10873
+[2026-09-20 20:27:44.760] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:44.781] [info] seq=11373 value=11373
+[2026-09-20 20:27:45.231] [info] seq=11873 value=11873
+[2026-09-20 20:27:45.262] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:45.636] [info] seq=12373 value=12373
+[2026-09-20 20:27:45.763] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:46.070] [info] seq=12873 value=12873
+[2026-09-20 20:27:46.265] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:46.491] [info] seq=13373 value=13373
+[2026-09-20 20:27:46.766] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:46.907] [info] seq=13873 value=13873
+[2026-09-20 20:27:47.231] [info] metrics: rate=1180.7/s samples_read=14361 gap_count=1 buffer=0 kfifo_overflow=79014 sample_age=1196us
+[2026-09-20 20:27:47.268] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:47.347] [info] seq=14373 value=14373
+[2026-09-20 20:27:47.747] [info] seq=14873 value=14873
+[2026-09-20 20:27:47.770] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:48.194] [info] seq=15373 value=15373
+[2026-09-20 20:27:48.271] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:48.604] [info] seq=15873 value=15873
+[2026-09-20 20:27:48.773] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:49.032] [info] seq=16373 value=16373
+[2026-09-20 20:27:49.274] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:49.461] [info] seq=16873 value=16873
+[2026-09-20 20:27:49.776] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:49.871] [info] seq=17373 value=17373
+[2026-09-20 20:27:50.231] [info] metrics: rate=1179.7/s samples_read=17900 gap_count=1 buffer=0 kfifo_overflow=79014 sample_age=1203us
+[2026-09-20 20:27:50.277] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:50.316] [info] seq=17873 value=17873
+[2026-09-20 20:27:50.717] [info] seq=18373 value=18373
+[2026-09-20 20:27:50.779] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:51.159] [info] seq=18873 value=18873
+[2026-09-20 20:27:51.281] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:51.573] [info] seq=19373 value=19373
+[2026-09-20 20:27:51.783] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:51.996] [info] seq=19873 value=19873
+[2026-09-20 20:27:52.284] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:52.428] [info] seq=20373 value=20373
+[2026-09-20 20:27:52.786] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:52.833] [info] seq=20873 value=20873
+[2026-09-20 20:27:53.231] [info] metrics: rate=1180.7/s samples_read=21442 gap_count=1 buffer=0 kfifo_overflow=79014 sample_age=1204us
+[2026-09-20 20:27:53.283] [info] seq=21373 value=21373
+[2026-09-20 20:27:53.288] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:53.686] [info] seq=21873 value=21873
+[2026-09-20 20:27:53.789] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:54.121] [info] seq=22373 value=22373
+[2026-09-20 20:27:54.291] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:54.542] [info] seq=22873 value=22873
+[2026-09-20 20:27:54.792] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:54.959] [info] seq=23373 value=23373
+[2026-09-20 20:27:55.294] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:55.398] [info] seq=23873 value=23873
+[2026-09-20 20:27:55.795] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:55.799] [info] seq=24373 value=24373
+[2026-09-20 20:27:56.231] [info] metrics: rate=1180.3/s samples_read=24983 gap_count=1 buffer=0 kfifo_overflow=79014 sample_age=1205us
+[2026-09-20 20:27:56.247] [info] seq=24873 value=24873
+[2026-09-20 20:27:56.297] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:56.654] [info] seq=25373 value=25373
+[2026-09-20 20:27:56.799] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:57.085] [info] seq=25873 value=25873
+[2026-09-20 20:27:57.300] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:57.509] [info] seq=26373 value=26373
+[2026-09-20 20:27:57.802] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:57.922] [info] seq=26873 value=26873
+[2026-09-20 20:27:58.303] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:58.366] [info] seq=27373 value=27373
+[2026-09-20 20:27:58.767] [info] seq=27873 value=27873
+[2026-09-20 20:27:58.805] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:27:59.211] [info] seq=28373 value=28373
+[2026-09-20 20:27:59.231] [info] metrics: rate=1180.3/s samples_read=28524 gap_count=1 buffer=0 kfifo_overflow=79014 sample_age=1196us
+[2026-09-20 20:27:59.307] [info] backpressure: clean window, ramping MCU back up 1050 -> 1150 Hz
+[2026-09-20 20:27:59.621] [info] seq=28873 value=28873
+[2026-09-20 20:27:59.808] [info] backpressure: strain detected before any loss, easing MCU 1150 -> 1050 Hz
+[2026-09-20 20:28:00.048] [info] seq=29373 value=29373
+[2026-09-20 20:28:00.229] [info] received signal 2, shutting down...
+[2026-09-20 20:28:00.230] [info] metrics: rate=393.0/s samples_read=29703 gap_count=1 buffer=0 kfifo_overflow=79014 sample_age=1208us

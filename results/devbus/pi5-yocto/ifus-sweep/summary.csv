@@ -1,0 +1,16 @@
+# custom-acq inter_frame_us sweep, Yocto Scarthgap card (6.6.63-v8-16k, no isolation),
+# MCU at 1000 Hz, acq-bridge (SCHED_FIFO 80, core 2) -> devbus -> drop-oldest subscriber
+# (SCHED_FIFO 70, core 3). 16 s per point, last full second reported. Latency is from
+# the driver's hard-IRQ timestamp to the subscriber.
+# irq_count is the hard-IRQ delta over the run: ~18000 means one interrupt per sample
+# (the MCU FIFO really empties); 16 means it never does, and every sample then carries
+# the same stale irq_ts_ns - which is why the 200 us row reports a 17-second "latency".
+# Compare results/devbus/pi5-raspios/ifus-sweep/summary.csv: same driver, same MCU,
+# cliff at ~150-200 us here and at ~95 us there.
+inter_frame_us,rx_per_s,gaps,p50_us,p99_us,max_us,kfifo_overflow,irq_count
+50,1000,0,777,779,779,0,17999
+70,1000,0,855,857,858,0,18000
+90,1000,0,937,940,941,0,17999
+100,1000,0,977,980,980,0,18001
+150,998,0,1226,2177,2186,0,18000
+200,641,0,17405729,17806363,17982596,6075,16
