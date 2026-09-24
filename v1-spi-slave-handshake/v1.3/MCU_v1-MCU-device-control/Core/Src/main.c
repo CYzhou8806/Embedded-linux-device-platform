@@ -24,6 +24,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "devauth.h"
 
 /* USER CODE END Includes */
 
@@ -67,6 +68,11 @@
 #define REG_OVERFLOW_COUNT 0x08
 #define REG_SPI_REARM_FAIL 0x09
 #define REG_SPI_ERROR_COUNT 0x0A
+/* Device authentication (docs/security/device-authentication.md) */
+#define REG_AUTH_NONCE0 0x10 /* ..0x13: 16-byte nonce, big-endian words */
+#define REG_AUTH_CTRL 0x14   /* write 1: compute the MAC for the nonce */
+#define REG_AUTH_MAC0 0x15   /* ..0x18: truncated HMAC, big-endian words */
+#define REG_AUTH_CYCLES 0x19 /* CPU cycles the last MAC took (DWT) */
 #define REG_NOP 0x7F
 
 /* ═══════════════════════════════════════════
@@ -76,6 +82,14 @@
 #define ST_CMD_ERR (1u << 1)
 #define ST_RANGE_ERR (1u << 2)
 #define ST_SPI_RESYNC (1u << 3)
+#define ST_AUTH_BUSY (1u << 4)
+#define ST_AUTH_DONE (1u << 5)
+#define ST_AUTH_NOKEY (1u << 6)
+
+/* Written once at pairing, never by this firmware. */
+#define DEVAUTH_KEY ((const uint8_t *)0x0807F800u)
+#define DEVICE_ID 0xAC00ACC0u
+#define FW_VERSION 0x00010400u /* v1.4: v1.3 + device authentication */
 
 /* ═══════════════════════════════════════════
  *  SPI buffers
@@ -89,6 +103,14 @@ static uint8_t tx_buf[FRAME_LEN];
 static volatile uint32_t reg_status = 0;
 static volatile uint32_t reg_control = 0;
 static volatile uint32_t reg_sample_rate = 1000;
+
+/* Device authentication. The SPI ISR only stores the nonce and raises
+ * auth_request; the MAC is computed in the main loop, so the ISR keeps
+ * re-arming within the inter-frame gap (see case-01/case-02). */
+static volatile uint32_t auth_nonce[4];
+static volatile uint32_t auth_mac[4];
+static volatile uint32_t auth_cycles = 0;
+static volatile uint8_t auth_request = 0;
 
 /* ═══════════════════════════════════════════
  *  FIFO
@@ -140,6 +162,7 @@ static void pack_u32(uint8_t *p, uint32_t v);
 static uint32_t reg_read(uint8_t addr);
 static void reg_write(uint8_t addr, uint32_t val);
 static void handle_frame(void);
+static void devauth_service(void);
 static void spi_resync(void);
 static void update_data_ready_gpio(void);
 static void update_timer_rate(uint32_t rate_hz);
@@ -277,10 +300,10 @@ static uint32_t reg_read(uint8_t addr)
   {
   /* -- carried over from V1.2 -- */
   case REG_DEVICE_ID:
-    return 0xAC00ACC0u;
+    return DEVICE_ID;
 
   case REG_FW_VERSION:
-    return 0x00010300u; /* V1.3 -> 0x00010300 */
+    return FW_VERSION;
 
   case REG_STATUS:
     return reg_status;
@@ -328,6 +351,18 @@ static uint32_t reg_read(uint8_t addr)
   case REG_SPI_REARM_FAIL:
     return spi_rearm_fail;
 
+  case REG_AUTH_NONCE0:
+  case REG_AUTH_NONCE0 + 1:
+  case REG_AUTH_NONCE0 + 2:
+  case REG_AUTH_NONCE0 + 3:
+    return auth_nonce[addr - REG_AUTH_NONCE0];
+  case REG_AUTH_MAC0:
+  case REG_AUTH_MAC0 + 1:
+  case REG_AUTH_MAC0 + 2:
+  case REG_AUTH_MAC0 + 3:
+    return auth_mac[addr - REG_AUTH_MAC0];
+  case REG_AUTH_CYCLES:
+    return auth_cycles;
   case REG_SPI_ERROR_COUNT:
     return spi_error_count;
 
@@ -344,6 +379,22 @@ static void reg_write(uint8_t addr, uint32_t val)
 {
   switch (addr)
   {
+  case REG_AUTH_NONCE0:
+  case REG_AUTH_NONCE0 + 1:
+  case REG_AUTH_NONCE0 + 2:
+  case REG_AUTH_NONCE0 + 3:
+    auth_nonce[addr - REG_AUTH_NONCE0] = val;
+    break;
+
+  case REG_AUTH_CTRL:
+    if (val & 0x01u)
+    {
+      reg_status &= ~(ST_AUTH_DONE | ST_AUTH_NOKEY);
+      reg_status |= ST_AUTH_BUSY;
+      auth_request = 1;
+    }
+    break;
+
   case REG_CONTROL:
     /* CLEAR_FLAGS */
     if (val & 0x02u)
@@ -421,6 +472,43 @@ static void handle_frame(void)
   pack_u32(&tx_buf[1], resp);
 }
 
+/* ═══════════════════════════════════════════
+ *  Device authentication (main loop, not ISR)
+ * ═══════════════════════════════════════════ */
+static void devauth_service(void)
+{
+  uint8_t nonce[DEVAUTH_NONCE_LEN];
+  uint8_t mac[DEVAUTH_MAC_LEN] = {0};
+  uint32_t t0;
+
+  auth_request = 0;
+  /* Copy once: the ISR may overwrite the registers while we compute. */
+  for (int i = 0; i < 4; i++)
+  {
+    pack_u32(&nonce[4 * i], auth_nonce[i]);
+  }
+
+  if (!devauth_key_present(DEVAUTH_KEY))
+  {
+    for (int i = 0; i < 4; i++)
+    {
+      auth_mac[i] = 0;
+    }
+    reg_status = (reg_status & ~ST_AUTH_BUSY) | ST_AUTH_NOKEY | ST_AUTH_DONE;
+    return;
+  }
+
+  t0 = DWT->CYCCNT;
+  devauth_compute(DEVAUTH_KEY, DEVICE_ID, FW_VERSION, nonce, mac);
+  auth_cycles = DWT->CYCCNT - t0;
+
+  for (int i = 0; i < 4; i++)
+  {
+    auth_mac[i] = unpack_u32(&mac[4 * i]);
+  }
+  reg_status = (reg_status & ~ST_AUTH_BUSY) | ST_AUTH_DONE;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -455,6 +543,11 @@ int main(void)
   MX_SPI2_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
+
+  /* Cycle counter, to measure what device authentication costs. */
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+  DWT->CYCCNT = 0;
+  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
 
   /* prepare the first tx_buf frame (what the slave replies with right after power-on) */
   tx_buf[0] = REG_NOP;
@@ -491,6 +584,10 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    if (auth_request)
+    {
+      devauth_service();
+    }
   }
   /* USER CODE END 3 */
 }

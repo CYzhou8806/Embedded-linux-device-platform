@@ -56,7 +56,10 @@ ENTRY(Reset_Handler)
 MEMORY
 {
 RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 64K
-FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 512K
+/* The last 2 KiB page (0x0807F800) holds the device-authentication key
+ * (Core/Inc/devauth.h), written at pairing. It is left out of FLASH so that
+ * code or data growing into it is a link error, not an overwritten key. */
+FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 510K
 }
 
 /* Highest address of the user mode stack */

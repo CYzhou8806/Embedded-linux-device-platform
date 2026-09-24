@@ -38,6 +38,18 @@ against userspace-side numbers**: more than one wrong conclusion in this
 project was caught by a counter disagreeing with a computed rate rather
 than by the number looking implausible.
 
+Device authentication (firmware v1.4+, root only,
+[docs/security/device-authentication.md](../../docs/security/device-authentication.md)):
+`auth_challenge` (write a 16-byte nonce as 32 hex digits), `auth_response`
+(the MCU's truncated HMAC as hex; `ENOKEY` if the MCU has no key,
+`ETIMEDOUT` if it doesn't answer), `auth_cycles` (Cortex-M3 cycles the
+last MAC took). The driver only moves bytes; verifying the answer is the
+caller's job.
+
+Writing sysfs attributes on the BusyBox images: use
+`sudo sh -c "printf VALUE > ATTR"`. `echo VALUE | sudo tee ATTR` was seen
+to deliver a truncated value to the store function.
+
 ## Build
 
 ```bash

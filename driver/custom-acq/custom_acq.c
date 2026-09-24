@@ -29,6 +29,15 @@
 #include <linux/poll.h>
 #include <linux/wait.h>
 #include <linux/sysfs.h>
+#include <linux/kernel.h>
+#include <linux/version.h>
+/* get_unaligned_be32() & co. moved from <asm/unaligned.h> to
+ * <linux/unaligned.h> in 6.12, and the old header was removed. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
+#include <linux/unaligned.h>
+#else
+#include <asm/unaligned.h>
+#endif
 
 #define REG_DEVICE_ID	0x00
 #define REG_FW_VERSION	0x01
@@ -39,6 +48,15 @@
 #define REG_DATA_VAL	0x07
 #define REG_SPI_REARM_FAIL	0x09
 #define REG_SPI_ERROR_COUNT	0x0A
+#define REG_STATUS	0x02
+/* Device authentication, firmware v1.4+ (docs/security/device-authentication.md) */
+#define REG_AUTH_NONCE0	0x10	/* ..0x13 */
+#define REG_AUTH_CTRL	0x14
+#define REG_AUTH_MAC0	0x15	/* ..0x18 */
+#define REG_AUTH_CYCLES	0x19
+#define ST_AUTH_BUSY	(1u << 4)
+#define ST_AUTH_DONE	(1u << 5)
+#define ST_AUTH_NOKEY	(1u << 6)
 #define CMD_NOP		0x7F
 #define CMD_WRITE_FLAG	0x80
 
@@ -500,7 +518,80 @@ static ssize_t spi_error_count_show(struct device *dev, struct device_attribute 
 }
 static DEVICE_ATTR_RO(spi_error_count);
 
+/* Device authentication: userspace writes a 16-byte nonce as 32 hex digits
+ * to auth_challenge, then reads the MCU's truncated HMAC from auth_response.
+ * The driver only moves bytes; the key and the check live elsewhere (the MCU,
+ * and whoever verifies the answer). Root only - a challenge and its response
+ * are two separate sysfs operations, so concurrent callers would mix them up.
+ */
+static ssize_t auth_challenge_store(struct device *dev, struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	u8 nonce[16];
+	int ret, i;
+
+	if (count < 32 || hex2bin(nonce, buf, sizeof(nonce)))
+		return -EINVAL;
+
+	for (i = 0; i < 4; i++) {
+		ret = custom_acq_reg_write(spi, REG_AUTH_NONCE0 + i, get_unaligned_be32(&nonce[4 * i]));
+		if (ret)
+			return ret;
+	}
+	ret = custom_acq_reg_write(spi, REG_AUTH_CTRL, 1);
+	return ret ? ret : count;
+}
+static DEVICE_ATTR_WO(auth_challenge);
+
+static ssize_t auth_response_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	u8 mac[16];
+	u32 status, word;
+	int ret, i, tries;
+
+	/* The MCU computes in its main loop; poll for up to ~100 ms. */
+	for (tries = 0; tries < 100; tries++) {
+		ret = custom_acq_reg_read(spi, REG_STATUS, &status);
+		if (ret)
+			return ret;
+		if (status & ST_AUTH_DONE)
+			break;
+		usleep_range(1000, 1500);
+	}
+	if (!(status & ST_AUTH_DONE))
+		return -ETIMEDOUT;
+	if (status & ST_AUTH_NOKEY)
+		return -ENOKEY;
+
+	for (i = 0; i < 4; i++) {
+		ret = custom_acq_reg_read(spi, REG_AUTH_MAC0 + i, &word);
+		if (ret)
+			return ret;
+		put_unaligned_be32(word, &mac[4 * i]);
+	}
+	return sysfs_emit(buf, "%16phN\n", mac);
+}
+static DEVICE_ATTR_RO(auth_response);
+
+static ssize_t auth_cycles_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	u32 val;
+	int ret;
+
+	ret = custom_acq_reg_read(spi, REG_AUTH_CYCLES, &val);
+	if (ret)
+		return ret;
+	return sysfs_emit(buf, "%u\n", val);
+}
+static DEVICE_ATTR_RO(auth_cycles);
+
 static struct attribute *custom_acq_attrs[] = {
+	&dev_attr_auth_challenge.attr,
+	&dev_attr_auth_response.attr,
+	&dev_attr_auth_cycles.attr,
 	&dev_attr_device_id.attr,
 	&dev_attr_fw_version.attr,
 	&dev_attr_control.attr,
