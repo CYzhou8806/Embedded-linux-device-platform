@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# HSM wrapper for Raspberry Pi's signing tools (rpi-eeprom-digest -H,
+# rpi-sign-bootcode -H, update-pieeprom.sh -H). Interface, as defined by
+# usbboot/secure-boot-example/example-hsm-wrapper:
+#
+#   pkcs11-hsm-wrapper -a rsa2048-sha256 INPUT_FILE
+#   -> hex PKCS#1 v1.5 signature of SHA-256(INPUT_FILE) on stdout
+#
+# The signature is computed by the token (CKM_SHA256_RSA_PKCS); the private
+# key never leaves it.
+set -euo pipefail
+here="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+source "$here/hsm-env.sh"
+
+algorithm=""
+while getopts "a:" opt; do
+	case "$opt" in
+		a) algorithm="$OPTARG" ;;
+		*) echo "usage: $0 -a rsa2048-sha256 INPUT_FILE" >&2; exit 2 ;;
+	esac
+done
+shift $((OPTIND - 1))
+[[ "$algorithm" == "rsa2048-sha256" ]] || { echo "$0: unsupported algorithm '$algorithm'" >&2; exit 1; }
+[[ $# -eq 1 && -f "$1" ]] || { echo "$0: input file missing" >&2; exit 1; }
+
+sig="$(mktemp)"
+trap 'rm -f "$sig"' EXIT
+p11 --sign --mechanism SHA256-RSA-PKCS --id "$HSM_KEY_ID" \
+	--input-file "$1" --output-file "$sig" >/dev/null 2>&1 \
+	|| { echo "$0: signing failed" >&2; exit 1; }
+
+# Audit trail: what was signed, when, by whom. A real HSM keeps its own.
+printf '%s %s sha256=%s\n' "$(date -Is)" "$(id -un)" "$(sha256sum "$1" | cut -d' ' -f1)" \
+	>> "$SIGNING_HOME/signing-audit.log"
+
+xxd -p -c 256 "$sig"

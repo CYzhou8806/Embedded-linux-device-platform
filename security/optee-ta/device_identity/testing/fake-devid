@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+"""TEST DOUBLE for the devid client - NOT secure, key is a plain file.
+
+Speaks the same command line as host/main.c (provision | pubkey | sign
+<nonce-hex>) and signs the same domain-separated digest, so the
+provisioning station (tools/provision-device.sh) can be tested without a
+board or QEMU. FAKE_DEVID_DIR holds the key; FAKE_DEVID_SERIAL is what
+`serial` prints; FAKE_DEVID_CHEAT=1 makes it sign with a different key than
+the one it reported, to test the station's proof-of-possession check.
+"""
+import hashlib, os, sys
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.utils import Prehashed, decode_dss_signature
+
+DOMAIN = b"device-platform/devid-challenge/v1"
+d = os.environ.get("FAKE_DEVID_DIR", "/tmp/fake-devid")
+keyfile = os.path.join(d, "key.pem")
+
+def load():
+    if not os.path.exists(keyfile):
+        sys.exit("devid: pubkey: 0xffff0008 (origin 4)")
+    return serialization.load_pem_private_key(open(keyfile, "rb").read(), None)
+
+def pub_hex(k):
+    return k.public_key().public_bytes(serialization.Encoding.X962,
+        serialization.PublicFormat.UncompressedPoint).hex()
+
+cmd = sys.argv[1:]
+if cmd == ["serial"]:
+    print(os.environ.get("FAKE_DEVID_SERIAL", "fake0001"))
+elif cmd == ["provision"]:
+    if os.path.exists(keyfile):
+        sys.exit("devid: provision: 0xffff0003 (origin 4)")
+    os.makedirs(d, exist_ok=True)
+    k = ec.generate_private_key(ec.SECP256R1())
+    open(keyfile, "wb").write(k.private_bytes(serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+    print(pub_hex(k))
+elif cmd == ["pubkey"]:
+    print(pub_hex(load()))
+elif len(cmd) == 2 and cmd[0] == "sign":
+    k = load()
+    if os.environ.get("FAKE_DEVID_CHEAT") == "1":
+        k = ec.generate_private_key(ec.SECP256R1())
+    digest = hashlib.sha256(DOMAIN + bytes.fromhex(cmd[1])).digest()
+    r, s = decode_dss_signature(k.sign(digest, ec.ECDSA(Prehashed(hashes.SHA256()))))
+    print((r.to_bytes(32, "big") + s.to_bytes(32, "big")).hex())
+else:
+    sys.exit("usage: fake-devid serial | provision | pubkey | sign <nonce-hex>")

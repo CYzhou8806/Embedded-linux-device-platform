@@ -1,0 +1,75 @@
+#!/usr/bin/expect -f
+# Headless demo of the device identity TA on OP-TEE's QEMU Armv8-A target.
+# Boots the image built by OP-TEE's build/ (qemu_v8.mk), logs in, and runs
+# every property the TA is meant to have, one command at a time. The normal
+# world console is logged to normal-world.log, the secure world (OP-TEE
+# core + TA messages) to secure-world.log.
+#
+# Usage (from a directory holding the OP-TEE binaries, see run-demo.sh):
+#   NONCE=<hex> QEMU=... QEMU_ARGS="..." expect qemu-demo.exp
+set timeout 600
+log_user 1
+log_file -noappend "normal-world.log"
+
+proc step {title} {
+	send_user "\n===== $title =====\n"
+}
+
+# Send one command and wait for its prompt, so the output that follows a
+# step banner belongs to that step.
+proc run {cmd} {
+	send -- "$cmd\r"
+	expect "# "
+}
+
+spawn sh -c "$::env(QEMU) $::env(QEMU_ARGS)"
+expect {
+	"Kernel panic" { send_user "!!! kernel panic\n"; exit 1 }
+	timeout        { send_user "!!! boot timeout\n"; exit 1 }
+	"ogin:"
+}
+send -- "root\r"
+expect "# "
+
+step "1. no key yet: GET_PUBKEY must fail (TEE_ERROR_ITEM_NOT_FOUND = 0xffff0008)"
+run "devid pubkey; echo @@rc=\$?"
+# Snapshot of secure storage *before* the device has an identity, for step 9.
+run "cp -a /var/lib/tee /tmp/tee-before-provision"
+
+step "2. provision: key generated inside the TA, only the public key comes out"
+run "echo @@PUB=\$(devid provision)"
+
+step "3. provision again: must be refused (TEE_ERROR_ACCESS_CONFLICT = 0xffff0003)"
+run "devid provision; echo @@rc=\$?"
+
+step "4. answer the verifier's challenge"
+run "echo @@SIG=\$(devid sign $::env(NONCE))"
+
+step "5. nonce too short (8 bytes): must be rejected (TEE_ERROR_BAD_PARAMETERS = 0xffff0006)"
+run "devid sign 0011223344556677; echo @@rc=\$?"
+
+step "6. try to read the private key back out: the TA must panic"
+run "devid demo-export-private"
+
+step "7. the key is still there after the TA was killed and reloaded"
+run "echo @@PUB2=\$(devid pubkey)"
+
+step "8. where secure storage really lives: files on the normal-world filesystem"
+run "ls -l /var/lib/tee/ | head -5; ls /var/lib/tee | wc -l"
+run "hexdump -C /var/lib/tee/dirf.db | head -4"
+
+step "9. rollback: put back the pre-provisioning copy of secure storage"
+run "rm -f /var/lib/tee/*; cp -a /tmp/tee-before-provision/* /var/lib/tee/; sync"
+run "devid pubkey; echo @@rc=\$?"
+run "echo @@PUB3=\$(devid provision)"
+run "pidof tee-supplicant; echo @@supp=\$?"
+
+step "10. tamper: flip one byte in the middle of every storage file"
+run "for f in /var/lib/tee/*; do s=\$(wc -c < \$f); printf '\\xff' | dd of=\$f bs=1 seek=\$((s/2)) conv=notrunc 2>/dev/null; done; sync"
+run "devid pubkey; echo @@rc=\$?"
+run "ls /var/lib/tee | wc -l"
+run "pidof tee-supplicant; echo @@supp=\$?"
+
+send_user "\n===== demo finished =====\n"
+send -- "poweroff\r"
+expect eof
