@@ -1,0 +1,2 @@
+# Placeholder: authorises no key. Point DEVICE_PLATFORM_ADMIN_PUBKEY in
+# local.conf at a real authorized_keys file kept outside this repo.

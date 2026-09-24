@@ -1,0 +1,3 @@
+# The admin account has no password (key-only SSH), so sudo can't ask for
+# one. Access control is the SSH key; sudo only records who became root.
+admin ALL=(ALL:ALL) NOPASSWD: ALL

@@ -3,3 +3,10 @@ Name=wlan0
 
 [Network]
 DHCP=yes
+
+[DHCPv4]
+# Ask for an address by MAC, not by systemd's default DUID. The DUID is
+# derived from /etc/machine-id, which the read-only production image
+# regenerates on every boot - and the router then hands out a new IP each
+# time (seen on the board: .177, then .178 after one reboot).
+ClientIdentifier=mac
