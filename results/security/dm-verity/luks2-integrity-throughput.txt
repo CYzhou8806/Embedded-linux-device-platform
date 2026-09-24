@@ -1,0 +1,37 @@
+LUKS2 with authenticated encryption on the data partition (device-platform-image-ab 1.1.0, first boot, 2026-09-24)
+cryptsetup luksFormat --type luks2 --cipher aes-xts-plain64 --key-size 512 --integrity hmac-sha256
+page cache dropped before each read; timing from /proc/uptime (10 ms resolution - BusyBox date has no %N)
+write baselines on /dev/mmcblk0p6 (slot B rootfs, inactive and about to be overwritten by the next update)
+
+kernel 6.12.93-v8-16k
+  cipher:  aes-xts-plain64
+  keysize: 768 bits
+  integrity: hmac(sha256)
+  integrity keysize: 256 bits
+name         : authenc(hmac(sha256),xts(aes))
+driver       : authenc(hmac(sha256-ce),xts-aes-ce)
+module       : kernel
+priority     : 3200
+driver       : authenc(hmac(sha256-ce),xts-aes-ce)
+/dev/mmcblk0p5         read  run 1:  1.73 s   86.7 MiB/s
+/dev/mmcblk0p5         read  run 2:  1.73 s   86.7 MiB/s
+/dev/mmcblk0p5         read  run 3:  1.73 s   86.7 MiB/s
+/dev/mmcblk0p7         read  run 1:  1.75 s   85.7 MiB/s
+/dev/mmcblk0p7         read  run 2:  1.76 s   85.2 MiB/s
+/dev/mmcblk0p7         read  run 3:  1.76 s   85.2 MiB/s
+/dev/mapper/data_dif   read  run 1:  1.77 s   84.7 MiB/s
+/dev/mapper/data_dif   read  run 2:  1.77 s   84.7 MiB/s
+/dev/mapper/data_dif   read  run 3:  1.78 s   84.3 MiB/s
+/dev/mapper/data       read  run 1:  2.34 s   64.1 MiB/s
+/dev/mapper/data       read  run 2:  2.33 s   64.4 MiB/s
+/dev/mapper/data       read  run 3:  2.27 s   66.1 MiB/s
+/data write 100 MiB + sync  run 1:  6.41 s   15.6 MiB/s
+/data write 100 MiB + sync  run 2:  4.73 s   21.1 MiB/s
+/data write 100 MiB + sync  run 3:  5.11 s   19.6 MiB/s
+/dev/mmcblk0p6         write 100 MiB + sync run 1:  2.35 s   42.6 MiB/s
+/dev/mmcblk0p6         write 100 MiB + sync run 2:  2.51 s   39.8 MiB/s
+/dev/mmcblk0p6         write 100 MiB + sync run 3:  3.28 s   30.5 MiB/s
+
+/dev/mapper/wtest      write 100 MiB + sync run 1:  2.82 s   35.5 MiB/s
+/dev/mapper/wtest      write 100 MiB + sync run 2:  2.71 s   36.9 MiB/s
+/dev/mapper/wtest      write 100 MiB + sync run 3:  2.41 s   41.5 MiB/s

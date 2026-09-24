@@ -9,6 +9,7 @@ genuine and technically accurate, just informal in tone and language.
 | File | What it covers |
 | --- | --- |
 | `learning-qa.md` | Confirmed Q&A log, mostly from the V3 (Device Tree + kernel driver) stage. |
+| `security-knowledge-map.zh.md` | Map of the embedded-security territory (boot chain, integrity/encryption, TEE, update, key infrastructure) doubling as a review checklist, with per-topic status markers. Paired with the work plan in `private/security-plan.md`. |
 | `systems-programming-patterns.md` | Generic, reusable systems-programming patterns learned along the way (not tied to one file/case), including real-time Linux tuning below the process level. |
 | `driver-code-walkthrough.zh.md` | Line-by-line walkthrough of `driver/custom-acq/custom_acq.c`. |
 | `device-service-code-walkthrough.zh.md` | Line-by-line walkthrough of `userspace/device-service/`. |

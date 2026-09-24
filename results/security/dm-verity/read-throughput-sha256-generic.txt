@@ -1,0 +1,8 @@
+dm-verity read throughput, verity using: "sha256-generic" (from the boot log in case 10; dmesg had been cleared before this run)
+kernel 6.6.63-v8-16k; 150 MiB sequential, page cache dropped before each run
+/dev/mmcblk0p2       run 1:   1.75 s    85.7 MiB/s
+/dev/mmcblk0p2       run 2:   1.76 s    85.2 MiB/s
+/dev/mmcblk0p2       run 3:   1.76 s    85.2 MiB/s
+/dev/mapper/rootfs   run 1:   2.45 s    61.2 MiB/s
+/dev/mapper/rootfs   run 2:   2.37 s    63.3 MiB/s
+/dev/mapper/rootfs   run 3:   2.42 s    62.0 MiB/s

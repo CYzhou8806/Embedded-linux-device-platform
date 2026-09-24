@@ -1,0 +1,1655 @@
+Thu Sep 24 12:31:17 UTC 2026
+reboot=w coherent_pool=1M 8250.nr_uarts=1 pci=pcie_bus_safe cgroup_disable=memory numa_policy=interleave  numa=fake=8 system_heap.max_order=0 iommu_dma_numa_policy=interleave smsc95xx.macaddr=2C:CF:67:F3:EE:41 vc_mem.mem_base=0x3fc00000 vc_mem.mem_size=0x40000000  dwc_otg.lpm_enable=0 root=/dev/mmcblk0p5 rauc.slot=A rootfstype=ext4 rootwait  net.ifnames=0
+== failed units
+  UNIT                         LOAD   ACTIVE SUB    DESCRIPTION
+* device-platform-data.service loaded failed failed Encrypted data partition (/data)
+
+Legend: LOAD   -> Reflects whether the unit definition was properly loaded.
+        ACTIVE -> The high-level unit activation state, i.e. generalization of SUB.
+        SUB    -> The low-level unit activation state, values depend on unit type.
+
+1 loaded units listed.
+== status
+x device-platform-data.service - Encrypted data partition (/data)
+     Loaded: loaded (/usr/lib/systemd/system/device-platform-data.service; enabled; preset: enabled)
+     Active: failed (Result: exit-code) since Thu 2025-06-26 08:44:31 UTC; 1 year 2 months ago
+    Process: 702 ExecStart=/usr/sbin/device-platform-data (code=exited, status=127)
+   Main PID: 702 (code=exited, status=127)
+        CPU: 18ms
+
+Jun 26 08:44:31 raspberrypi5 systemd[1]: Starting Encrypted data partition (/data)...
+Jun 26 08:44:31 raspberrypi5 device-platform-data[706]: Device data already exists.
+Jun 26 08:44:31 raspberrypi5 device-platform-data[702]: device-platform-data: FAILED to set up /dev/mmcblk0p7 - /data is a tmpfs for this boot
+Jun 26 08:44:31 raspberrypi5 device-platform-data[702]: /usr/sbin/device-platform-data: line 59: install: not found
+Jun 26 08:44:31 raspberrypi5 systemd[1]: device-platform-data.service: Main process exited, code=exited, status=127/n/a
+Jun 26 08:44:31 raspberrypi5 systemd[1]: device-platform-data.service: Failed with result 'exit-code'.
+Jun 26 08:44:31 raspberrypi5 systemd[1]: Failed to start Encrypted data partition (/data).
+
+* dropbearkey.service - SSH Key Generation
+     Loaded: loaded (/usr/lib/systemd/system/dropbearkey.service; static)
+    Drop-In: /usr/lib/systemd/system/dropbearkey.service.d
+             `-data.conf
+     Active: active (exited) since Thu 2025-06-26 08:44:31 UTC; 1 year 2 months ago
+    Process: 715 ExecStart=/usr/sbin/dropbear-hostkey (code=exited, status=0/SUCCESS)
+   Main PID: 715 (code=exited, status=0/SUCCESS)
+        CPU: 388ms
+
+Jun 26 08:44:31 raspberrypi5 systemd[1]: Starting SSH Key Generation...
+Jun 26 08:44:31 raspberrypi5 dropbear-hostkey[715]: /usr/sbin/dropbear-hostkey: line 11: install: not found
+Jun 26 08:44:31 raspberrypi5 dropbear-hostkey[715]: dropbear-hostkey: /data not usable - host key in /run/dropbear (changes every boot)
+Jun 26 08:44:31 raspberrypi5 dropbear-hostkey[717]: Generating 2048 bit rsa key, this may take a while...
+Jun 26 08:44:31 raspberrypi5 dropbear-hostkey[717]: Couldn't create new file /run/dropbear/dropbear_rsa_host_key.tmp717: No such file or directory
+Jun 26 08:44:31 raspberrypi5 dropbear-hostkey[717]: Exited: Failed to generate key.
+Jun 26 08:44:31 raspberrypi5 systemd[1]: Finished SSH Key Generation.
+
+* dropbear.socket
+     Loaded: loaded (/usr/lib/systemd/system/dropbear.socket; enabled; preset: enabled)
+     Active: active (listening) since Thu 2025-06-26 08:44:17 UTC; 1 year 2 months ago
+     Listen: [::]:22 (Stream)
+   Accepted: 20; Connected: 0;
+      Tasks: 0 (limit: 9530)
+        CPU: 4ms
+     CGroup: /system.slice/dropbear.socket
+
+Jun 26 08:44:17 raspberrypi5 systemd[1]: Listening on dropbear.socket.
+
+* device-service.service - custom-acq device service
+     Loaded: loaded (/usr/lib/systemd/system/device-service.service; enabled; preset: enabled)
+    Drop-In: /usr/lib/systemd/system/device-service.service.d
+             `-hardening.conf, user.conf
+     Active: active (running) since Thu 2025-06-26 08:44:17 UTC; 1 year 2 months ago
+   Main PID: 685 (device-service)
+      Tasks: 5 (limit: 9530)
+        CPU: 725ms
+     CGroup: /system.slice/device-service.service
+             `-685 /opt/device-service/device-service /opt/device-service/config.json
+
+Sep 24 12:31:13 raspberrypi5 device-service[685]: [2026-09-24 12:31:13.586] [info] seq=107500 value=41964
+Sep 24 12:31:14 raspberrypi5 device-service[685]: [2026-09-24 12:31:14.086] [info] seq=108000 value=42464
+Sep 24 12:31:14 raspberrypi5 device-service[685]: [2026-09-24 12:31:14.586] [info] seq=108500 value=42964
+Sep 24 12:31:15 raspberrypi5 device-service[685]: [2026-09-24 12:31:15.086] [info] seq=109000 value=43464
+Sep 24 12:31:15 raspberrypi5 device-service[685]: [2026-09-24 12:31:15.586] [info] seq=109500 value=43964
+Sep 24 12:31:16 raspberrypi5 device-service[685]: [2026-09-24 12:31:16.086] [info] seq=110000 value=44464
+Sep 24 12:31:16 raspberrypi5 device-service[685]: [2026-09-24 12:31:16.099] [info] metrics: rate=1000.2/s samples_read=110013 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=772us
+Sep 24 12:31:16 raspberrypi5 device-service[685]: [2026-09-24 12:31:16.586] [info] seq=110500 value=44964
+Sep 24 12:31:17 raspberrypi5 device-service[685]: [2026-09-24 12:31:17.086] [info] seq=111000 value=45464
+Sep 24 12:31:17 raspberrypi5 device-service[685]: [2026-09-24 12:31:17.586] [info] seq=111500 value=45964
+
+* device-platform-healthcheck.service - Commit the booted RAUC slot once the device is healthy
+     Loaded: loaded (/usr/lib/systemd/system/device-platform-healthcheck.service; enabled; preset: enabled)
+     Active: inactive (dead)
+== journal
+[    0.000000] raspberrypi5 kernel: Booting Linux on physical CPU 0x0000000000 [0x414fd0b1]
+[    0.000000] raspberrypi5 kernel: Linux version 6.6.63-v8-16k (oe-user@oe-host) (aarch64-poky-linux-gcc (GCC) 13.4.0, GNU ld (GNU Binutils) 2.42.0.20240723) #1 SMP PREEMPT Fri Dec  6 10:10:05 UTC 2024
+[    0.000000] raspberrypi5 kernel: KASLR enabled
+[    0.000000] raspberrypi5 kernel: random: crng init done
+[    0.000000] raspberrypi5 kernel: Machine model: Raspberry Pi 5 Model B Rev 1.1
+[    0.000000] raspberrypi5 kernel: efi: UEFI not found.
+[    0.000000] raspberrypi5 kernel: Reserved memory: created CMA memory pool at 0x0000000006000000, size 64 MiB
+[    0.000000] raspberrypi5 kernel: OF: reserved mem: initialized node linux,cma, compatible id shared-dma-pool
+[    0.000000] raspberrypi5 kernel: OF: reserved mem: 0x0000000006000000..0x0000000009ffffff (65536 KiB) map reusable linux,cma
+[    0.000000] raspberrypi5 kernel: OF: reserved mem: 0x0000000000000000..0x000000000007ffff (512 KiB) nomap non-reusable atf@0
+[    0.000000] raspberrypi5 kernel: OF: reserved mem: 0x000000003fd23b20..0x000000003fd23b57 (0 KiB) nomap non-reusable nvram@0
+[    0.000000] raspberrypi5 kernel: NUMA: No NUMA configuration found
+[    0.000000] raspberrypi5 kernel: Faking a node at [mem 0x0000000000000000-0x000000003fffffff]
+[    0.000000] raspberrypi5 kernel: Faking a node at [mem 0x0000000040000000-0x000000007fffffff]
+[    0.000000] raspberrypi5 kernel: Faking a node at [mem 0x0000000080000000-0x00000000bfffffff]
+[    0.000000] raspberrypi5 kernel: Faking a node at [mem 0x00000000c0000000-0x00000000ffffffff]
+[    0.000000] raspberrypi5 kernel: Faking a node at [mem 0x0000000100000000-0x000000013fffffff]
+[    0.000000] raspberrypi5 kernel: Faking a node at [mem 0x0000000140000000-0x000000017fffffff]
+[    0.000000] raspberrypi5 kernel: Faking a node at [mem 0x0000000180000000-0x00000001bfffffff]
+[    0.000000] raspberrypi5 kernel: Faking a node at [mem 0x00000001c0000000-0x00000001ffffffff]
+[    0.000000] raspberrypi5 kernel: NUMA: NODE_DATA [mem 0x3fbfd2c0-0x3fbfffff]
+[    0.000000] raspberrypi5 kernel: NUMA: NODE_DATA [mem 0x7fffd2c0-0x7fffffff]
+[    0.000000] raspberrypi5 kernel: NUMA: NODE_DATA [mem 0xbfffd2c0-0xbfffffff]
+[    0.000000] raspberrypi5 kernel: NUMA: NODE_DATA [mem 0xffffd2c0-0xffffffff]
+[    0.000000] raspberrypi5 kernel: NUMA: NODE_DATA [mem 0x13fffd2c0-0x13fffffff]
+[    0.000000] raspberrypi5 kernel: NUMA: NODE_DATA [mem 0x17fffd2c0-0x17fffffff]
+[    0.000000] raspberrypi5 kernel: NUMA: NODE_DATA [mem 0x1bfffd2c0-0x1bfffffff]
+[    0.000000] raspberrypi5 kernel: NUMA: NODE_DATA [mem 0x1ffb752c0-0x1ffb77fff]
+[    0.000000] raspberrypi5 kernel: Zone ranges:
+[    0.000000] raspberrypi5 kernel:   DMA      [mem 0x0000000000000000-0x00000000ffffffff]
+[    0.000000] raspberrypi5 kernel:   DMA32    empty
+[    0.000000] raspberrypi5 kernel:   Normal   [mem 0x0000000100000000-0x00000001ffffffff]
+[    0.000000] raspberrypi5 kernel: Movable zone start for each node
+[    0.000000] raspberrypi5 kernel: Early memory node ranges
+[    0.000000] raspberrypi5 kernel:   node   0: [mem 0x0000000000000000-0x000000000007ffff]
+[    0.000000] raspberrypi5 kernel:   node   0: [mem 0x0000000000080000-0x000000003fbfffff]
+[    0.000000] raspberrypi5 kernel:   node   1: [mem 0x0000000040000000-0x000000007fffffff]
+[    0.000000] raspberrypi5 kernel:   node   2: [mem 0x0000000080000000-0x00000000bfffffff]
+[    0.000000] raspberrypi5 kernel:   node   3: [mem 0x00000000c0000000-0x00000000ffffffff]
+[    0.000000] raspberrypi5 kernel:   node   4: [mem 0x0000000100000000-0x000000013fffffff]
+[    0.000000] raspberrypi5 kernel:   node   5: [mem 0x0000000140000000-0x000000017fffffff]
+[    0.000000] raspberrypi5 kernel:   node   6: [mem 0x0000000180000000-0x00000001bfffffff]
+[    0.000000] raspberrypi5 kernel:   node   7: [mem 0x00000001c0000000-0x00000001ffffffff]
+[    0.000000] raspberrypi5 kernel: Initmem setup node 0 [mem 0x0000000000000000-0x000000003fbfffff]
+[    0.000000] raspberrypi5 kernel: Initmem setup node 1 [mem 0x0000000040000000-0x000000007fffffff]
+[    0.000000] raspberrypi5 kernel: Initmem setup node 2 [mem 0x0000000080000000-0x00000000bfffffff]
+[    0.000000] raspberrypi5 kernel: Initmem setup node 3 [mem 0x00000000c0000000-0x00000000ffffffff]
+[    0.000000] raspberrypi5 kernel: Initmem setup node 4 [mem 0x0000000100000000-0x000000013fffffff]
+[    0.000000] raspberrypi5 kernel: Initmem setup node 5 [mem 0x0000000140000000-0x000000017fffffff]
+[    0.000000] raspberrypi5 kernel: Initmem setup node 6 [mem 0x0000000180000000-0x00000001bfffffff]
+[    0.000000] raspberrypi5 kernel: Initmem setup node 7 [mem 0x00000001c0000000-0x00000001ffffffff]
+[    0.000000] raspberrypi5 kernel: On node 1, zone DMA: 256 pages in unavailable ranges
+[    0.000000] raspberrypi5 kernel: psci: probing for conduit method from DT.
+[    0.000000] raspberrypi5 kernel: psci: PSCIv1.1 detected in firmware.
+[    0.000000] raspberrypi5 kernel: psci: Using standard PSCI v0.2 function IDs
+[    0.000000] raspberrypi5 kernel: psci: MIGRATE_INFO_TYPE not supported.
+[    0.000000] raspberrypi5 kernel: psci: SMC Calling Convention v1.2
+[    0.000000] raspberrypi5 kernel: percpu: Embedded 14 pages/cpu s185192 r8192 d35992 u229376
+[    0.000000] raspberrypi5 kernel: pcpu-alloc: s185192 r8192 d35992 u229376 alloc=14*16384
+[    0.000000] raspberrypi5 kernel: pcpu-alloc: [0] 0 [0] 1 [0] 2 [0] 3 
+[    0.000000] raspberrypi5 kernel: Detected PIPT I-cache on CPU0
+[    0.000000] raspberrypi5 kernel: CPU features: detected: Virtualization Host Extensions
+[    0.000000] raspberrypi5 kernel: CPU features: detected: Hardware dirty bit management
+[    0.000000] raspberrypi5 kernel: CPU features: detected: Spectre-v4
+[    0.000000] raspberrypi5 kernel: CPU features: detected: Spectre-BHB
+[    0.000000] raspberrypi5 kernel: CPU features: kernel page table isolation forced ON by KASLR
+[    0.000000] raspberrypi5 kernel: CPU features: detected: Kernel page table isolation (KPTI)
+[    0.000000] raspberrypi5 kernel: CPU features: detected: SSBS not fully self-synchronizing
+[    0.000000] raspberrypi5 kernel: alternatives: applying boot alternatives
+[    0.000000] raspberrypi5 kernel: Kernel command line: reboot=w coherent_pool=1M 8250.nr_uarts=1 pci=pcie_bus_safe cgroup_disable=memory numa_policy=interleave  numa=fake=8 system_heap.max_order=0 iommu_dma_numa_policy=interleave smsc95xx.macaddr=2C:CF:67:F3:EE:41 vc_mem.mem_base=0x3fc00000 vc_mem.mem_size=0x40000000  dwc_otg.lpm_enable=0 root=/dev/mmcblk0p5 rauc.slot=A rootfstype=ext4 rootwait  net.ifnames=0
+[    0.000000] raspberrypi5 kernel: cgroup: Disabling memory control group subsystem
+[    0.000000] raspberrypi5 kernel: mempolicy: NUMA default policy overridden to 'interleave:0-7'
+[    0.000000] raspberrypi5 kernel: Unknown kernel command line parameters "iommu_dma_numa_policy=interleave", will be passed to user space.
+[    0.000000] raspberrypi5 kernel: Fallback order for Node 0: 0 1 2 3 4 5 6 7 
+[    0.000000] raspberrypi5 kernel: Fallback order for Node 1: 1 2 3 4 5 6 7 0 
+[    0.000000] raspberrypi5 kernel: Fallback order for Node 2: 2 3 4 5 6 7 0 1 
+[    0.000000] raspberrypi5 kernel: Fallback order for Node 3: 3 4 5 6 7 0 1 2 
+[    0.000000] raspberrypi5 kernel: Fallback order for Node 4: 4 5 6 7 0 1 2 3 
+[    0.000000] raspberrypi5 kernel: Fallback order for Node 5: 5 6 7 0 1 2 3 4 
+[    0.000000] raspberrypi5 kernel: Fallback order for Node 6: 6 7 0 1 2 3 4 5 
+[    0.000000] raspberrypi5 kernel: Fallback order for Node 7: 7 0 1 2 3 4 5 6 
+[    0.000000] raspberrypi5 kernel: Built 8 zonelists, mobility grouping on.  Total pages: 521985
+[    0.000000] raspberrypi5 kernel: Policy zone: Normal
+[    0.000000] raspberrypi5 kernel: mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+[    0.000000] raspberrypi5 kernel: software IO TLB: area num 4.
+[    0.000000] raspberrypi5 kernel: software IO TLB: mapped [mem 0x00000000fbffc000-0x00000000ffffc000] (64MB)
+[    0.000000] raspberrypi5 kernel: Memory: 8132512K/8384512K available (15168K kernel code, 2292K rwdata, 4912K rodata, 57216K init, 1232K bss, 186464K reserved, 65536K cma-reserved)
+[    0.000000] raspberrypi5 kernel: SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=4, Nodes=8
+[    0.000000] raspberrypi5 kernel: ftrace: allocating 48766 entries in 48 pages
+[    0.000000] raspberrypi5 kernel: ftrace: allocated 48 pages with 2 groups
+[    0.000000] raspberrypi5 kernel: trace event string verifier disabled
+[    0.000000] raspberrypi5 kernel: rcu: Preemptible hierarchical RCU implementation.
+[    0.000000] raspberrypi5 kernel: rcu:         RCU event tracing is enabled.
+[    0.000000] raspberrypi5 kernel: rcu:         RCU restricting CPUs from NR_CPUS=256 to nr_cpu_ids=4.
+[    0.000000] raspberrypi5 kernel:         Trampoline variant of Tasks RCU enabled.
+[    0.000000] raspberrypi5 kernel:         Rude variant of Tasks RCU enabled.
+[    0.000000] raspberrypi5 kernel:         Tracing variant of Tasks RCU enabled.
+[    0.000000] raspberrypi5 kernel: rcu: RCU calculated value of scheduler-enlistment delay is 25 jiffies.
+[    0.000000] raspberrypi5 kernel: rcu: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=4
+[    0.000000] raspberrypi5 kernel: NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0
+[    0.000000] raspberrypi5 kernel: Root IRQ handler: gic_handle_irq
+[    0.000000] raspberrypi5 kernel: GIC: Using split EOI/Deactivate mode
+[    0.000000] raspberrypi5 kernel: rcu: srcu_init: Setting srcu_struct sizes based on contention.
+[    0.000000] raspberrypi5 kernel: arch_timer: cp15 timer(s) running at 54.00MHz (phys).
+[    0.000000] raspberrypi5 kernel: clocksource: arch_sys_counter: mask: 0xffffffffffffff max_cycles: 0xc743ce346, max_idle_ns: 440795203123 ns
+[    0.000000] raspberrypi5 kernel: sched_clock: 56 bits at 54MHz, resolution 18ns, wraps every 4398046511102ns
+[    0.000128] raspberrypi5 kernel: Console: colour dummy device 80x25
+[    0.000132] raspberrypi5 kernel: printk: console [tty0] enabled
+[    0.000342] raspberrypi5 kernel: Calibrating delay loop (skipped), value calculated using timer frequency.. 108.00 BogoMIPS (lpj=216000)
+[    0.000349] raspberrypi5 kernel: pid_max: default: 32768 minimum: 301
+[    0.000447] raspberrypi5 kernel: LSM: initializing lsm=capability,integrity
+[    0.001846] raspberrypi5 kernel: Dentry cache hash table entries: 1048576 (order: 9, 8388608 bytes, vmalloc)
+[    0.002547] raspberrypi5 kernel: Inode-cache hash table entries: 524288 (order: 8, 4194304 bytes, vmalloc)
+[    0.002589] raspberrypi5 kernel: Mount-cache hash table entries: 16384 (order: 3, 131072 bytes, vmalloc)
+[    0.002609] raspberrypi5 kernel: Mountpoint-cache hash table entries: 16384 (order: 3, 131072 bytes, vmalloc)
+[    0.003209] raspberrypi5 kernel: RCU Tasks: Setting shift to 2 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=4.
+[    0.003231] raspberrypi5 kernel: RCU Tasks Rude: Setting shift to 2 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=4.
+[    0.003249] raspberrypi5 kernel: RCU Tasks Trace: Setting shift to 2 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=4.
+[    0.003294] raspberrypi5 kernel: rcu: Hierarchical SRCU implementation.
+[    0.003297] raspberrypi5 kernel: rcu:         Max phase no-delay instances is 1000.
+[    0.003691] raspberrypi5 kernel: EFI services will not be available.
+[    0.003756] raspberrypi5 kernel: smp: Bringing up secondary CPUs ...
+[    0.003899] raspberrypi5 kernel: Detected PIPT I-cache on CPU1
+[    0.003932] raspberrypi5 kernel: CPU1: Booted secondary processor 0x0000000100 [0x414fd0b1]
+[    0.004105] raspberrypi5 kernel: Detected PIPT I-cache on CPU2
+[    0.004130] raspberrypi5 kernel: CPU2: Booted secondary processor 0x0000000200 [0x414fd0b1]
+[    0.004250] raspberrypi5 kernel: Detected PIPT I-cache on CPU3
+[    0.004269] raspberrypi5 kernel: CPU3: Booted secondary processor 0x0000000300 [0x414fd0b1]
+[    0.004292] raspberrypi5 kernel: smp: Brought up 8 nodes, 4 CPUs
+[    0.004303] raspberrypi5 kernel: SMP: Total of 4 processors activated.
+[    0.004306] raspberrypi5 kernel: CPU features: detected: 32-bit EL0 Support
+[    0.004309] raspberrypi5 kernel: CPU features: detected: Data cache clean to the PoU not required for I/D coherence
+[    0.004313] raspberrypi5 kernel: CPU features: detected: Common not Private translations
+[    0.004315] raspberrypi5 kernel: CPU features: detected: CRC32 instructions
+[    0.004318] raspberrypi5 kernel: CPU features: detected: RCpc load-acquire (LDAPR)
+[    0.004321] raspberrypi5 kernel: CPU features: detected: LSE atomic instructions
+[    0.004324] raspberrypi5 kernel: CPU features: detected: Privileged Access Never
+[    0.004326] raspberrypi5 kernel: CPU features: detected: RAS Extension Support
+[    0.004329] raspberrypi5 kernel: CPU features: detected: Speculative Store Bypassing Safe (SSBS)
+[    0.004359] raspberrypi5 kernel: CPU: All CPU(s) started at EL2
+[    0.004361] raspberrypi5 kernel: alternatives: applying system-wide alternatives
+[    0.005956] raspberrypi5 kernel: devtmpfs: initialized
+[    0.007902] raspberrypi5 kernel: Enabled cp15_barrier support
+[    0.007909] raspberrypi5 kernel: Enabled setend support
+[    0.007974] raspberrypi5 kernel: clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+[    0.007982] raspberrypi5 kernel: futex hash table entries: 1024 (order: 2, 65536 bytes, vmalloc)
+[    0.008190] raspberrypi5 kernel: pinctrl core: initialized pinctrl subsystem
+[    0.008285] raspberrypi5 kernel: DMI not present or invalid.
+[    0.008413] raspberrypi5 kernel: NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.008800] raspberrypi5 kernel: DMA: preallocated 1024 KiB GFP_KERNEL pool for atomic allocations
+[    0.008831] raspberrypi5 kernel: DMA: preallocated 1024 KiB GFP_KERNEL|GFP_DMA pool for atomic allocations
+[    0.008864] raspberrypi5 kernel: DMA: preallocated 1024 KiB GFP_KERNEL|GFP_DMA32 pool for atomic allocations
+[    0.008890] raspberrypi5 kernel: audit: initializing netlink subsys (disabled)
+[    0.008931] raspberrypi5 kernel: audit: type=2000 audit(0.008:1): state=initialized audit_enabled=0 res=1
+[    0.009036] raspberrypi5 kernel: thermal_sys: Registered thermal governor 'step_wise'
+[    0.009047] raspberrypi5 kernel: cpuidle: using governor menu
+[    0.009109] raspberrypi5 kernel: hw-breakpoint: found 6 breakpoint and 4 watchpoint registers.
+[    0.009130] raspberrypi5 kernel: ASID allocator initialised with 32768 entries
+[    0.009338] raspberrypi5 kernel: Serial: AMBA PL011 UART driver
+[    0.009957] raspberrypi5 kernel: bcm2835-mbox 107c013880.mailbox: mailbox enabled
+[    0.010198] raspberrypi5 kernel: 107d001000.serial: ttyAMA10 at MMIO 0x107d001000 (irq = 15, base_baud = 0) is a PL011 rev2
+[    0.010209] raspberrypi5 kernel: printk: console [ttyAMA10] enabled
+[    1.017677] raspberrypi5 kernel: raspberrypi-firmware soc:firmware: Attached to firmware from 2026-05-26T15:01:25, variant start_cd
+[    1.031725] raspberrypi5 kernel: raspberrypi-firmware soc:firmware: Firmware hash is 086b83e300000000000000000000000000000000
+[    1.046869] raspberrypi5 kernel: Modules: 2G module region forced by RANDOMIZE_MODULE_REGION_FULL
+[    1.053951] raspberrypi5 kernel: Modules: 0 pages in range for non-PLT usage
+[    1.053952] raspberrypi5 kernel: Modules: 125996 pages in range for PLT usage
+[    1.063719] raspberrypi5 kernel: bcm2835-dma 1000010000.dma: DMA legacy API manager, dmachans=0x1
+[    1.076370] raspberrypi5 kernel: iommu: Default domain type: Translated
+[    1.081184] raspberrypi5 kernel: iommu: DMA domain TLB invalidation policy: strict mode
+[    1.087613] raspberrypi5 kernel: SCSI subsystem initialized
+[    1.091407] raspberrypi5 kernel: usbcore: registered new interface driver usbfs
+[    1.096916] raspberrypi5 kernel: usbcore: registered new interface driver hub
+[    1.102249] raspberrypi5 kernel: usbcore: registered new device driver usb
+[    1.107380] raspberrypi5 kernel: pps_core: LinuxPPS API ver. 1 registered
+[    1.112360] raspberrypi5 kernel: pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+[    1.121532] raspberrypi5 kernel: PTP clock support registered
+[    1.125494] raspberrypi5 kernel: Advanced Linux Sound Architecture Driver Initialized.
+[    1.131769] raspberrypi5 kernel: vgaarb: loaded
+[    1.134560] raspberrypi5 kernel: clocksource: Switched to clocksource arch_sys_counter
+[    1.249063] raspberrypi5 kernel: VFS: Disk quotas dquot_6.6.0
+[    1.253007] raspberrypi5 kernel: VFS: Dquot-cache hash table entries: 2048 (order 0, 16384 bytes)
+[    1.260111] raspberrypi5 kernel: FS-Cache: Loaded
+[    1.263038] raspberrypi5 kernel: CacheFiles: Loaded
+[    1.266998] raspberrypi5 kernel: NET: Registered PF_INET protocol family
+[    1.272044] raspberrypi5 kernel: IP idents hash table entries: 131072 (order: 6, 1048576 bytes, vmalloc)
+[    1.281245] raspberrypi5 kernel: tcp_listen_portaddr_hash hash table entries: 4096 (order: 2, 65536 bytes, vmalloc)
+[    1.289926] raspberrypi5 kernel: Table-perturb hash table entries: 65536 (order: 4, 262144 bytes, vmalloc)
+[    1.297794] raspberrypi5 kernel: TCP established hash table entries: 65536 (order: 5, 524288 bytes, vmalloc)
+[    1.306008] raspberrypi5 kernel: TCP bind hash table entries: 65536 (order: 7, 2097152 bytes, vmalloc)
+[    1.314175] raspberrypi5 kernel: TCP: Hash tables configured (established 65536 bind 65536)
+[    1.320826] raspberrypi5 kernel: MPTCP token hash table entries: 8192 (order: 3, 196608 bytes, vmalloc)
+[    1.328473] raspberrypi5 kernel: UDP hash table entries: 4096 (order: 3, 131072 bytes, vmalloc)
+[    1.335435] raspberrypi5 kernel: UDP-Lite hash table entries: 4096 (order: 3, 131072 bytes, vmalloc)
+[    1.342868] raspberrypi5 kernel: NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    1.348636] raspberrypi5 kernel: RPC: Registered named UNIX socket transport module.
+[    1.354579] raspberrypi5 kernel: RPC: Registered udp transport module.
+[    1.359296] raspberrypi5 kernel: RPC: Registered tcp transport module.
+[    1.364013] raspberrypi5 kernel: RPC: Registered tcp-with-tls transport module.
+[    1.369515] raspberrypi5 kernel: RPC: Registered tcp NFSv4.1 backchannel transport module.
+[    1.375984] raspberrypi5 kernel: PCI: CLS 0 bytes, default 64
+[    1.380027] raspberrypi5 kernel: kvm [1]: IPA Size Limit: 40 bits
+[    1.384322] raspberrypi5 kernel: kvm [1]: GICV region size/alignment is unsafe, using trapping (reduced performance)
+[    1.393126] raspberrypi5 kernel: kvm [1]: vgic interrupt IRQ9
+[    1.397105] raspberrypi5 kernel: kvm [1]: VHE mode initialized successfully
+[    1.402989] raspberrypi5 kernel: Initialise system trusted keyrings
+[    1.407604] raspberrypi5 kernel: workingset: timestamp_bits=42 max_order=19 bucket_order=0
+[    1.414087] raspberrypi5 kernel: zbud: loaded
+[    1.416782] raspberrypi5 kernel: squashfs: version 4.0 (2009/01/31) Phillip Lougher
+[    1.422711] raspberrypi5 kernel: NFS: Registering the id_resolver key type
+[    1.427784] raspberrypi5 kernel: Key type id_resolver registered
+[    1.431978] raspberrypi5 kernel: Key type id_legacy registered
+[    1.436007] raspberrypi5 kernel: nfs4filelayout_init: NFSv4 File Layout Driver Registering...
+[    1.442735] raspberrypi5 kernel: nfs4flexfilelayout_init: NFSv4 Flexfile Layout Driver Registering...
+[    1.450213] raspberrypi5 kernel: F2FS not supported on PAGE_SIZE(16384) != 4096
+[    1.455774] raspberrypi5 kernel: Key type asymmetric registered
+[    1.459883] raspberrypi5 kernel: Asymmetric key parser 'x509' registered
+[    1.464787] raspberrypi5 kernel: Block layer SCSI generic (bsg) driver version 0.4 loaded (major 246)
+[    1.472230] raspberrypi5 kernel: io scheduler mq-deadline registered
+[    1.476775] raspberrypi5 kernel: io scheduler kyber registered
+[    1.480813] raspberrypi5 kernel: io scheduler bfq registered
+[    1.484853] raspberrypi5 kernel: irq_brcmstb_l2: registered L2 intc (/soc/interrupt-controller@7c502000, parent irq: 26)
+[    1.493987] raspberrypi5 kernel: irq_brcmstb_l2: registered L2 intc (/soc/intc@7d503000, parent irq: 27)
+[    1.501703] raspberrypi5 kernel: irq_brcmstb_l2: registered L2 intc (/soc/intc@7d508380, parent irq: 28)
+[    1.509416] raspberrypi5 kernel: irq_brcmstb_l2: registered L2 intc (/soc/intc@7d508400, parent irq: 29)
+[    1.517134] raspberrypi5 kernel: irq_brcmstb_l2: registered L2 intc (/soc/interrupt-controller@7d510600, parent irq: 30)
+[    1.526245] raspberrypi5 kernel: irq_brcmstb_l2: registered L2 intc (/soc/intc@7d517b00, parent irq: 31)
+[    1.562491] raspberrypi5 kernel: Serial: 8250/16550 driver, 1 ports, IRQ sharing enabled
+[    1.569047] raspberrypi5 kernel: 107d50c000.serial: ttyS0 at MMIO 0x107d50c000 (irq = 33, base_baud = 6000000) is a Broadcom BCM7271 UART
+[    1.579653] raspberrypi5 kernel: serial serial0: tty port ttyS0 registered
+[    1.584918] raspberrypi5 kernel: iproc-rng200 107d208000.rng: hwrng registered
+[    1.590368] raspberrypi5 kernel: vc-mem: phys_addr:0x00000000 mem_base=0x3fc00000 mem_size:0x40000000(1024 MiB)
+[    1.598811] raspberrypi5 kernel: bcm2712-iommu-cache 1000005b00.iommuc: bcm2712_iommu_cache_probe
+[    1.607500] raspberrypi5 kernel: brd: module loaded
+[    1.611453] raspberrypi5 kernel: loop: module loaded
+[    1.614693] raspberrypi5 kernel: bcm2835-power bcm2835-power: Broadcom BCM2835 power domains driver
+[    1.622031] raspberrypi5 kernel: Loading iSCSI transport class v2.0-870.
+[    1.627506] raspberrypi5 kernel: usbcore: registered new device driver r8152-cfgselector
+[    1.633805] raspberrypi5 kernel: usbcore: registered new interface driver r8152
+[    1.639311] raspberrypi5 kernel: usbcore: registered new interface driver lan78xx
+[    1.644991] raspberrypi5 kernel: usbcore: registered new interface driver smsc95xx
+[    1.650791] raspberrypi5 kernel: dwc_otg: version 3.00a 10-AUG-2012 (platform bus)
+[    1.656568] raspberrypi5 kernel: dwc_otg: FIQ enabled
+[    1.656569] raspberrypi5 kernel: dwc_otg: NAK holdoff enabled
+[    1.656570] raspberrypi5 kernel: dwc_otg: FIQ split-transaction FSM enabled
+[    1.656572] raspberrypi5 kernel: Module dwc_common_port init
+[    1.656647] raspberrypi5 kernel: usbcore: registered new interface driver uas
+[    1.661981] raspberrypi5 kernel: usbcore: registered new interface driver usb-storage
+[    1.668068] raspberrypi5 kernel: mousedev: PS/2 mouse device common for all mice
+[    1.680880] raspberrypi5 kernel: rpi-rtc soc:rpi_rtc: registered as rtc0
+[    1.687101] raspberrypi5 kernel: rpi-rtc soc:rpi_rtc: setting system clock to 1970-01-01T00:00:11 UTC (11)
+[    1.695066] raspberrypi5 kernel: brcmstb-i2c 107d508200.i2c:  @97500hz registered in interrupt mode
+[    1.702365] raspberrypi5 kernel: brcmstb-i2c 107d508280.i2c:  @97500hz registered in interrupt mode
+[    1.709856] raspberrypi5 kernel: bcm2835-wdt bcm2835-wdt: Poweroff handler already present!
+[    1.716410] raspberrypi5 kernel: bcm2835-wdt bcm2835-wdt: Broadcom BCM2835 watchdog timer
+[    1.722847] raspberrypi5 kernel: device-mapper: ioctl: 4.48.0-ioctl (2023-03-01) initialised: dm-devel@redhat.com
+[    1.733230] raspberrypi5 kernel: sdhci: Secure Digital Host Controller Interface driver
+[    1.739436] raspberrypi5 kernel: sdhci: Copyright(c) Pierre Ossman
+[    1.743829] raspberrypi5 kernel: sdhci-pltfm: SDHCI platform and OF driver helper
+[    1.749641] raspberrypi5 kernel: ledtrig-cpu: registered to indicate activity on CPUs
+[    1.755704] raspberrypi5 kernel: SMCCC: SOC_ID: ARCH_SOC_ID not implemented, skipping ....
+[    1.762180] raspberrypi5 kernel: hid: raw HID events driver (C) Jiri Kosina
+[    1.767346] raspberrypi5 kernel: usbcore: registered new interface driver usbhid
+[    1.772940] raspberrypi5 kernel: usbhid: USB HID core driver
+[    1.776999] raspberrypi5 kernel: hw perfevents: enabled with armv8_cortex_a76 PMU driver, 7 counters available
+[    1.785528] raspberrypi5 kernel: NET: Registered PF_PACKET protocol family
+[    1.790621] raspberrypi5 kernel: Key type dns_resolver registered
+[    1.798388] raspberrypi5 kernel: registered taskstats version 1
+[    1.802560] raspberrypi5 kernel: Loading compiled-in X.509 certificates
+[    1.808791] raspberrypi5 kernel: Key type .fscrypt registered
+[    1.812730] raspberrypi5 kernel: Key type fscrypt-provisioning registered
+[    1.818739] raspberrypi5 kernel: brcm-pcie 1000120000.pcie: host bridge /axi/pcie@120000 ranges:
+[    1.825750] raspberrypi5 kernel: brcm-pcie 1000120000.pcie:   No bus range found for /axi/pcie@120000, using [bus 00-ff]
+[    1.834845] raspberrypi5 kernel: brcm-pcie 1000120000.pcie:      MEM 0x1f00000000..0x1ffffffffb -> 0x0000000000
+[    1.843146] raspberrypi5 kernel: brcm-pcie 1000120000.pcie:      MEM 0x1c00000000..0x1effffffff -> 0x0400000000
+[    1.851449] raspberrypi5 kernel: brcm-pcie 1000120000.pcie:   IB MEM 0x1f00000000..0x1f003fffff -> 0x0000000000
+[    1.859749] raspberrypi5 kernel: brcm-pcie 1000120000.pcie:   IB MEM 0x0000000000..0x0fffffffff -> 0x1000000000
+[    1.869211] raspberrypi5 kernel: brcm-pcie 1000120000.pcie: Forcing gen 2
+[    1.874330] raspberrypi5 kernel: brcm-pcie 1000120000.pcie: PCI host bridge to bus 0000:00
+[    1.880804] raspberrypi5 kernel: pci_bus 0000:00: Unknown NUMA node; performance will be reduced
+[    1.887797] raspberrypi5 kernel: pci_bus 0000:00: root bus resource [bus 00-ff]
+[    1.893309] raspberrypi5 kernel: pci_bus 0000:00: root bus resource [mem 0x1f00000000-0x1ffffffffb] (bus address [0x00000000-0xfffffffb])
+[    1.903882] raspberrypi5 kernel: pci_bus 0000:00: root bus resource [mem 0x1c00000000-0x1effffffff pref] (bus address [0x400000000-0x6ffffffff])
+[    1.915072] raspberrypi5 kernel: pci 0000:00:00.0: [14e4:2712] type 01 class 0x060400
+[    1.921119] raspberrypi5 kernel: pci 0000:00:00.0: PME# supported from D0 D3hot
+[    1.927189] raspberrypi5 kernel: pci 0000:00:00.0: bridge configuration invalid ([bus 00-00]), reconfiguring
+[    2.042565] raspberrypi5 kernel: brcm-pcie 1000120000.pcie: link up, 5.0 GT/s PCIe x4 (!SSC)
+[    2.049220] raspberrypi5 kernel: pci 0000:01:00.0: [1de4:0001] type 00 class 0x020000
+[    2.055260] raspberrypi5 kernel: pci 0000:01:00.0: reg 0x10: [mem 0xffffc000-0xffffffff]
+[    2.061554] raspberrypi5 kernel: pci 0000:01:00.0: reg 0x14: [mem 0xffc00000-0xffffffff]
+[    2.067848] raspberrypi5 kernel: pci 0000:01:00.0: reg 0x18: [mem 0xffff0000-0xffffffff]
+[    2.074197] raspberrypi5 kernel: pci 0000:01:00.0: supports D1
+[    2.078218] raspberrypi5 kernel: pci 0000:01:00.0: PME# supported from D0 D1 D3hot D3cold
+[    2.094566] raspberrypi5 kernel: pci_bus 0000:01: busn_res: [bus 01-ff] end is updated to 01
+[    2.101213] raspberrypi5 kernel: pci 0000:00:00.0: BAR 8: assigned [mem 0x1f00000000-0x1f005fffff]
+[    2.108383] raspberrypi5 kernel: pci 0000:01:00.0: BAR 1: assigned [mem 0x1f00000000-0x1f003fffff]
+[    2.115554] raspberrypi5 kernel: pci 0000:01:00.0: BAR 2: assigned [mem 0x1f00400000-0x1f0040ffff]
+[    2.122724] raspberrypi5 kernel: pci 0000:01:00.0: BAR 0: assigned [mem 0x1f00410000-0x1f00413fff]
+[    2.129895] raspberrypi5 kernel: pci 0000:00:00.0: PCI bridge to [bus 01]
+[    2.134877] raspberrypi5 kernel: pci 0000:00:00.0:   bridge window [mem 0x1f00000000-0x1f005fffff]
+[    2.142043] raspberrypi5 kernel: pci 0000:00:00.0: Max Payload Size set to  256/ 512 (was  128), Max Read Rq  512
+[    2.150525] raspberrypi5 kernel: pci 0000:01:00.0: Max Payload Size set to  256/ 256 (was  128), Max Read Rq  512
+[    2.159060] raspberrypi5 kernel: pcieport 0000:00:00.0: enabling device (0000 -> 0002)
+[    2.165208] raspberrypi5 kernel: pcieport 0000:00:00.0: PME: Signaling with IRQ 40
+[    2.171014] raspberrypi5 kernel: pcieport 0000:00:00.0: AER: enabled with IRQ 40
+[    2.176657] raspberrypi5 kernel: rp1 0000:01:00.0: bar0 len 0x4000, start 0x1f00410000, end 0x1f00413fff, flags, 0x40200
+[    2.185742] raspberrypi5 kernel: rp1 0000:01:00.0: bar1 len 0x400000, start 0x1f00000000, end 0x1f003fffff, flags, 0x40200
+[    2.195010] raspberrypi5 kernel: rp1 0000:01:00.0: enabling device (0000 -> 0002)
+[    2.201332] raspberrypi5 kernel: rp1 0000:01:00.0: chip_id 0x20001927
+[    2.210003] raspberrypi5 kernel: genirq: irq_chip rp1_irq_chip did not update eff. affinity mask of irq 102
+[    2.237387] raspberrypi5 kernel: macb 1f00100000.ethernet eth0: Cadence GEM rev 0x00070109 at 0x1f00100000 irq 108 (2c:cf:67:f3:ee:41)
+[    2.249612] raspberrypi5 kernel: dw_axi_dmac_platform 1f00188000.dma: DesignWare AXI DMA Controller, 8 channels
+[    2.258108] raspberrypi5 kernel: xhci-hcd xhci-hcd.0: xHCI Host Controller
+[    2.263197] raspberrypi5 kernel: xhci-hcd xhci-hcd.0: new USB bus registered, assigned bus number 1
+[    2.270900] raspberrypi5 kernel: xhci-hcd xhci-hcd.0: hcc params 0x0240fe6d hci version 0x110 quirks 0x0000008000000810
+[    2.279911] raspberrypi5 kernel: xhci-hcd xhci-hcd.0: irq 133, io mem 0x1f00200000
+[    2.285739] raspberrypi5 kernel: xhci-hcd xhci-hcd.0: xHCI Host Controller
+[    2.290808] raspberrypi5 kernel: xhci-hcd xhci-hcd.0: new USB bus registered, assigned bus number 2
+[    2.298062] raspberrypi5 kernel: xhci-hcd xhci-hcd.0: Host supports USB 3.0 SuperSpeed
+[    2.304214] raspberrypi5 kernel: usb usb1: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 6.06
+[    2.312515] raspberrypi5 kernel: usb usb1: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[    2.319765] raspberrypi5 kernel: usb usb1: Product: xHCI Host Controller
+[    2.324659] raspberrypi5 kernel: usb usb1: Manufacturer: Linux 6.6.63-v8-16k xhci-hcd
+[    2.330686] raspberrypi5 kernel: usb usb1: SerialNumber: xhci-hcd.0
+[    2.335241] raspberrypi5 kernel: hub 1-0:1.0: USB hub found
+[    2.339011] raspberrypi5 kernel: hub 1-0:1.0: 2 ports detected
+[    2.343122] raspberrypi5 kernel: usb usb2: New USB device found, idVendor=1d6b, idProduct=0003, bcdDevice= 6.06
+[    2.351420] raspberrypi5 kernel: usb usb2: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[    2.358674] raspberrypi5 kernel: usb usb2: Product: xHCI Host Controller
+[    2.363566] raspberrypi5 kernel: usb usb2: Manufacturer: Linux 6.6.63-v8-16k xhci-hcd
+[    2.369655] raspberrypi5 kernel: usb usb2: SerialNumber: xhci-hcd.0
+[    2.374190] raspberrypi5 kernel: hub 2-0:1.0: USB hub found
+[    2.377958] raspberrypi5 kernel: hub 2-0:1.0: 1 port detected
+[    2.382094] raspberrypi5 kernel: xhci-hcd xhci-hcd.1: xHCI Host Controller
+[    2.387270] raspberrypi5 kernel: xhci-hcd xhci-hcd.1: new USB bus registered, assigned bus number 3
+[    2.394949] raspberrypi5 kernel: xhci-hcd xhci-hcd.1: hcc params 0x0240fe6d hci version 0x110 quirks 0x0000008000000810
+[    2.404050] raspberrypi5 kernel: xhci-hcd xhci-hcd.1: irq 138, io mem 0x1f00300000
+[    2.409871] raspberrypi5 kernel: xhci-hcd xhci-hcd.1: xHCI Host Controller
+[    2.414939] raspberrypi5 kernel: xhci-hcd xhci-hcd.1: new USB bus registered, assigned bus number 4
+[    2.422289] raspberrypi5 kernel: xhci-hcd xhci-hcd.1: Host supports USB 3.0 SuperSpeed
+[    2.428427] raspberrypi5 kernel: usb usb3: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 6.06
+[    2.436824] raspberrypi5 kernel: usb usb3: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[    2.444073] raspberrypi5 kernel: usb usb3: Product: xHCI Host Controller
+[    2.448967] raspberrypi5 kernel: usb usb3: Manufacturer: Linux 6.6.63-v8-16k xhci-hcd
+[    2.455091] raspberrypi5 kernel: usb usb3: SerialNumber: xhci-hcd.1
+[    2.459616] raspberrypi5 kernel: hub 3-0:1.0: USB hub found
+[    2.463384] raspberrypi5 kernel: hub 3-0:1.0: 2 ports detected
+[    2.467478] raspberrypi5 kernel: usb usb4: New USB device found, idVendor=1d6b, idProduct=0003, bcdDevice= 6.06
+[    2.475875] raspberrypi5 kernel: usb usb4: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[    2.483149] raspberrypi5 kernel: usb usb4: Product: xHCI Host Controller
+[    2.488041] raspberrypi5 kernel: usb usb4: Manufacturer: Linux 6.6.63-v8-16k xhci-hcd
+[    2.494223] raspberrypi5 kernel: usb usb4: SerialNumber: xhci-hcd.1
+[    2.498754] raspberrypi5 kernel: hub 4-0:1.0: USB hub found
+[    2.502517] raspberrypi5 kernel: hub 4-0:1.0: 1 port detected
+[    2.507303] raspberrypi5 kernel: bcm2712-iommu 1000005100.iommu: bcm2712_iommu_init: DEBUG_INFO = 0x20804774
+[    2.515708] raspberrypi5 kernel: platform 1000800000.codec: bcm2712_iommu_probe_device: MMU 1000005100.iommu
+[    2.523942] raspberrypi5 kernel: platform 1000800000.codec: bcm2712_iommu_device_group: MMU 1000005100.iommu
+[    2.532005] raspberrypi5 kernel: platform 1000800000.codec: Adding to iommu group 0
+[    2.537867] raspberrypi5 kernel: platform 1000880000.pisp_be: bcm2712_iommu_probe_device: MMU 1000005100.iommu
+[    2.546268] raspberrypi5 kernel: platform 1000880000.pisp_be: bcm2712_iommu_device_group: MMU 1000005100.iommu
+[    2.554491] raspberrypi5 kernel: platform 1000880000.pisp_be: Adding to iommu group 0
+[    2.560734] raspberrypi5 kernel: platform 1000800000.codec: bcm2712_iommu_attach_dev: MMU 1000005100.iommu
+[    2.568595] raspberrypi5 kernel: platform 1000880000.pisp_be: bcm2712_iommu_attach_dev: MMU 1000005100.iommu
+[    2.576823] raspberrypi5 kernel: bcm2712-iommu 1000005100.iommu: bcm2712_iommu_probe: Success
+[    2.583958] raspberrypi5 kernel: bcm2712-iommu 1000005200.iommu: bcm2712_iommu_init: DEBUG_INFO = 0x20804774
+[    2.592544] raspberrypi5 kernel: platform axi:gpu: bcm2712_iommu_probe_device: MMU 1000005200.iommu
+[    2.599807] raspberrypi5 kernel: platform axi:gpu: bcm2712_iommu_device_group: MMU 1000005200.iommu
+[    2.607271] raspberrypi5 kernel: platform axi:gpu: Adding to iommu group 1
+[    2.612358] raspberrypi5 kernel: platform axi:gpu: bcm2712_iommu_attach_dev: MMU 1000005200.iommu
+[    2.619437] raspberrypi5 kernel: bcm2712-iommu 1000005200.iommu: bcm2712_iommu_probe: Success
+[    2.626754] raspberrypi5 kernel: bcm2712-iommu 1000005280.iommu: bcm2712_iommu_init: DEBUG_INFO = 0x20804774
+[    2.635147] raspberrypi5 kernel: bcm2712-iommu 1000005280.iommu: bcm2712_iommu_probe: Success
+[    2.642102] raspberrypi5 kernel: vc4-drm axi:gpu: bcm2712_iommu_of_xlate: MMU 1000005200.iommu
+[    2.650977] raspberrypi5 kernel: vc4-drm axi:gpu: bound 107c580000.hvs (ops vc4_hvs_ops)
+[    2.658473] raspberrypi5 kernel: Registered IR keymap rc-cec
+[    2.662357] raspberrypi5 kernel: rc rc0: vc4-hdmi-0 as /devices/platform/soc/107c701400.hdmi/rc/rc0
+[    2.669659] raspberrypi5 kernel: input: vc4-hdmi-0 as /devices/platform/soc/107c701400.hdmi/rc/rc0/input0
+[    2.677948] raspberrypi5 kernel: input: vc4-hdmi-0 HDMI Jack as /devices/platform/soc/107c701400.hdmi/sound/card0/input1
+[    2.688667] raspberrypi5 kernel: vc4-drm axi:gpu: bound 107c701400.hdmi (ops vc4_hdmi_ops)
+[    2.698555] raspberrypi5 kernel: Registered IR keymap rc-cec
+[    2.702425] raspberrypi5 kernel: rc rc1: vc4-hdmi-1 as /devices/platform/soc/107c706400.hdmi/rc/rc1
+[    2.709709] raspberrypi5 kernel: input: vc4-hdmi-1 as /devices/platform/soc/107c706400.hdmi/rc/rc1/input2
+[    2.717942] raspberrypi5 kernel: input: vc4-hdmi-1 HDMI Jack as /devices/platform/soc/107c706400.hdmi/sound/card1/input3
+[    2.728674] raspberrypi5 kernel: vc4-drm axi:gpu: bound 107c706400.hdmi (ops vc4_hdmi_ops)
+[    2.735388] raspberrypi5 kernel: vc4-drm axi:gpu: bound 107c500000.mop (ops vc4_txp_ops)
+[    2.741718] raspberrypi5 kernel: vc4-drm axi:gpu: bound 107c501000.moplet (ops vc4_txp_ops)
+[    2.748330] raspberrypi5 kernel: vc4-drm axi:gpu: bound 107c410000.pixelvalve (ops vc4_crtc_ops)
+[    2.755540] raspberrypi5 kernel: vc4-drm axi:gpu: bound 107c411000.pixelvalve (ops vc4_crtc_ops)
+[    2.762980] raspberrypi5 kernel: [drm] Initialized vc4 0.0.0 20140616 for axi:gpu on minor 0
+[    2.772068] raspberrypi5 kernel: vc4-drm axi:gpu: [drm] Cannot find any crtc or sizes
+[    2.778770] raspberrypi5 kernel: of_cfs_init
+[    2.781241] raspberrypi5 kernel: of_cfs_init: OK
+[    2.782208] raspberrypi5 kernel: sdhci-brcmstb 1000fff000.mmc: Got CD GPIO
+[    2.784195] raspberrypi5 kernel: mmc1: CQHCI version 5.10
+[    2.793303] raspberrypi5 kernel: mmc0: CQHCI version 5.10
+[    2.796904] raspberrypi5 kernel: vc4-drm axi:gpu: [drm] Cannot find any crtc or sizes
+[    2.805486] raspberrypi5 kernel: vc4-drm axi:gpu: [drm] Cannot find any crtc or sizes
+[    2.838691] raspberrypi5 kernel: mmc0: SDHCI controller on 1000fff000.mmc [1000fff000.mmc] using ADMA 64-bit
+[    2.982405] raspberrypi5 kernel: mmc1: SDHCI controller on 1001100000.mmc [1001100000.mmc] using ADMA 64-bit
+[    2.990490] raspberrypi5 kernel: clk: Disabling unused clocks
+[    2.994450] raspberrypi5 kernel: mmc0: Command Queue Engine enabled, 31 tags
+[    2.999697] raspberrypi5 kernel: mmc0: new ultra high speed SDR104 SDXC card at address 544c
+[    3.000947] raspberrypi5 kernel: ALSA device list:
+[    3.006478] raspberrypi5 kernel: mmcblk0: mmc0:544c LX512 461 GiB
+[    3.009317] raspberrypi5 kernel:   #0: vc4-hdmi-0
+[    3.016489] raspberrypi5 kernel:   #1: vc4-hdmi-1
+[    3.018584] raspberrypi5 kernel:  mmcblk0: p1 p2 p3 p4 < p5 p6 p7 >
+[    3.023867] raspberrypi5 kernel: uart-pl011 107d001000.serial: no DMA platform data
+[    3.024006] raspberrypi5 kernel: mmcblk0: mmc0:544c LX512 461 GiB
+[    3.051021] raspberrypi5 kernel: mmc1: new ultra high speed DDR50 SDIO card at address 0001
+[    3.055851] raspberrypi5 kernel: Freeing unused kernel memory: 57216K
+[    3.062290] raspberrypi5 kernel: Run /init as init process
+[    3.065964] raspberrypi5 kernel:   with arguments:
+[    3.065965] raspberrypi5 kernel:     /init
+[    3.065966] raspberrypi5 kernel:   with environment:
+[    3.065967] raspberrypi5 kernel:     HOME=/
+[    3.065968] raspberrypi5 kernel:     TERM=linux
+[    3.065969] raspberrypi5 kernel:     iommu_dma_numa_policy=interleave
+[    4.322416] raspberrypi5 kernel: device-mapper: verity: sha256 using implementation "sha256-ce"
+[    4.586251] raspberrypi5 kernel: EXT4-fs (dm-0): write access unavailable, skipping orphan cleanup
+[    4.593453] raspberrypi5 kernel: EXT4-fs (dm-0): mounted filesystem b93005f2-bb20-4418-808e-cced9fe49fd4 ro with ordered data mode. Quota mode: none.
+[    5.177265] raspberrypi5 systemd[1]: System time before build time, advancing clock.
+[    5.235582] raspberrypi5 kernel: NET: Registered PF_INET6 protocol family
+[    5.240825] raspberrypi5 kernel: Segment Routing with IPv6
+[    5.244503] raspberrypi5 kernel: In-situ OAM (IOAM) with IPv6
+[    5.350544] raspberrypi5 systemd[1]: systemd 255.22^ running in system mode (-PAM -AUDIT -SELINUX -APPARMOR +IMA -SMACK +SECCOMP -GCRYPT -GNUTLS -OPENSSL +ACL +BLKID -CURL -ELFUTILS -FIDO2 -IDN2 -IDN -IPTC +KMOD -LIBCRYPTSETUP +LIBFDISK -PCRE2 -PWQUALITY -P11KIT -QRENCODE -TPM2 -BZIP2 -LZ4 -XZ -ZLIB +ZSTD -BPF_FRAMEWORK +XKBCOMMON +UTMP +SYSVINIT default-hierarchy=unified)
+[    5.382751] raspberrypi5 systemd[1]: Detected architecture arm64.
+[    5.428051] raspberrypi5 systemd[1]: Hostname set to <raspberrypi5>.
+[    5.457410] raspberrypi5 systemd[1]: Initializing machine ID from random generator.
+[    5.464010] raspberrypi5 systemd[1]: Installed transient /etc/machine-id file.
+[    5.536959] raspberrypi5 systemd-sysv-generator[497]: SysV service '/etc/init.d/dropbear' lacks a native systemd unit file, automatically generating a unit file for compatibility.
+[    5.551913] raspberrypi5 systemd-sysv-generator[497]: Please update package to include a native systemd unit file.
+[    5.561213] raspberrypi5 systemd-sysv-generator[497]: ! This compatibility logic is deprecated, expect removal soon. !
+[    5.712133] raspberrypi5 systemd[1]: multi-user.target: Found ordering cycle on device-platform-healthcheck.service/start
+[    5.722025] raspberrypi5 systemd[1]: multi-user.target: Found dependency on device-service.service/start
+[    5.730428] raspberrypi5 systemd[1]: multi-user.target: Found dependency on multi-user.target/start
+[    5.738387] raspberrypi5 systemd[1]: multi-user.target: Job device-platform-healthcheck.service/start deleted to break ordering cycle starting with multi-user.target/start
+[    5.770823] raspberrypi5 systemd[1]: Queued start job for default target Multi-User System.
+[    5.795149] raspberrypi5 systemd[1]: Created slice Slice /system/getty.
+[    5.814814] raspberrypi5 systemd[1]: Created slice Slice /system/modprobe.
+[    5.834699] raspberrypi5 systemd[1]: Created slice User and Session Slice.
+[    5.854630] raspberrypi5 systemd[1]: Started Dispatch Password Requests to Console Directory Watch.
+[    5.878623] raspberrypi5 systemd[1]: Started Forward Password Requests to Wall Directory Watch.
+[    5.902603] raspberrypi5 systemd[1]: Reached target Path Units.
+[    5.922576] raspberrypi5 systemd[1]: Reached target Remote File Systems.
+[    5.942584] raspberrypi5 systemd[1]: Reached target Slice Units.
+[    5.962585] raspberrypi5 systemd[1]: Reached target Swaps.
+[    5.981555] raspberrypi5 systemd[1]: Listening on Syslog Socket.
+[    5.998631] raspberrypi5 systemd[1]: Listening on initctl Compatibility Named Pipe.
+[    6.022780] raspberrypi5 systemd[1]: Listening on Journal Audit Socket.
+[    6.042652] raspberrypi5 systemd[1]: Listening on Journal Socket (/dev/log).
+[    6.062658] raspberrypi5 systemd[1]: Listening on Journal Socket.
+[    6.082683] raspberrypi5 systemd[1]: Listening on Network Service Netlink Socket.
+[    6.105525] raspberrypi5 systemd[1]: Listening on udev Control Socket.
+[    6.126641] raspberrypi5 systemd[1]: Listening on udev Kernel Socket.
+[    6.146646] raspberrypi5 systemd[1]: Listening on User Database Manager Socket.
+[    6.166669] raspberrypi5 systemd[1]: Huge Pages File System was skipped because of an unmet condition check (ConditionPathExists=/sys/kernel/mm/hugepages).
+[    6.202643] raspberrypi5 systemd[1]: Mounting POSIX Message Queue File System...
+[    6.223150] raspberrypi5 systemd[1]: Mounting Kernel Debug File System...
+[    6.229532] raspberrypi5 systemd[1]: Mounting Kernel Trace File System...
+[    6.247771] raspberrypi5 systemd[1]: Mounting Temporary Directory /tmp...
+[    6.267429] raspberrypi5 systemd[1]: Starting Create List of Static Device Nodes...
+[    6.303327] raspberrypi5 systemd[1]: Starting Load Kernel Module configfs...
+[    6.310085] raspberrypi5 systemd[1]: Starting Load Kernel Module drm...
+[    6.327340] raspberrypi5 systemd[1]: Starting Load Kernel Module fuse...
+[    6.348139] raspberrypi5 systemd[1]: Starting Journal Service...
+[    6.370693] raspberrypi5 systemd[1]: Starting Load Kernel Modules...
+[    6.376932] raspberrypi5 kernel: fuse: init (API version 7.39)
+[    6.391319] raspberrypi5 systemd[1]: Starting Generate network units from Kernel command line...
+[    6.411632] raspberrypi5 systemd[1]: Starting Remount Root and Kernel File Systems...
+[    6.416229] raspberrypi5 systemd-journald[508]: Collecting audit messages is enabled.
+[    6.437846] raspberrypi5 kernel: custom_acq: loading out-of-tree module taints kernel.
+[    6.017714] raspberrypi5 systemd-journald[508]: Journal started
+[    6.017736] raspberrypi5 systemd-journald[508]: Runtime Journal (/run/log/journal/db65839988a94c9aa556dabfcbb2dfa8) is 8.0M, max 64.0M, 56.0M free.
+[    6.017789] raspberrypi5 systemd-modules-load[509]: Inserted module 'custom_acq'
+[    6.467423] raspberrypi5 systemd[1]: Starting Coldplug All udev Devices...
+[    6.474230] raspberrypi5 systemd[1]: Started Journal Service.
+[    6.494680] raspberrypi5 kernel: EXT4-fs (dm-0): re-mounted b93005f2-bb20-4418-808e-cced9fe49fd4 ro. Quota mode: none.
+[    6.092856] raspberrypi5 systemd[1]: Mounted POSIX Message Queue File System.
+[    6.108177] raspberrypi5 systemd[1]: Mounted Kernel Debug File System.
+[    6.124144] raspberrypi5 systemd[1]: Mounted Kernel Trace File System.
+[    6.140152] raspberrypi5 systemd[1]: Mounted Temporary Directory /tmp.
+[    6.156191] raspberrypi5 systemd[1]: Finished Create List of Static Device Nodes.
+[    6.172314] raspberrypi5 systemd[1]: modprobe@configfs.service: Deactivated successfully.
+[    6.172429] raspberrypi5 systemd[1]: Finished Load Kernel Module configfs.
+[    6.192304] raspberrypi5 systemd[1]: modprobe@drm.service: Deactivated successfully.
+[    6.192412] raspberrypi5 systemd[1]: Finished Load Kernel Module drm.
+[    6.212286] raspberrypi5 systemd[1]: modprobe@fuse.service: Deactivated successfully.
+[    6.212388] raspberrypi5 systemd[1]: Finished Load Kernel Module fuse.
+[    6.232380] raspberrypi5 systemd[1]: Finished Load Kernel Modules.
+[    6.248278] raspberrypi5 systemd[1]: Finished Generate network units from Kernel command line.
+[    6.268171] raspberrypi5 systemd[1]: Finished Remount Root and Kernel File Systems.
+[    6.284161] raspberrypi5 systemd[1]: Finished Coldplug All udev Devices.
+[    6.302518] raspberrypi5 systemd[1]: Reached target Preparation for Network.
+[    6.348108] raspberrypi5 systemd[1]: Mounting FUSE Control File System...
+[    6.360664] raspberrypi5 systemd[1]: Mounting Kernel Configuration File System...
+[    6.379964] raspberrypi5 systemd[1]: Rebuild Hardware Database was skipped because of an unmet condition check (ConditionNeedsUpdate=/etc).
+[    6.380222] raspberrypi5 systemd[1]: Starting Flush Journal to Persistent Storage...
+[    6.396948] raspberrypi5 systemd[1]: Starting Apply Kernel Variables...
+[    6.401492] raspberrypi5 systemd-journald[508]: Runtime Journal (/run/log/journal/db65839988a94c9aa556dabfcbb2dfa8) is 8.0M, max 64.0M, 56.0M free.
+[    6.828059] raspberrypi5 systemd-journald[508]: Received client request to flush runtime journal.
+[    6.416925] raspberrypi5 systemd[1]: Starting Create Static Device Nodes in /dev gracefully...
+[    6.432972] raspberrypi5 systemd[1]: Starting Wait for udev To Complete Device Initialization...
+[    6.448936] raspberrypi5 systemd[1]: Mounted FUSE Control File System.
+[    6.464286] raspberrypi5 systemd[1]: Mounted Kernel Configuration File System.
+[    6.488018] raspberrypi5 systemd[1]: Finished Flush Journal to Persistent Storage.
+[    6.500229] raspberrypi5 systemd[1]: Finished Apply Kernel Variables.
+[    6.516229] raspberrypi5 systemd[1]: Finished Create Static Device Nodes in /dev gracefully.
+[    6.535098] raspberrypi5 systemd[1]: Create System Users was skipped because no trigger condition checks were met.
+[    6.548317] raspberrypi5 systemd[1]: Starting Create Static Device Nodes in /dev...
+[    6.564504] raspberrypi5 systemd[1]: Finished Create Static Device Nodes in /dev.
+[    6.580680] raspberrypi5 systemd[1]: Reached target Preparation for Local File Systems.
+[    6.616205] raspberrypi5 systemd[1]: Mounting /var/volatile...
+[    6.628718] raspberrypi5 audit: BPF prog-id=6 op=LOAD
+[    6.635391] raspberrypi5 audit: BPF prog-id=7 op=LOAD
+[    7.055274] raspberrypi5 kernel: audit: type=1334 audit(1750927454.875:2): prog-id=6 op=LOAD
+[    7.061944] raspberrypi5 kernel: audit: type=1334 audit(1750927454.875:3): prog-id=7 op=LOAD
+[    6.642285] raspberrypi5 systemd[1]: Starting Rule-based Manager for Device Events and Files...
+[    6.657354] raspberrypi5 systemd[1]: Mounted /var/volatile.
+[    6.659711] raspberrypi5 systemd-udevd[548]: Using default interface naming scheme 'v255'.
+[    6.672433] raspberrypi5 udevadm[536]: systemd-udev-settle.service is deprecated. Please fix device-platform-data.service not to pull it in.
+[    6.704690] raspberrypi5 systemd[1]: Starting Bind mount volatile /var/cache...
+[    6.712345] raspberrypi5 (udev-worker)[554]: Network interface NamePolicy= disabled on kernel command line.
+[    6.721623] raspberrypi5 systemd[1]: Starting Bind mount volatile /var/lib...
+[    7.160949] raspberrypi5 kernel: rpi-gpiomem 107d508500.gpiomem: window base 0x107d508500 size 0x00000040
+[    7.161348] raspberrypi5 kernel: rp1-firmware rp1_firmware: RP1 Firmware version 23fca1cd776798b50bd3e640ecb242215778e7f8
+[    7.178238] raspberrypi5 kernel: rpi-gpiomem 107d508500.gpiomem: initialised 1 regions as /dev/gpiomem1
+[    7.180710] raspberrypi5 kernel: rp1-pio 1f00178000.pio: Created instance as pio0
+[    7.186918] raspberrypi5 kernel: rpi-gpiomem 107d517c00.gpiomem: window base 0x107d517c00 size 0x00000040
+[    7.200794] raspberrypi5 kernel: rpi-gpiomem 107d517c00.gpiomem: initialised 1 regions as /dev/gpiomem2
+[    7.208964] raspberrypi5 kernel: rpi-gpiomem 107d504100.gpiomem: window base 0x107d504100 size 0x00000020
+[    7.217497] raspberrypi5 kernel: rpi-gpiomem 107d504100.gpiomem: initialised 1 regions as /dev/gpiomem3
+[    7.226090] raspberrypi5 kernel: input: pwr_button as /devices/platform/pwr_button/input/input4
+[    7.227390] raspberrypi5 kernel: rpi-gpiomem 107d510700.gpiomem: window base 0x107d510700 size 0x00000020
+[    7.246976] raspberrypi5 kernel: rpi-gpiomem 107d510700.gpiomem: initialised 1 regions as /dev/gpiomem4
+[    7.247121] raspberrypi5 kernel: custom-acq spi0.0: custom-acq bound, DEVICE_ID=0xac00acc0
+[    7.254910] raspberrypi5 kernel: rpi-gpiomem 1f000d0000.gpiomem: window base 0x1f000d0000 size 0x00030000
+[    7.273064] raspberrypi5 kernel: rpi-gpiomem 1f000d0000.gpiomem: initialised 1 regions as /dev/gpiomem0
+[    6.855864] raspberrypi5 systemd[1]: Starting Bind mount volatile /var/spool...
+[    6.855957] raspberrypi5 systemd[1]: Starting Bind mount volatile /srv...
+[    6.857547] raspberrypi5 systemd[1]: Started Rule-based Manager for Device Events and Files.
+[    7.286396] raspberrypi5 kernel: [drm] Initialized v3d 1.0.0 20180419 for 1002000000.v3d on minor 1
+[    6.884037] raspberrypi5 systemd[1]: Finished Bind mount volatile /var/cache.
+[    6.900500] raspberrypi5 systemd[1]: Finished Bind mount volatile /var/lib.
+[    6.916282] raspberrypi5 systemd[1]: Finished Bind mount volatile /var/spool.
+[    6.936056] raspberrypi5 systemd[1]: Finished Bind mount volatile /srv.
+[    7.375022] raspberrypi5 kernel: cfg80211: Loading compiled-in X.509 certificates for regulatory database
+[    7.385246] raspberrypi5 kernel: Loaded X.509 cert 'benh@debian.org: 577e021cb980e0e820821ba7b54b4961b8b4fadf'
+[    7.393686] raspberrypi5 kernel: Loaded X.509 cert 'romain.perier@gmail.com: 3abbc6ec146e09d1b6016ab9d6cf71dd233f0328'
+[    7.402796] raspberrypi5 kernel: Loaded X.509 cert 'sforshee: 00b28ddf47aef9cea7'
+[    7.408666] raspberrypi5 kernel: Loaded X.509 cert 'wens: 61c038651aabdcf94bd0ac7ff06c7248db18c600'
+[    7.416203] raspberrypi5 kernel: platform regulatory.0: Direct firmware load for regulatory.db failed with error -2
+[    7.424882] raspberrypi5 kernel: cfg80211: failed to load regulatory.db
+[    7.002320] raspberrypi5 systemd[1]: Reached target Sound Card.
+[    7.430527] raspberrypi5 kernel: brcmfmac: F1 signature read @0x18000000=0x15264345
+[    7.431743] raspberrypi5 kernel: brcmfmac: brcmf_fw_alloc_request: using brcm/brcmfmac43455-sdio for chip BCM4345/6
+[    7.442192] raspberrypi5 kernel: usbcore: registered new interface driver brcmfmac
+[    7.024184] raspberrypi5 systemd[1]: Listening on Load/Save RF Kill Switch Status /dev/rfkill Watch.
+[    7.040845] raspberrypi5 audit: BPF prog-id=8 op=LOAD
+[    7.467399] raspberrypi5 kernel: audit: type=1334 audit(1750927455.287:4): prog-id=8 op=LOAD
+[    7.056184] raspberrypi5 systemd[1]: Starting Network Configuration...
+[    7.068708] raspberrypi5 systemd[1]: Starting Load/Save OS Random Seed...
+[    7.088786] raspberrypi5 systemd[1]: Starting Virtual Console Setup...
+[    7.105022] raspberrypi5 systemd[1]: Finished Wait for udev To Complete Device Initialization.
+[    7.124497] raspberrypi5 systemd[1]: Finished Load/Save OS Random Seed.
+[    7.125266] raspberrypi5 systemd[1]: First Boot Complete was skipped because of an unmet condition check (ConditionFirstBoot=yes).
+[    7.125959] raspberrypi5 systemd[1]: Starting Encrypted data partition (/data)...
+[    7.129376] raspberrypi5 audit: BPF prog-id=9 op=LOAD
+[    7.135731] raspberrypi5 audit: BPF prog-id=10 op=LOAD
+[    7.135820] raspberrypi5 systemd[1]: Starting User Database Manager...
+[    7.553828] raspberrypi5 kernel: audit: type=1334 audit(1750927455.371:5): prog-id=9 op=LOAD
+[    7.562032] raspberrypi5 kernel: audit: type=1334 audit(1750927455.371:6): prog-id=10 op=LOAD
+[    7.570823] raspberrypi5 kernel: audit: type=1334 audit(1750927455.371:7): prog-id=11 op=LOAD
+[    7.144340] raspberrypi5 audit: BPF prog-id=11 op=LOAD
+[    7.178978] raspberrypi5 systemd[1]: Started User Database Manager.
+[    7.605837] raspberrypi5 kernel: brcmfmac: brcmf_c_process_txcap_blob: no txcap_blob available (err=-2)
+[    7.618625] raspberrypi5 kernel: brcmfmac: brcmf_c_preinit_dcmds: Firmware: BCM4345/6 wl0: Aug 29 2023 01:47:08 version 7.45.265 (28bca26 CY) FWID 01-b677b91b
+[    7.209505] raspberrypi5 device-platform-data[627]: device-platform-data: /dev/mmcblk0p7 is not LUKS yet - creating (first boot)
+[    7.212757] raspberrypi5 systemd[1]: Finished Virtual Console Setup.
+[    7.231683] raspberrypi5 (udev-worker)[563]: Network interface NamePolicy= disabled on kernel command line.
+[    7.234496] raspberrypi5 systemd[1]: Starting Load/Save RF Kill Switch Status...
+[    7.257491] raspberrypi5 systemd[1]: Started Load/Save RF Kill Switch Status.
+[    7.279350] raspberrypi5 systemd-networkd[618]: lo: Link UP
+[    7.279590] raspberrypi5 systemd-networkd[618]: lo: Gained carrier
+[    7.284796] raspberrypi5 systemd-networkd[618]: Enumeration completed
+[    7.284878] raspberrypi5 systemd[1]: Started Network Configuration.
+[    7.286476] raspberrypi5 systemd-networkd[618]: eth0: found matching network '/usr/lib/systemd/network/80-wired.network', based on potentially unpredictable interface name.
+[    7.286511] raspberrypi5 systemd-networkd[618]: eth0: Configuring with /usr/lib/systemd/network/80-wired.network.
+[    7.719841] raspberrypi5 kernel: macb 1f00100000.ethernet eth0: PHY [1f00100000.ethernet-ffffffff:01] driver [Broadcom BCM54213PE] (irq=POLL)
+[    7.730791] raspberrypi5 kernel: macb 1f00100000.ethernet eth0: configuring for phy/rgmii-id link mode
+[    7.740904] raspberrypi5 kernel: pps pps0: new PPS source ptp0
+[    7.744963] raspberrypi5 kernel: macb 1f00100000.ethernet: gem-ptp-timer ptp clock registered.
+[    7.325680] raspberrypi5 systemd-networkd[618]: wlan0: Configuring with /usr/lib/systemd/network/wlan0.network.
+[    7.358038] raspberrypi5 systemd-networkd[618]: eth0: Link UP
+[    7.358181] raspberrypi5 systemd-networkd[618]: wlan0: Link UP
+[    7.776870] raspberrypi5 kernel: brcmfmac: brcmf_cfg80211_set_power_mgmt: power save enabled
+[    8.312951] raspberrypi5 device-platform-data[627]: device-platform-data: luksFormat done, opening
+[    8.333818] raspberrypi5 audit[647]: DM_CTRL module=crypt op=ctr ppid=627 pid=647 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm="cryptsetup" exe="/usr/sbin/cryptsetup" dev=254:1 error_msg='success' res=1
+[    8.357901] raspberrypi5 audit[647]: SYSCALL arch=c00000b7 syscall=29 success=yes exit=0 a0=6 a1=c138fd09 a2=5555ab7a4850 a3=7 items=6 ppid=627 pid=647 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm="cryptsetup" exe="/usr/sbin/cryptsetup" key=(null)
+[    8.760359] raspberrypi5 kernel: audit: type=1338 audit(1750927456.579:8): module=crypt op=ctr ppid=627 pid=647 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm="cryptsetup" exe="/usr/sbin/cryptsetup" dev=254:1 error_msg='success' res=1
+[    8.784456] raspberrypi5 kernel: audit: type=1300 audit(1750927456.579:8): arch=c00000b7 syscall=29 success=yes exit=0 a0=6 a1=c138fd09 a2=5555ab7a4850 a3=7 items=6 ppid=627 pid=647 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm="cryptsetup" exe="/usr/sbin/cryptsetup" key=(null)
+[    8.386095] raspberrypi5 audit: CWD cwd="/"
+[    8.812642] raspberrypi5 kernel: audit: type=1307 audit(1750927456.579:8): cwd="/"
+[    8.391892] raspberrypi5 audit: PATH item=0 name=(null) inode=1025 dev=00:07 mode=040755 ouid=0 ogid=0 rdev=00:00 nametype=PARENT cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid=0
+[    8.818443] raspberrypi5 kernel: audit: type=1302 audit(1750927456.579:8): item=0 name=(null) inode=1025 dev=00:07 mode=040755 ouid=0 ogid=0 rdev=00:00 nametype=PARENT cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid=0
+[    8.409640] raspberrypi5 audit: PATH item=1 name=(null) inode=627 dev=00:07 mode=040755 ouid=0 ogid=0 rdev=00:00 nametype=CREATE cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid=0
+[    8.409672] raspberrypi5 audit: PATH item=2 name=(null) inode=23 dev=00:07 mode=040755 ouid=0 ogid=0 rdev=00:00 nametype=PARENT cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid=0
+[    8.409695] raspberrypi5 audit: PATH item=3 name=(null) inode=628 dev=00:07 mode=040755 ouid=0 ogid=0 rdev=00:00 nametype=CREATE cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid=0
+[    8.409718] raspberrypi5 audit: PATH item=4 name=(null) inode=628 dev=00:07 mode=040755 ouid=0 ogid=0 rdev=00:00 nametype=PARENT cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid=0
+[    8.409741] raspberrypi5 audit: PATH item=5 name=(null) inode=629 dev=00:07 mode=0100444 ouid=0 ogid=0 rdev=00:00 nametype=CREATE cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid=0
+[    8.409767] raspberrypi5 audit: PROCTITLE proctitle=63727970747365747570006F70656E002D2D6B65792D66696C65002D002F6465762F6D6D63626C6B3070370064617461
+[    8.415085] raspberrypi5 device-platform-data[627]: device-platform-data: creating ext4
+[    8.873404] raspberrypi5 device-platform-data[627]: device-platform-data: mounting
+[    8.921713] raspberrypi5 device-platform-data[625]: device-platform-data: /data mounted from LUKS /dev/mmcblk0p7
+[    8.922038] raspberrypi5 device-platform-data[625]: /usr/sbin/device-platform-data: line 59: install: not found
+[    8.922257] raspberrypi5 systemd[1]: device-platform-data.service: Main process exited, code=exited, status=127/n/a
+[    8.922506] raspberrypi5 systemd[1]: device-platform-data.service: Failed with result 'exit-code'.
+[    8.922674] raspberrypi5 systemd[1]: Failed to start Encrypted data partition (/data).
+[    9.335494] raspberrypi5 kernel: EXT4-fs (dm-1): mounted filesystem 0d8d484b-ed87-4af3-99a4-66e7a1e1b55f r/w with ordered data mode. Quota mode: none.
+[    8.960422] raspberrypi5 systemd[1]: Reached target Local File Systems.
+[    8.980089] raspberrypi5 systemd[1]: Rebuild Dynamic Linker Cache was skipped because no trigger condition checks were met.
+[    8.980129] raspberrypi5 systemd[1]: Commit a transient machine-id on disk was skipped because of an unmet condition check (ConditionPathIsReadWrite=/etc).
+[    9.004260] raspberrypi5 systemd[1]: Starting Create System Files and Directories...
+[    9.008109] raspberrypi5 systemd-tmpfiles[666]: /usr/lib/tmpfiles.d/legacy.conf:13: Duplicate line for path "/run/lock", ignoring.
+[    9.008893] raspberrypi5 systemd-tmpfiles[666]: /usr/lib/tmpfiles.d/tmp.conf:12: Duplicate line for path "/var/tmp", ignoring.
+[    9.008941] raspberrypi5 systemd-tmpfiles[666]: /usr/lib/tmpfiles.d/var.conf:14: Duplicate line for path "/var/log", ignoring.
+[    9.011391] raspberrypi5 systemd-tmpfiles[666]: Failed to create directory or subvolume "/root", ignoring: Read-only file system
+[    9.011431] raspberrypi5 systemd-tmpfiles[666]: Failed to open path '/root', ignoring: No such file or directory
+[    9.021673] raspberrypi5 systemd[1]: Finished Create System Files and Directories.
+[    9.036447] raspberrypi5 systemd[1]: Rebuild Journal Catalog was skipped because of an unmet condition check (ConditionNeedsUpdate=/var).
+[    9.037103] raspberrypi5 audit: BPF prog-id=12 op=LOAD
+[    9.037713] raspberrypi5 systemd[1]: Starting Network Name Resolution...
+[    9.052678] raspberrypi5 audit: BPF prog-id=13 op=LOAD
+[    9.053219] raspberrypi5 systemd[1]: Starting Network Time Synchronization...
+[    9.068097] raspberrypi5 systemd[1]: Update is Completed was skipped because no trigger condition checks were met.
+[    9.068848] raspberrypi5 systemd[1]: Starting Record System Boot/Shutdown in UTMP...
+[    9.093490] raspberrypi5 systemd[1]: Finished Record System Boot/Shutdown in UTMP.
+[    9.118567] raspberrypi5 systemd-resolved[669]: Positive Trust Anchors:
+[    9.118811] raspberrypi5 systemd-resolved[669]: . IN DS 20326 8 2 e06d44b80b8f1d39a95c0b0d7c65d08458e880409bbc683457104237c7f8ec8d
+[    9.118840] raspberrypi5 systemd-resolved[669]: . IN DS 38696 8 2 683d2d0acb8c9b712a1948b27f741219298d0a450d612c483af444a4c0fb2b16
+[    9.118863] raspberrypi5 systemd-resolved[669]: Negative trust anchors: home.arpa 10.in-addr.arpa 16.172.in-addr.arpa 17.172.in-addr.arpa 18.172.in-addr.arpa 19.172.in-addr.arpa 20.172.in-addr.arpa 21.172.in-addr.arpa 22.172.in-addr.arpa 23.172.in-addr.arpa 24.172.in-addr.arpa 25.172.in-addr.arpa 26.172.in-addr.arpa 27.172.in-addr.arpa 28.172.in-addr.arpa 29.172.in-addr.arpa 30.172.in-addr.arpa 31.172.in-addr.arpa 170.0.0.192.in-addr.arpa 171.0.0.192.in-addr.arpa 168.192.in-addr.arpa d.f.ip6.arpa ipv4only.arpa resolver.arpa corp home internal intranet lan local private test
+[    9.122458] raspberrypi5 systemd[1]: Started Network Time Synchronization.
+[    9.122508] raspberrypi5 systemd-resolved[669]: Using system hostname 'raspberrypi5'.
+[    9.132131] raspberrypi5 systemd[1]: Started Network Name Resolution.
+[    9.148065] raspberrypi5 systemd[1]: Reached target Host and Network Name Lookups.
+[    9.164038] raspberrypi5 systemd[1]: Reached target System Initialization.
+[    9.180045] raspberrypi5 systemd[1]: Started Boot recorder, two minutes after boot.
+[    9.196033] raspberrypi5 systemd[1]: Started Daily Cleanup of Temporary Directories.
+[    9.212029] raspberrypi5 systemd[1]: Reached target System Time Set.
+[    9.228023] raspberrypi5 systemd[1]: Reached target Timer Units.
+[    9.240140] raspberrypi5 systemd[1]: Listening on D-Bus System Message Bus Socket.
+[    9.288248] raspberrypi5 systemd[1]: Listening on dropbear.socket.
+[    9.300054] raspberrypi5 systemd[1]: Reached target Socket Units.
+[    9.312035] raspberrypi5 systemd[1]: Reached target Basic System.
+[    9.344232] raspberrypi5 systemd[1]: Started Kernel Logging Service.
+[    9.344874] raspberrypi5 kernel[675]: klogd started: BusyBox v1.36.1 ()
+[    9.345044] raspberrypi5 kernel[675]: [    0.000000] Booting Linux on physical CPU 0x0000000000 [0x414fd0b1]
+[    9.345068] raspberrypi5 kernel[675]: [    0.000000] Linux version 6.6.63-v8-16k (oe-user@oe-host) (aarch64-poky-linux-gcc (GCC) 13.4.0, GNU ld (GNU Binutils) 2.42.0.20240723) #1 SMP PREEMPT Fri Dec  6 10:10:05 UTC 2024
+[    9.345088] raspberrypi5 kernel[675]: [    0.000000] KASLR enabled
+[    9.345106] raspberrypi5 kernel[675]: [    0.000000] random: crng init done
+[    9.345124] raspberrypi5 kernel[675]: [    0.000000] Machine model: Raspberry Pi 5 Model B Rev 1.1
+[    9.345145] raspberrypi5 kernel[675]: [    0.000000] efi: UEFI not found.
+[    9.345163] raspberrypi5 kernel[675]: [    0.000000] Reserved memory: created CMA memory pool at 0x0000000006000000, size 64 MiB
+[    9.345182] raspberrypi5 kernel[675]: [    0.000000] OF: reserved mem: initialized node linux,cma, compatible id shared-dma-pool
+[    9.345201] raspberrypi5 kernel[675]: [    0.000000] OF: reserved mem: 0x0000000006000000..0x0000000009ffffff (65536 KiB) map reusable linux,cma
+[    9.345219] raspberrypi5 kernel[675]: [    0.000000] OF: reserved mem: 0x0000000000000000..0x000000000007ffff (512 KiB) nomap non-reusable atf@0
+[    9.345237] raspberrypi5 kernel[675]: [    0.000000] OF: reserved mem: 0x000000003fd23b20..0x000000003fd23b57 (0 KiB) nomap non-reusable nvram@0
+[    9.345255] raspberrypi5 kernel[675]: [    0.000000] NUMA: No NUMA configuration found
+[    9.345273] raspberrypi5 kernel[675]: [    0.000000] Faking a node at [mem 0x0000000000000000-0x000000003fffffff]
+[    9.345293] raspberrypi5 kernel[675]: [    0.000000] Faking a node at [mem 0x0000000040000000-0x000000007fffffff]
+[    9.345312] raspberrypi5 kernel[675]: [    0.000000] Faking a node at [mem 0x0000000080000000-0x00000000bfffffff]
+[    9.345330] raspberrypi5 kernel[675]: [    0.000000] Faking a node at [mem 0x00000000c0000000-0x00000000ffffffff]
+[    9.345348] raspberrypi5 kernel[675]: [    0.000000] Faking a node at [mem 0x0000000100000000-0x000000013fffffff]
+[    9.345366] raspberrypi5 kernel[675]: [    0.000000] Faking a node at [mem 0x0000000140000000-0x000000017fffffff]
+[    9.345386] raspberrypi5 kernel[675]: [    0.000000] Faking a node at [mem 0x0000000180000000-0x00000001bfffffff]
+[    9.345404] raspberrypi5 kernel[675]: [    0.000000] Faking a node at [mem 0x00000001c0000000-0x00000001ffffffff]
+[    9.345422] raspberrypi5 kernel[675]: [    0.000000] NUMA: NODE_DATA [mem 0x3fbfd2c0-0x3fbfffff]
+[    9.345440] raspberrypi5 kernel[675]: [    0.000000] NUMA: NODE_DATA [mem 0x7fffd2c0-0x7fffffff]
+[    9.345458] raspberrypi5 kernel[675]: [    0.000000] NUMA: NODE_DATA [mem 0xbfffd2c0-0xbfffffff]
+[    9.345477] raspberrypi5 kernel[675]: [    0.000000] NUMA: NODE_DATA [mem 0xffffd2c0-0xffffffff]
+[    9.345495] raspberrypi5 kernel[675]: [    0.000000] NUMA: NODE_DATA [mem 0x13fffd2c0-0x13fffffff]
+[    9.345515] raspberrypi5 kernel[675]: [    0.000000] NUMA: NODE_DATA [mem 0x17fffd2c0-0x17fffffff]
+[    9.345534] raspberrypi5 kernel[675]: [    0.000000] NUMA: NODE_DATA [mem 0x1bfffd2c0-0x1bfffffff]
+[    9.345552] raspberrypi5 kernel[675]: [    0.000000] NUMA: NODE_DATA [mem 0x1ffb752c0-0x1ffb77fff]
+[    9.345570] raspberrypi5 kernel[675]: [    0.000000] Zone ranges:
+[    9.345587] raspberrypi5 kernel[675]: [    0.000000]   DMA      [mem 0x0000000000000000-0x00000000ffffffff]
+[    9.345605] raspberrypi5 kernel[675]: [    0.000000]   DMA32    empty
+[    9.345623] raspberrypi5 kernel[675]: [    0.000000]   Normal   [mem 0x0000000100000000-0x00000001ffffffff]
+[    9.345641] raspberrypi5 kernel[675]: [    0.000000] Movable zone start for each node
+[    9.345659] raspberrypi5 kernel[675]: [    0.000000] Early memory node ranges
+[    9.345677] raspberrypi5 kernel[675]: [    0.000000]   node   0: [mem 0x0000000000000000-0x000000000007ffff]
+[    9.345695] raspberrypi5 kernel[675]: [    0.000000]   node   0: [mem 0x0000000000080000-0x000000003fbfffff]
+[    9.345712] raspberrypi5 kernel[675]: [    0.000000]   node   1: [mem 0x0000000040000000-0x000000007fffffff]
+[    9.345730] raspberrypi5 kernel[675]: [    0.000000]   node   2: [mem 0x0000000080000000-0x00000000bfffffff]
+[    9.345747] raspberrypi5 kernel[675]: [    0.000000]   node   3: [mem 0x00000000c0000000-0x00000000ffffffff]
+[    9.345767] raspberrypi5 kernel[675]: [    0.000000]   node   4: [mem 0x0000000100000000-0x000000013fffffff]
+[    9.345785] raspberrypi5 kernel[675]: [    0.000000]   node   5: [mem 0x0000000140000000-0x000000017fffffff]
+[    9.345803] raspberrypi5 kernel[675]: [    0.000000]   node   6: [mem 0x0000000180000000-0x00000001bfffffff]
+[    9.345821] raspberrypi5 kernel[675]: [    0.000000]   node   7: [mem 0x00000001c0000000-0x00000001ffffffff]
+[    9.345838] raspberrypi5 kernel[675]: [    0.000000] Initmem setup node 0 [mem 0x0000000000000000-0x000000003fbfffff]
+[    9.345856] raspberrypi5 kernel[675]: [    0.000000] Initmem setup node 1 [mem 0x0000000040000000-0x000000007fffffff]
+[    9.345874] raspberrypi5 kernel[675]: [    0.000000] Initmem setup node 2 [mem 0x0000000080000000-0x00000000bfffffff]
+[    9.345891] raspberrypi5 kernel[675]: [    0.000000] Initmem setup node 3 [mem 0x00000000c0000000-0x00000000ffffffff]
+[    9.345909] raspberrypi5 kernel[675]: [    0.000000] Initmem setup node 4 [mem 0x0000000100000000-0x000000013fffffff]
+[    9.345927] raspberrypi5 kernel[675]: [    0.000000] Initmem setup node 5 [mem 0x0000000140000000-0x000000017fffffff]
+[    9.345944] raspberrypi5 kernel[675]: [    0.000000] Initmem setup node 6 [mem 0x0000000180000000-0x00000001bfffffff]
+[    9.345962] raspberrypi5 kernel[675]: [    0.000000] Initmem setup node 7 [mem 0x00000001c0000000-0x00000001ffffffff]
+[    9.345980] raspberrypi5 kernel[675]: [    0.000000] On node 1, zone DMA: 256 pages in unavailable ranges
+[    9.345997] raspberrypi5 kernel[675]: [    0.000000] psci: probing for conduit method from DT.
+[    9.346015] raspberrypi5 kernel[675]: [    0.000000] psci: PSCIv1.1 detected in firmware.
+[    9.346034] raspberrypi5 kernel[675]: [    0.000000] psci: Using standard PSCI v0.2 function IDs
+[    9.346051] raspberrypi5 kernel[675]: [    0.000000] psci: MIGRATE_INFO_TYPE not supported.
+[    9.346068] raspberrypi5 kernel[675]: [    0.000000] psci: SMC Calling Convention v1.2
+[    9.346088] raspberrypi5 kernel[675]: [    0.000000] percpu: Embedded 14 pages/cpu s185192 r8192 d35992 u229376
+[    9.346106] raspberrypi5 kernel[675]: [    0.000000] pcpu-alloc: s185192 r8192 d35992 u229376 alloc=14*16384
+[    9.346124] raspberrypi5 kernel[675]: [    0.000000] pcpu-alloc: [0] 0 [0] 1 [0] 2 [0] 3
+[    9.346144] raspberrypi5 kernel[675]: [    0.000000] Detected PIPT I-cache on CPU0
+[    9.346161] raspberrypi5 kernel[675]: [    0.000000] CPU features: detected: Virtualization Host Extensions
+[    9.346179] raspberrypi5 kernel[675]: [    0.000000] CPU features: detected: Hardware dirty bit management
+[    9.346196] raspberrypi5 kernel[675]: [    0.000000] CPU features: detected: Spectre-v4
+[    9.346214] raspberrypi5 kernel[675]: [    0.000000] CPU features: detected: Spectre-BHB
+[    9.346232] raspberrypi5 kernel[675]: [    0.000000] CPU features: kernel page table isolation forced ON by KASLR
+[    9.346249] raspberrypi5 kernel[675]: [    0.000000] CPU features: detected: Kernel page table isolation (KPTI)
+[    9.346267] raspberrypi5 kernel[675]: [    0.000000] CPU features: detected: SSBS not fully self-synchronizing
+[    9.346285] raspberrypi5 kernel[675]: [    0.000000] alternatives: applying boot alternatives
+[    9.346302] raspberrypi5 kernel[675]: [    0.000000] Kernel command line: reboot=w coherent_pool=1M 8250.nr_uarts=1 pci=pcie_bus_safe cgroup_disable=memory numa_policy=interleave  numa=fake=8 system_heap.max_order=0 iommu_dma_numa_policy=interleave smsc95xx.macaddr=2C:CF:67:F3:EE:41 vc_mem.mem_base=0x3fc00000 vc_mem.mem_size=0x40000000  dwc_otg.lpm_enable=0 root=/dev/mmcblk0p5 rauc.slot=A rootfstype=ext4 rootwait  net.ifnames=0
+[    9.346321] raspberrypi5 kernel[675]: [    0.000000] cgroup: Disabling memory control group subsystem
+[    9.346339] raspberrypi5 kernel[675]: [    0.000000] mempolicy: NUMA default policy overridden to 'interleave:0-7'
+[    9.346357] raspberrypi5 kernel[675]: [    0.000000] Unknown kernel command line parameters "iommu_dma_numa_policy=interleave", will be passed to user space.
+[    9.346375] raspberrypi5 kernel[675]: [    0.000000] Fallback order for Node 0: 0 1 2 3 4 5 6 7
+[    9.346394] raspberrypi5 kernel[675]: [    0.000000] Fallback order for Node 1: 1 2 3 4 5 6 7 0
+[    9.346412] raspberrypi5 kernel[675]: [    0.000000] Fallback order for Node 2: 2 3 4 5 6 7 0 1
+[    9.346431] raspberrypi5 kernel[675]: [    0.000000] Fallback order for Node 3: 3 4 5 6 7 0 1 2
+[    9.346449] raspberrypi5 kernel[675]: [    0.000000] Fallback order for Node 4: 4 5 6 7 0 1 2 3
+[    9.346468] raspberrypi5 kernel[675]: [    0.000000] Fallback order for Node 5: 5 6 7 0 1 2 3 4
+[    9.346486] raspberrypi5 kernel[675]: [    0.000000] Fallback order for Node 6: 6 7 0 1 2 3 4 5
+[    9.346504] raspberrypi5 kernel[675]: [    0.000000] Fallback order for Node 7: 7 0 1 2 3 4 5 6
+[    9.346523] raspberrypi5 kernel[675]: [    0.000000] Built 8 zonelists, mobility grouping on.  Total pages: 521985
+[    9.346540] raspberrypi5 kernel[675]: [    0.000000] Policy zone: Normal
+[    9.346558] raspberrypi5 kernel[675]: [    0.000000] mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+[    9.346576] raspberrypi5 kernel[675]: [    0.000000] software IO TLB: area num 4.
+[    9.346594] raspberrypi5 kernel[675]: [    0.000000] software IO TLB: mapped [mem 0x00000000fbffc000-0x00000000ffffc000] (64MB)
+[    9.346611] raspberrypi5 kernel[675]: [    0.000000] Memory: 8132512K/8384512K available (15168K kernel code, 2292K rwdata, 4912K rodata, 57216K init, 1232K bss, 186464K reserved, 65536K cma-reserved)
+[    9.346629] raspberrypi5 kernel[675]: [    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=4, Nodes=8
+[    9.346647] raspberrypi5 kernel[675]: [    0.000000] ftrace: allocating 48766 entries in 48 pages
+[    9.346667] raspberrypi5 kernel[675]: [    0.000000] ftrace: allocated 48 pages with 2 groups
+[    9.346685] raspberrypi5 kernel[675]: [    0.000000] trace event string verifier disabled
+[    9.346703] raspberrypi5 kernel[675]: [    0.000000] rcu: Preemptible hierarchical RCU implementation.
+[    9.346721] raspberrypi5 kernel[675]: [    0.000000] rcu:         RCU event tracing is enabled.
+[    9.346739] raspberrypi5 kernel[675]: [    0.000000] rcu:         RCU restricting CPUs from NR_CPUS=256 to nr_cpu_ids=4.
+[    9.346757] raspberrypi5 kernel[675]: [    0.000000]         Trampoline variant of Tasks RCU enabled.
+[    9.346775] raspberrypi5 kernel[675]: [    0.000000]         Rude variant of Tasks RCU enabled.
+[    9.346792] raspberrypi5 kernel[675]: [    0.000000]         Tracing variant of Tasks RCU enabled.
+[    9.346810] raspberrypi5 kernel[675]: [    0.000000] rcu: RCU calculated value of scheduler-enlistment delay is 25 jiffies.
+[    9.346828] raspberrypi5 kernel[675]: [    0.000000] rcu: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=4
+[    9.346845] raspberrypi5 kernel[675]: [    0.000000] NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0
+[    9.346863] raspberrypi5 kernel[675]: [    0.000000] Root IRQ handler: gic_handle_irq
+[    9.346880] raspberrypi5 kernel[675]: [    0.000000] GIC: Using split EOI/Deactivate mode
+[    9.346898] raspberrypi5 kernel[675]: [    0.000000] rcu: srcu_init: Setting srcu_struct sizes based on contention.
+[    9.346916] raspberrypi5 kernel[675]: [    0.000000] arch_timer: cp15 timer(s) running at 54.00MHz (phys).
+[    9.346934] raspberrypi5 kernel[675]: [    0.000000] clocksource: arch_sys_counter: mask: 0xffffffffffffff max_cycles: 0xc743ce346, max_idle_ns: 440795203123 ns
+[    9.346952] raspberrypi5 kernel[675]: [    0.000000] sched_clock: 56 bits at 54MHz, resolution 18ns, wraps every 4398046511102ns
+[    9.346969] raspberrypi5 kernel[675]: [    0.000128] Console: colour dummy device 80x25
+[    9.346987] raspberrypi5 kernel[675]: [    0.000132] printk: console [tty0] enabled
+[    9.347005] raspberrypi5 kernel[675]: [    0.000342] Calibrating delay loop (skipped), value calculated using timer frequency.. 108.00 BogoMIPS (lpj=216000)
+[    9.347022] raspberrypi5 kernel[675]: [    0.000349] pid_max: default: 32768 minimum: 301
+[    9.347040] raspberrypi5 kernel[675]: [    0.000447] LSM: initializing lsm=capability,integrity
+[    9.347058] raspberrypi5 kernel[675]: [    0.001846] Dentry cache hash table entries: 1048576 (order: 9, 8388608 bytes, vmalloc)
+[    9.347076] raspberrypi5 kernel[675]: [    0.002547] Inode-cache hash table entries: 524288 (order: 8, 4194304 bytes, vmalloc)
+[    9.347094] raspberrypi5 kernel[675]: [    0.002589] Mount-cache hash table entries: 16384 (order: 3, 131072 bytes, vmalloc)
+[    9.347112] raspberrypi5 kernel[675]: [    0.002609] Mountpoint-cache hash table entries: 16384 (order: 3, 131072 bytes, vmalloc)
+[    9.347130] raspberrypi5 kernel[675]: [    0.003209] RCU Tasks: Setting shift to 2 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=4.
+[    9.347148] raspberrypi5 kernel[675]: [    0.003231] RCU Tasks Rude: Setting shift to 2 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=4.
+[    9.347170] raspberrypi5 kernel[675]: [    0.003249] RCU Tasks Trace: Setting shift to 2 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=4.
+[    9.347188] raspberrypi5 kernel[675]: [    0.003294] rcu: Hierarchical SRCU implementation.
+[    9.347206] raspberrypi5 kernel[675]: [    0.003297] rcu:         Max phase no-delay instances is 1000.
+[    9.347223] raspberrypi5 kernel[675]: [    0.003691] EFI services will not be available.
+[    9.347241] raspberrypi5 kernel[675]: [    0.003756] smp: Bringing up secondary CPUs ...
+[    9.347258] raspberrypi5 kernel[675]: [    0.003899] Detected PIPT I-cache on CPU1
+[    9.347276] raspberrypi5 kernel[675]: [    0.003932] CPU1: Booted secondary processor 0x0000000100 [0x414fd0b1]
+[    9.347293] raspberrypi5 kernel[675]: [    0.004105] Detected PIPT I-cache on CPU2
+[    9.347311] raspberrypi5 kernel[675]: [    0.004130] CPU2: Booted secondary processor 0x0000000200 [0x414fd0b1]
+[    9.347329] raspberrypi5 kernel[675]: [    0.004250] Detected PIPT I-cache on CPU3
+[    9.347347] raspberrypi5 kernel[675]: [    0.004269] CPU3: Booted secondary processor 0x0000000300 [0x414fd0b1]
+[    9.347364] raspberrypi5 kernel[675]: [    0.004292] smp: Brought up 8 nodes, 4 CPUs
+[    9.347382] raspberrypi5 kernel[675]: [    0.004303] SMP: Total of 4 processors activated.
+[    9.347400] raspberrypi5 kernel[675]: [    0.004306] CPU features: detected: 32-bit EL0 Support
+[    9.347419] raspberrypi5 kernel[675]: [    0.004309] CPU features: detected: Data cache clean to the PoU not required for I/D coherence
+[    9.347436] raspberrypi5 kernel[675]: [    0.004313] CPU features: detected: Common not Private translations
+[    9.347454] raspberrypi5 kernel[675]: [    0.004315] CPU features: detected: CRC32 instructions
+[    9.347471] raspberrypi5 kernel[675]: [    0.004318] CPU features: detected: RCpc load-acquire (LDAPR)
+[    9.347489] raspberrypi5 kernel[675]: [    0.004321] CPU features: detected: LSE atomic instructions
+[    9.347507] raspberrypi5 kernel[675]: [    0.004324] CPU features: detected: Privileged Access Never
+[    9.347525] raspberrypi5 kernel[675]: [    0.004326] CPU features: detected: RAS Extension Support
+[    9.347542] raspberrypi5 kernel[675]: [    0.004329] CPU features: detected: Speculative Store Bypassing Safe (SSBS)
+[    9.347560] raspberrypi5 kernel[675]: [    0.004359] CPU: All CPU(s) started at EL2
+[    9.347577] raspberrypi5 kernel[675]: [    0.004361] alternatives: applying system-wide alternatives
+[    9.347595] raspberrypi5 kernel[675]: [    0.005956] devtmpfs: initialized
+[    9.347613] raspberrypi5 kernel[675]: [    0.007902] Enabled cp15_barrier support
+[    9.347630] raspberrypi5 kernel[675]: [    0.007909] Enabled setend support
+[    9.347648] raspberrypi5 kernel[675]: [    0.007974] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+[    9.347666] raspberrypi5 kernel[675]: [    0.007982] futex hash table entries: 1024 (order: 2, 65536 bytes, vmalloc)
+[    9.347685] raspberrypi5 kernel[675]: [    0.008190] pinctrl core: initialized pinctrl subsystem
+[    9.347703] raspberrypi5 kernel[675]: [    0.008285] DMI not present or invalid.
+[    9.347720] raspberrypi5 kernel[675]: [    0.008413] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    9.347738] raspberrypi5 kernel[675]: [    0.008800] DMA: preallocated 1024 KiB GFP_KERNEL pool for atomic allocations
+[    9.347756] raspberrypi5 kernel[675]: [    0.008831] DMA: preallocated 1024 KiB GFP_KERNEL|GFP_DMA pool for atomic allocations
+[    9.347773] raspberrypi5 kernel[675]: [    0.008864] DMA: preallocated 1024 KiB GFP_KERNEL|GFP_DMA32 pool for atomic allocations
+[    9.347791] raspberrypi5 kernel[675]: [    0.008890] audit: initializing netlink subsys (disabled)
+[    9.347809] raspberrypi5 kernel[675]: [    0.008931] audit: type=2000 audit(0.008:1): state=initialized audit_enabled=0 res=1
+[    9.347826] raspberrypi5 kernel[675]: [    0.009036] thermal_sys: Registered thermal governor 'step_wise'
+[    9.347844] raspberrypi5 kernel[675]: [    0.009047] cpuidle: using governor menu
+[    9.347862] raspberrypi5 kernel[675]: [    0.009109] hw-breakpoint: found 6 breakpoint and 4 watchpoint registers.
+[    9.347879] raspberrypi5 kernel[675]: [    0.009130] ASID allocator initialised with 32768 entries
+[    9.347896] raspberrypi5 kernel[675]: [    0.009338] Serial: AMBA PL011 UART driver
+[    9.347914] raspberrypi5 kernel[675]: [    0.009957] bcm2835-mbox 107c013880.mailbox: mailbox enabled
+[    9.347932] raspberrypi5 kernel[675]: [    0.010198] 107d001000.serial: ttyAMA10 at MMIO 0x107d001000 (irq = 15, base_baud = 0) is a PL011 rev2
+[    9.347949] raspberrypi5 kernel[675]: [    0.010209] printk: console [ttyAMA10] enabled
+[    9.347967] raspberrypi5 kernel[675]: [    1.017677] raspberrypi-firmware soc:firmware: Attached to firmware from 2026-05-26T15:01:25, variant start_cd
+[    9.347985] raspberrypi5 kernel[675]: [    1.031725] raspberrypi-firmware soc:firmware: Firmware hash is 086b83e300000000000000000000000000000000
+[    9.348016] raspberrypi5 kernel[675]: [    1.046869] Modules: 2G module region forced by RANDOMIZE_MODULE_REGION_FULL
+[    9.348037] raspberrypi5 kernel[675]: [    1.053951] Modules: 0 pages in range for non-PLT usage
+[    9.348054] raspberrypi5 kernel[675]: [    1.053952] Modules: 125996 pages in range for PLT usage
+[    9.348072] raspberrypi5 kernel[675]: [    1.063719] bcm2835-dma 1000010000.dma: DMA legacy API manager, dmachans=0x1
+[    9.348090] raspberrypi5 kernel[675]: [    1.076370] iommu: Default domain type: Translated
+[    9.348108] raspberrypi5 kernel[675]: [    1.081184] iommu: DMA domain TLB invalidation policy: strict mode
+[    9.348125] raspberrypi5 kernel[675]: [    1.087613] SCSI subsystem initialized
+[    9.348143] raspberrypi5 kernel[675]: [    1.091407] usbcore: registered new interface driver usbfs
+[    9.348161] raspberrypi5 kernel[675]: [    1.096916] usbcore: registered new interface driver hub
+[    9.348179] raspberrypi5 kernel[675]: [    1.102249] usbcore: registered new device driver usb
+[    9.348196] raspberrypi5 kernel[675]: [    1.107380] pps_core: LinuxPPS API ver. 1 registered
+[    9.348214] raspberrypi5 kernel[675]: [    1.112360] pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+[    9.348232] raspberrypi5 kernel[675]: [    1.121532] PTP clock support registered
+[    9.348249] raspberrypi5 kernel[675]: [    1.125494] Advanced Linux Sound Architecture Driver Initialized.
+[    9.348267] raspberrypi5 kernel[675]: [    1.131769] vgaarb: loaded
+[    9.348285] raspberrypi5 kernel[675]: [    1.134560] clocksource: Switched to clocksource arch_sys_counter
+[    9.348303] raspberrypi5 kernel[675]: [    1.249063] VFS: Disk quotas dquot_6.6.0
+[    9.348320] raspberrypi5 kernel[675]: [    1.253007] VFS: Dquot-cache hash table entries: 2048 (order 0, 16384 bytes)
+[    9.348338] raspberrypi5 kernel[675]: [    1.260111] FS-Cache: Loaded
+[    9.348356] raspberrypi5 kernel[675]: [    1.263038] CacheFiles: Loaded
+[    9.348374] raspberrypi5 kernel[675]: [    1.266998] NET: Registered PF_INET protocol family
+[    9.348393] raspberrypi5 kernel[675]: [    1.272044] IP idents hash table entries: 131072 (order: 6, 1048576 bytes, vmalloc)
+[    9.348411] raspberrypi5 kernel[675]: [    1.281245] tcp_listen_portaddr_hash hash table entries: 4096 (order: 2, 65536 bytes, vmalloc)
+[    9.348429] raspberrypi5 kernel[675]: [    1.289926] Table-perturb hash table entries: 65536 (order: 4, 262144 bytes, vmalloc)
+[    9.348447] raspberrypi5 kernel[675]: [    1.297794] TCP established hash table entries: 65536 (order: 5, 524288 bytes, vmalloc)
+[    9.348465] raspberrypi5 kernel[675]: [    1.306008] TCP bind hash table entries: 65536 (order: 7, 2097152 bytes, vmalloc)
+[    9.348483] raspberrypi5 kernel[675]: [    1.314175] TCP: Hash tables configured (established 65536 bind 65536)
+[    9.348501] raspberrypi5 kernel[675]: [    1.320826] MPTCP token hash table entries: 8192 (order: 3, 196608 bytes, vmalloc)
+[    9.348518] raspberrypi5 kernel[675]: [    1.328473] UDP hash table entries: 4096 (order: 3, 131072 bytes, vmalloc)
+[    9.348536] raspberrypi5 kernel[675]: [    1.335435] UDP-Lite hash table entries: 4096 (order: 3, 131072 bytes, vmalloc)
+[    9.348554] raspberrypi5 kernel[675]: [    1.342868] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    9.348571] raspberrypi5 kernel[675]: [    1.348636] RPC: Registered named UNIX socket transport module.
+[    9.348589] raspberrypi5 kernel[675]: [    1.354579] RPC: Registered udp transport module.
+[    9.348607] raspberrypi5 kernel[675]: [    1.359296] RPC: Registered tcp transport module.
+[    9.348624] raspberrypi5 kernel[675]: [    1.364013] RPC: Registered tcp-with-tls transport module.
+[    9.348642] raspberrypi5 kernel[675]: [    1.369515] RPC: Registered tcp NFSv4.1 backchannel transport module.
+[    9.348659] raspberrypi5 kernel[675]: [    1.375984] PCI: CLS 0 bytes, default 64
+[    9.348677] raspberrypi5 kernel[675]: [    1.380027] kvm [1]: IPA Size Limit: 40 bits
+[    9.348694] raspberrypi5 kernel[675]: [    1.384322] kvm [1]: GICV region size/alignment is unsafe, using trapping (reduced performance)
+[    9.348712] raspberrypi5 kernel[675]: [    1.393126] kvm [1]: vgic interrupt IRQ9
+[    9.348730] raspberrypi5 kernel[675]: [    1.397105] kvm [1]: VHE mode initialized successfully
+[    9.348747] raspberrypi5 kernel[675]: [    1.402989] Initialise system trusted keyrings
+[    9.348765] raspberrypi5 kernel[675]: [    1.407604] workingset: timestamp_bits=42 max_order=19 bucket_order=0
+[    9.348783] raspberrypi5 kernel[675]: [    1.414087] zbud: loaded
+[    9.348800] raspberrypi5 kernel[675]: [    1.416782] squashfs: version 4.0 (2009/01/31) Phillip Lougher
+[    9.348818] raspberrypi5 kernel[675]: [    1.422711] NFS: Registering the id_resolver key type
+[    9.348835] raspberrypi5 kernel[675]: [    1.427784] Key type id_resolver registered
+[    9.348853] raspberrypi5 kernel[675]: [    1.431978] Key type id_legacy registered
+[    9.348870] raspberrypi5 kernel[675]: [    1.436007] nfs4filelayout_init: NFSv4 File Layout Driver Registering...
+[    9.348889] raspberrypi5 kernel[675]: [    1.442735] nfs4flexfilelayout_init: NFSv4 Flexfile Layout Driver Registering...
+[    9.348906] raspberrypi5 kernel[675]: [    1.450213] F2FS not supported on PAGE_SIZE(16384) != 4096
+[    9.348925] raspberrypi5 kernel[675]: [    1.455774] Key type asymmetric registered
+[    9.348942] raspberrypi5 kernel[675]: [    1.459883] Asymmetric key parser 'x509' registered
+[    9.348960] raspberrypi5 kernel[675]: [    1.464787] Block layer SCSI generic (bsg) driver version 0.4 loaded (major 246)
+[    9.348977] raspberrypi5 kernel[675]: [    1.472230] io scheduler mq-deadline registered
+[    9.348996] raspberrypi5 kernel[675]: [    1.476775] io scheduler kyber registered
+[    9.349014] raspberrypi5 kernel[675]: [    1.480813] io scheduler bfq registered
+[    9.349031] raspberrypi5 kernel[675]: [    1.484853] irq_brcmstb_l2: registered L2 intc (/soc/interrupt-controller@7c502000, parent irq: 26)
+[    9.349049] raspberrypi5 kernel[675]: [    1.493987] irq_brcmstb_l2: registered L2 intc (/soc/intc@7d503000, parent irq: 27)
+[    9.349066] raspberrypi5 kernel[675]: [    1.501703] irq_brcmstb_l2: registered L2 intc (/soc/intc@7d508380, parent irq: 28)
+[    9.349086] raspberrypi5 kernel[675]: [    1.509416] irq_brcmstb_l2: registered L2 intc (/soc/intc@7d508400, parent irq: 29)
+[    9.349104] raspberrypi5 kernel[675]: [    1.517134] irq_brcmstb_l2: registered L2 intc (/soc/interrupt-controller@7d510600, parent irq: 30)
+[    9.349122] raspberrypi5 kernel[675]: [    1.526245] irq_brcmstb_l2: registered L2 intc (/soc/intc@7d517b00, parent irq: 31)
+[    9.349139] raspberrypi5 kernel[675]: [    1.562491] Serial: 8250/16550 driver, 1 ports, IRQ sharing enabled
+[    9.349157] raspberrypi5 kernel[675]: [    1.569047] 107d50c000.serial: ttyS0 at MMIO 0x107d50c000 (irq = 33, base_baud = 6000000) is a Broadcom BCM7271 UART
+[    9.349175] raspberrypi5 kernel[675]: [    1.579653] serial serial0: tty port ttyS0 registered
+[    9.349194] raspberrypi5 kernel[675]: [    1.584918] iproc-rng200 107d208000.rng: hwrng registered
+[    9.349212] raspberrypi5 kernel[675]: [    1.590368] vc-mem: phys_addr:0x00000000 mem_base=0x3fc00000 mem_size:0x40000000(1024 MiB)
+[    9.349230] raspberrypi5 kernel[675]: [    1.598811] bcm2712-iommu-cache 1000005b00.iommuc: bcm2712_iommu_cache_probe
+[    9.349248] raspberrypi5 kernel[675]: [    1.607500] brd: module loaded
+[    9.349265] raspberrypi5 kernel[675]: [    1.611453] loop: module loaded
+[    9.349283] raspberrypi5 kernel[675]: [    1.614693] bcm2835-power bcm2835-power: Broadcom BCM2835 power domains driver
+[    9.349301] raspberrypi5 kernel[675]: [    1.622031] Loading iSCSI transport class v2.0-870.
+[    9.349318] raspberrypi5 kernel[675]: [    1.627506] usbcore: registered new device driver r8152-cfgselector
+[    9.349336] raspberrypi5 kernel[675]: [    1.633805] usbcore: registered new interface driver r8152
+[    9.349354] raspberrypi5 kernel[675]: [    1.639311] usbcore: registered new interface driver lan78xx
+[    9.349372] raspberrypi5 kernel[675]: [    1.644991] usbcore: registered new interface driver smsc95xx
+[    9.349389] raspberrypi5 kernel[675]: [    1.650791] dwc_otg: version 3.00a 10-AUG-2012 (platform bus)
+[    9.349407] raspberrypi5 kernel[675]: [    1.656568] dwc_otg: FIQ enabled
+[    9.349425] raspberrypi5 kernel[675]: [    1.656569] dwc_otg: NAK holdoff enabled
+[    9.349443] raspberrypi5 kernel[675]: [    1.656570] dwc_otg: FIQ split-transaction FSM enabled
+[    9.349460] raspberrypi5 kernel[675]: [    1.656572] Module dwc_common_port init
+[    9.349479] raspberrypi5 kernel[675]: [    1.656647] usbcore: registered new interface driver uas
+[    9.349497] raspberrypi5 kernel[675]: [    1.661981] usbcore: registered new interface driver usb-storage
+[    9.349514] raspberrypi5 kernel[675]: [    1.668068] mousedev: PS/2 mouse device common for all mice
+[    9.349534] raspberrypi5 kernel[675]: [    1.680880] rpi-rtc soc:rpi_rtc: registered as rtc0
+[    9.349552] raspberrypi5 kernel[675]: [    1.687101] rpi-rtc soc:rpi_rtc: setting system clock to 1970-01-01T00:00:11 UTC (11)
+[    9.349570] raspberrypi5 kernel[675]: [    1.695066] brcmstb-i2c 107d508200.i2c:  @97500hz registered in interrupt mode
+[    9.349588] raspberrypi5 kernel[675]: [    1.702365] brcmstb-i2c 107d508280.i2c:  @97500hz registered in interrupt mode
+[    9.349606] raspberrypi5 kernel[675]: [    1.709856] bcm2835-wdt bcm2835-wdt: Poweroff handler already present!
+[    9.349624] raspberrypi5 kernel[675]: [    1.716410] bcm2835-wdt bcm2835-wdt: Broadcom BCM2835 watchdog timer
+[    9.349641] raspberrypi5 kernel[675]: [    1.722847] device-mapper: ioctl: 4.48.0-ioctl (2023-03-01) initialised: dm-devel@redhat.com
+[    9.349659] raspberrypi5 kernel[675]: [    1.733230] sdhci: Secure Digital Host Controller Interface driver
+[    9.349677] raspberrypi5 kernel[675]: [    1.739436] sdhci: Copyright(c) Pierre Ossman
+[    9.349695] raspberrypi5 kernel[675]: [    1.743829] sdhci-pltfm: SDHCI platform and OF driver helper
+[    9.349712] raspberrypi5 kernel[675]: [    1.749641] ledtrig-cpu: registered to indicate activity on CPUs
+[    9.349730] raspberrypi5 kernel[675]: [    1.755704] SMCCC: SOC_ID: ARCH_SOC_ID not implemented, skipping ....
+[    9.349747] raspberrypi5 kernel[675]: [    1.762180] hid: raw HID events driver (C) Jiri Kosina
+[    9.349764] raspberrypi5 kernel[675]: [    1.767346] usbcore: registered new interface driver usbhid
+[    9.349782] raspberrypi5 kernel[675]: [    1.772940] usbhid: USB HID core driver
+[    9.349800] raspberrypi5 kernel[675]: [    1.776999] hw perfevents: enabled with armv8_cortex_a76 PMU driver, 7 counters available
+[    9.349817] raspberrypi5 kernel[675]: [    1.785528] NET: Registered PF_PACKET protocol family
+[    9.349835] raspberrypi5 kernel[675]: [    1.790621] Key type dns_resolver registered
+[    9.349853] raspberrypi5 kernel[675]: [    1.798388] registered taskstats version 1
+[    9.349870] raspberrypi5 kernel[675]: [    1.802560] Loading compiled-in X.509 certificates
+[    9.349887] raspberrypi5 kernel[675]: [    1.808791] Key type .fscrypt registered
+[    9.349905] raspberrypi5 kernel[675]: [    1.812730] Key type fscrypt-provisioning registered
+[    9.349922] raspberrypi5 kernel[675]: [    1.818739] brcm-pcie 1000120000.pcie: host bridge /axi/pcie@120000 ranges:
+[    9.349940] raspberrypi5 kernel[675]: [    1.825750] brcm-pcie 1000120000.pcie:   No bus range found for /axi/pcie@120000, using [bus 00-ff]
+[    9.349957] raspberrypi5 kernel[675]: [    1.834845] brcm-pcie 1000120000.pcie:      MEM 0x1f00000000..0x1ffffffffb -> 0x0000000000
+[    9.349975] raspberrypi5 kernel[675]: [    1.843146] brcm-pcie 1000120000.pcie:      MEM 0x1c00000000..0x1effffffff -> 0x0400000000
+[    9.349992] raspberrypi5 kernel[675]: [    1.851449] brcm-pcie 1000120000.pcie:   IB MEM 0x1f00000000..0x1f003fffff -> 0x0000000000
+[    9.350010] raspberrypi5 kernel[675]: [    1.859749] brcm-pcie 1000120000.pcie:   IB MEM 0x0000000000..0x0fffffffff -> 0x1000000000
+[    9.350028] raspberrypi5 kernel[675]: [    1.869211] brcm-pcie 1000120000.pcie: Forcing gen 2
+[    9.350046] raspberrypi5 kernel[675]: [    1.874330] brcm-pcie 1000120000.pcie: PCI host bridge to bus 0000:00
+[    9.350063] raspberrypi5 kernel[675]: [    1.880804] pci_bus 0000:00: Unknown NUMA node; performance will be reduced
+[    9.350081] raspberrypi5 kernel[675]: [    1.887797] pci_bus 0000:00: root bus resource [bus 00-ff]
+[    9.350100] raspberrypi5 kernel[675]: [    1.893309] pci_bus 0000:00: root bus resource [mem 0x1f00000000-0x1ffffffffb] (bus address [0x00000000-0xfffffffb])
+[    9.350118] raspberrypi5 kernel[675]: [    1.903882] pci_bus 0000:00: root bus resource [mem 0x1c00000000-0x1effffffff pref] (bus address [0x400000000-0x6ffffffff])
+[    9.350136] raspberrypi5 kernel[675]: [    1.915072] pci 0000:00:00.0: [14e4:2712] type 01 class 0x060400
+[    9.350153] raspberrypi5 kernel[675]: [    1.921119] pci 0000:00:00.0: PME# supported from D0 D3hot
+[    9.350171] raspberrypi5 kernel[675]: [    1.927189] pci 0000:00:00.0: bridge configuration invalid ([bus 00-00]), reconfiguring
+[    9.350188] raspberrypi5 kernel[675]: [    2.042565] brcm-pcie 1000120000.pcie: link up, 5.0 GT/s PCIe x4 (!SSC)
+[    9.350205] raspberrypi5 kernel[675]: [    2.049220] pci 0000:01:00.0: [1de4:0001] type 00 class 0x020000
+[    9.350223] raspberrypi5 kernel[675]: [    2.055260] pci 0000:01:00.0: reg 0x10: [mem 0xffffc000-0xffffffff]
+[    9.350240] raspberrypi5 kernel[675]: [    2.061554] pci 0000:01:00.0: reg 0x14: [mem 0xffc00000-0xffffffff]
+[    9.350258] raspberrypi5 kernel[675]: [    2.067848] pci 0000:01:00.0: reg 0x18: [mem 0xffff0000-0xffffffff]
+[    9.350275] raspberrypi5 kernel[675]: [    2.074197] pci 0000:01:00.0: supports D1
+[    9.350292] raspberrypi5 kernel[675]: [    2.078218] pci 0000:01:00.0: PME# supported from D0 D1 D3hot D3cold
+[    9.350310] raspberrypi5 kernel[675]: [    2.094566] pci_bus 0000:01: busn_res: [bus 01-ff] end is updated to 01
+[    9.350327] raspberrypi5 kernel[675]: [    2.101213] pci 0000:00:00.0: BAR 8: assigned [mem 0x1f00000000-0x1f005fffff]
+[    9.350345] raspberrypi5 kernel[675]: [    2.108383] pci 0000:01:00.0: BAR 1: assigned [mem 0x1f00000000-0x1f003fffff]
+[    9.350363] raspberrypi5 kernel[675]: [    2.115554] pci 0000:01:00.0: BAR 2: assigned [mem 0x1f00400000-0x1f0040ffff]
+[    9.350380] raspberrypi5 kernel[675]: [    2.122724] pci 0000:01:00.0: BAR 0: assigned [mem 0x1f00410000-0x1f00413fff]
+[    9.350398] raspberrypi5 kernel[675]: [    2.129895] pci 0000:00:00.0: PCI bridge to [bus 01]
+[    9.350416] raspberrypi5 kernel[675]: [    2.134877] pci 0000:00:00.0:   bridge window [mem 0x1f00000000-0x1f005fffff]
+[    9.350433] raspberrypi5 kernel[675]: [    2.142043] pci 0000:00:00.0: Max Payload Size set to  256/ 512 (was  128), Max Read Rq  512
+[    9.350451] raspberrypi5 kernel[675]: [    2.150525] pci 0000:01:00.0: Max Payload Size set to  256/ 256 (was  128), Max Read Rq  512
+[    9.350468] raspberrypi5 kernel[675]: [    2.159060] pcieport 0000:00:00.0: enabling device (0000 -> 0002)
+[    9.350485] raspberrypi5 kernel[675]: [    2.165208] pcieport 0000:00:00.0: PME: Signaling with IRQ 40
+[    9.350503] raspberrypi5 kernel[675]: [    2.171014] pcieport 0000:00:00.0: AER: enabled with IRQ 40
+[    9.350521] raspberrypi5 kernel[675]: [    2.176657] rp1 0000:01:00.0: bar0 len 0x4000, start 0x1f00410000, end 0x1f00413fff, flags, 0x40200
+[    9.350538] raspberrypi5 kernel[675]: [    2.185742] rp1 0000:01:00.0: bar1 len 0x400000, start 0x1f00000000, end 0x1f003fffff, flags, 0x40200
+[    9.350556] raspberrypi5 kernel[675]: [    2.195010] rp1 0000:01:00.0: enabling device (0000 -> 0002)
+[    9.350573] raspberrypi5 kernel[675]: [    2.201332] rp1 0000:01:00.0: chip_id 0x20001927
+[    9.350591] raspberrypi5 kernel[675]: [    2.210003] genirq: irq_chip rp1_irq_chip did not update eff. affinity mask of irq 102
+[    9.350609] raspberrypi5 kernel[675]: [    2.237387] macb 1f00100000.ethernet eth0: Cadence GEM rev 0x00070109 at 0x1f00100000 irq 108 (2c:cf:67:f3:ee:41)
+[    9.350626] raspberrypi5 kernel[675]: [    2.249612] dw_axi_dmac_platform 1f00188000.dma: DesignWare AXI DMA Controller, 8 channels
+[    9.350644] raspberrypi5 kernel[675]: [    2.258108] xhci-hcd xhci-hcd.0: xHCI Host Controller
+[    9.350661] raspberrypi5 kernel[675]: [    2.263197] xhci-hcd xhci-hcd.0: new USB bus registered, assigned bus number 1
+[    9.350679] raspberrypi5 kernel[675]: [    2.270900] xhci-hcd xhci-hcd.0: hcc params 0x0240fe6d hci version 0x110 quirks 0x0000008000000810
+[    9.350698] raspberrypi5 kernel[675]: [    2.279911] xhci-hcd xhci-hcd.0: irq 133, io mem 0x1f00200000
+[    9.350715] raspberrypi5 kernel[675]: [    2.285739] xhci-hcd xhci-hcd.0: xHCI Host Controller
+[    9.350734] raspberrypi5 kernel[675]: [    2.290808] xhci-hcd xhci-hcd.0: new USB bus registered, assigned bus number 2
+[    9.350753] raspberrypi5 kernel[675]: [    2.298062] xhci-hcd xhci-hcd.0: Host supports USB 3.0 SuperSpeed
+[    9.350771] raspberrypi5 kernel[675]: [    2.304214] usb usb1: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 6.06
+[    9.350788] raspberrypi5 kernel[675]: [    2.312515] usb usb1: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[    9.350806] raspberrypi5 kernel[675]: [    2.319765] usb usb1: Product: xHCI Host Controller
+[    9.350823] raspberrypi5 kernel[675]: [    2.324659] usb usb1: Manufacturer: Linux 6.6.63-v8-16k xhci-hcd
+[    9.350841] raspberrypi5 kernel[675]: [    2.330686] usb usb1: SerialNumber: xhci-hcd.0
+[    9.350858] raspberrypi5 kernel[675]: [    2.335241] hub 1-0:1.0: USB hub found
+[    9.350876] raspberrypi5 kernel[675]: [    2.339011] hub 1-0:1.0: 2 ports detected
+[    9.350893] raspberrypi5 kernel[675]: [    2.343122] usb usb2: New USB device found, idVendor=1d6b, idProduct=0003, bcdDevice= 6.06
+[    9.350911] raspberrypi5 kernel[675]: [    2.351420] usb usb2: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[    9.350928] raspberrypi5 kernel[675]: [    2.358674] usb usb2: Product: xHCI Host Controller
+[    9.350946] raspberrypi5 kernel[675]: [    2.363566] usb usb2: Manufacturer: Linux 6.6.63-v8-16k xhci-hcd
+[    9.350963] raspberrypi5 kernel[675]: [    2.369655] usb usb2: SerialNumber: xhci-hcd.0
+[    9.350981] raspberrypi5 kernel[675]: [    2.374190] hub 2-0:1.0: USB hub found
+[    9.350998] raspberrypi5 kernel[675]: [    2.377958] hub 2-0:1.0: 1 port detected
+[    9.351015] raspberrypi5 kernel[675]: [    2.382094] xhci-hcd xhci-hcd.1: xHCI Host Controller
+[    9.351033] raspberrypi5 kernel[675]: [    2.387270] xhci-hcd xhci-hcd.1: new USB bus registered, assigned bus number 3
+[    9.351051] raspberrypi5 kernel[675]: [    2.394949] xhci-hcd xhci-hcd.1: hcc params 0x0240fe6d hci version 0x110 quirks 0x0000008000000810
+[    9.351069] raspberrypi5 kernel[675]: [    2.404050] xhci-hcd xhci-hcd.1: irq 138, io mem 0x1f00300000
+[    9.351086] raspberrypi5 kernel[675]: [    2.409871] xhci-hcd xhci-hcd.1: xHCI Host Controller
+[    9.351104] raspberrypi5 kernel[675]: [    2.414939] xhci-hcd xhci-hcd.1: new USB bus registered, assigned bus number 4
+[    9.351121] raspberrypi5 kernel[675]: [    2.422289] xhci-hcd xhci-hcd.1: Host supports USB 3.0 SuperSpeed
+[    9.351138] raspberrypi5 kernel[675]: [    2.428427] usb usb3: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 6.06
+[    9.351156] raspberrypi5 kernel[675]: [    2.436824] usb usb3: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[    9.351173] raspberrypi5 kernel[675]: [    2.444073] usb usb3: Product: xHCI Host Controller
+[    9.351191] raspberrypi5 kernel[675]: [    2.448967] usb usb3: Manufacturer: Linux 6.6.63-v8-16k xhci-hcd
+[    9.351208] raspberrypi5 kernel[675]: [    2.455091] usb usb3: SerialNumber: xhci-hcd.1
+[    9.351226] raspberrypi5 kernel[675]: [    2.459616] hub 3-0:1.0: USB hub found
+[    9.351246] raspberrypi5 kernel[675]: [    2.463384] hub 3-0:1.0: 2 ports detected
+[    9.351264] raspberrypi5 kernel[675]: [    2.467478] usb usb4: New USB device found, idVendor=1d6b, idProduct=0003, bcdDevice= 6.06
+[    9.351282] raspberrypi5 kernel[675]: [    2.475875] usb usb4: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[    9.351300] raspberrypi5 kernel[675]: [    2.483149] usb usb4: Product: xHCI Host Controller
+[    9.351317] raspberrypi5 kernel[675]: [    2.488041] usb usb4: Manufacturer: Linux 6.6.63-v8-16k xhci-hcd
+[    9.351339] raspberrypi5 kernel[675]: [    2.494223] usb usb4: SerialNumber: xhci-hcd.1
+[    9.351357] raspberrypi5 kernel[675]: [    2.498754] hub 4-0:1.0: USB hub found
+[    9.351374] raspberrypi5 kernel[675]: [    2.502517] hub 4-0:1.0: 1 port detected
+[    9.351391] raspberrypi5 kernel[675]: [    2.507303] bcm2712-iommu 1000005100.iommu: bcm2712_iommu_init: DEBUG_INFO = 0x20804774
+[    9.351409] raspberrypi5 kernel[675]: [    2.515708] platform 1000800000.codec: bcm2712_iommu_probe_device: MMU 1000005100.iommu
+[    9.351426] raspberrypi5 kernel[675]: [    2.523942] platform 1000800000.codec: bcm2712_iommu_device_group: MMU 1000005100.iommu
+[    9.351444] raspberrypi5 kernel[675]: [    2.532005] platform 1000800000.codec: Adding to iommu group 0
+[    9.351462] raspberrypi5 kernel[675]: [    2.537867] platform 1000880000.pisp_be: bcm2712_iommu_probe_device: MMU 1000005100.iommu
+[    9.351480] raspberrypi5 kernel[675]: [    2.546268] platform 1000880000.pisp_be: bcm2712_iommu_device_group: MMU 1000005100.iommu
+[    9.351498] raspberrypi5 kernel[675]: [    2.554491] platform 1000880000.pisp_be: Adding to iommu group 0
+[    9.351516] raspberrypi5 kernel[675]: [    2.560734] platform 1000800000.codec: bcm2712_iommu_attach_dev: MMU 1000005100.iommu
+[    9.351534] raspberrypi5 kernel[675]: [    2.568595] platform 1000880000.pisp_be: bcm2712_iommu_attach_dev: MMU 1000005100.iommu
+[    9.351551] raspberrypi5 kernel[675]: [    2.576823] bcm2712-iommu 1000005100.iommu: bcm2712_iommu_probe: Success
+[    9.351569] raspberrypi5 kernel[675]: [    2.583958] bcm2712-iommu 1000005200.iommu: bcm2712_iommu_init: DEBUG_INFO = 0x20804774
+[    9.351586] raspberrypi5 kernel[675]: [    2.592544] platform axi:gpu: bcm2712_iommu_probe_device: MMU 1000005200.iommu
+[    9.351606] raspberrypi5 kernel[675]: [    2.599807] platform axi:gpu: bcm2712_iommu_device_group: MMU 1000005200.iommu
+[    9.351624] raspberrypi5 kernel[675]: [    2.607271] platform axi:gpu: Adding to iommu group 1
+[    9.351643] raspberrypi5 kernel[675]: [    2.612358] platform axi:gpu: bcm2712_iommu_attach_dev: MMU 1000005200.iommu
+[    9.351661] raspberrypi5 kernel[675]: [    2.619437] bcm2712-iommu 1000005200.iommu: bcm2712_iommu_probe: Success
+[    9.351679] raspberrypi5 kernel[675]: [    2.626754] bcm2712-iommu 1000005280.iommu: bcm2712_iommu_init: DEBUG_INFO = 0x20804774
+[    9.351696] raspberrypi5 kernel[675]: [    2.635147] bcm2712-iommu 1000005280.iommu: bcm2712_iommu_probe: Success
+[    9.351714] raspberrypi5 kernel[675]: [    2.642102] vc4-drm axi:gpu: bcm2712_iommu_of_xlate: MMU 1000005200.iommu
+[    9.351731] raspberrypi5 kernel[675]: [    2.650977] vc4-drm axi:gpu: bound 107c580000.hvs (ops vc4_hvs_ops)
+[    9.351749] raspberrypi5 kernel[675]: [    2.658473] Registered IR keymap rc-cec
+[    9.351767] raspberrypi5 kernel[675]: [    2.662357] rc rc0: vc4-hdmi-0 as /devices/platform/soc/107c701400.hdmi/rc/rc0
+[    9.351785] raspberrypi5 kernel[675]: [    2.669659] input: vc4-hdmi-0 as /devices/platform/soc/107c701400.hdmi/rc/rc0/input0
+[    9.351802] raspberrypi5 kernel[675]: [    2.677948] input: vc4-hdmi-0 HDMI Jack as /devices/platform/soc/107c701400.hdmi/sound/card0/input1
+[    9.351820] raspberrypi5 kernel[675]: [    2.688667] vc4-drm axi:gpu: bound 107c701400.hdmi (ops vc4_hdmi_ops)
+[    9.351837] raspberrypi5 kernel[675]: [    2.698555] Registered IR keymap rc-cec
+[    9.351855] raspberrypi5 kernel[675]: [    2.702425] rc rc1: vc4-hdmi-1 as /devices/platform/soc/107c706400.hdmi/rc/rc1
+[    9.351872] raspberrypi5 kernel[675]: [    2.709709] input: vc4-hdmi-1 as /devices/platform/soc/107c706400.hdmi/rc/rc1/input2
+[    9.351891] raspberrypi5 kernel[675]: [    2.717942] input: vc4-hdmi-1 HDMI Jack as /devices/platform/soc/107c706400.hdmi/sound/card1/input3
+[    9.351909] raspberrypi5 kernel[675]: [    2.728674] vc4-drm axi:gpu: bound 107c706400.hdmi (ops vc4_hdmi_ops)
+[    9.351926] raspberrypi5 kernel[675]: [    2.735388] vc4-drm axi:gpu: bound 107c500000.mop (ops vc4_txp_ops)
+[    9.351944] raspberrypi5 kernel[675]: [    2.741718] vc4-drm axi:gpu: bound 107c501000.moplet (ops vc4_txp_ops)
+[    9.351961] raspberrypi5 kernel[675]: [    2.748330] vc4-drm axi:gpu: bound 107c410000.pixelvalve (ops vc4_crtc_ops)
+[    9.351979] raspberrypi5 kernel[675]: [    2.755540] vc4-drm axi:gpu: bound 107c411000.pixelvalve (ops vc4_crtc_ops)
+[    9.351997] raspberrypi5 kernel[675]: [    2.762980] [drm] Initialized vc4 0.0.0 20140616 for axi:gpu on minor 0
+[    9.352020] raspberrypi5 kernel[675]: [    2.772068] vc4-drm axi:gpu: [drm] Cannot find any crtc or sizes
+[    9.352038] raspberrypi5 kernel[675]: [    2.778770] of_cfs_init
+[    9.352056] raspberrypi5 kernel[675]: [    2.781241] of_cfs_init: OK
+[    9.352074] raspberrypi5 kernel[675]: [    2.782208] sdhci-brcmstb 1000fff000.mmc: Got CD GPIO
+[    9.352091] raspberrypi5 kernel[675]: [    2.784195] mmc1: CQHCI version 5.10
+[    9.352108] raspberrypi5 kernel[675]: [    2.793303] mmc0: CQHCI version 5.10
+[    9.352126] raspberrypi5 kernel[675]: [    2.796904] vc4-drm axi:gpu: [drm] Cannot find any crtc or sizes
+[    9.352144] raspberrypi5 kernel[675]: [    2.805486] vc4-drm axi:gpu: [drm] Cannot find any crtc or sizes
+[    9.352162] raspberrypi5 kernel[675]: [    2.838691] mmc0: SDHCI controller on 1000fff000.mmc [1000fff000.mmc] using ADMA 64-bit
+[    9.352185] raspberrypi5 kernel[675]: [    2.982405] mmc1: SDHCI controller on 1001100000.mmc [1001100000.mmc] using ADMA 64-bit
+[    9.352205] raspberrypi5 kernel[675]: [    2.990490] clk: Disabling unused clocks
+[    9.352223] raspberrypi5 kernel[675]: [    2.994450] mmc0: Command Queue Engine enabled, 31 tags
+[    9.352241] raspberrypi5 kernel[675]: [    2.999697] mmc0: new ultra high speed SDR104 SDXC card at address 544c
+[    9.352258] raspberrypi5 kernel[675]: [    3.000947] ALSA device list:
+[    9.352276] raspberrypi5 kernel[675]: [    3.006478] mmcblk0: mmc0:544c LX512 461 GiB
+[    9.352294] raspberrypi5 kernel[675]: [    3.009317]   #0: vc4-hdmi-0
+[    9.352311] raspberrypi5 kernel[675]: [    3.016489]   #1: vc4-hdmi-1
+[    9.352329] raspberrypi5 kernel[675]: [    3.018584]  mmcblk0: p1 p2 p3 p4 < p5 p6 p7 >
+[    9.352347] raspberrypi5 kernel[675]: [    3.023867] uart-pl011 107d001000.serial: no DMA platform data
+[    9.352365] raspberrypi5 kernel[675]: [    3.024006] mmcblk0: mmc0:544c LX512 461 GiB
+[    9.352383] raspberrypi5 kernel[675]: [    3.051021] mmc1: new ultra high speed DDR50 SDIO card at address 0001
+[    9.352401] raspberrypi5 kernel[675]: [    3.055851] Freeing unused kernel memory: 57216K
+[    9.352419] raspberrypi5 kernel[675]: [    3.062290] Run /init as init process
+[    9.352437] raspberrypi5 kernel[675]: [    3.065964]   with arguments:
+[    9.352454] raspberrypi5 kernel[675]: [    3.065965]     /init
+[    9.352472] raspberrypi5 kernel[675]: [    3.065966]   with environment:
+[    9.352490] raspberrypi5 kernel[675]: [    3.065967]     HOME=/
+[    9.352508] raspberrypi5 kernel[675]: [    3.065968]     TERM=linux
+[    9.352525] raspberrypi5 kernel[675]: [    3.065969]     iommu_dma_numa_policy=interleave
+[    9.352543] raspberrypi5 kernel[675]: [    4.322416] device-mapper: verity: sha256 using implementation "sha256-ce"
+[    9.352561] raspberrypi5 kernel[675]: [    4.586251] EXT4-fs (dm-0): write access unavailable, skipping orphan cleanup
+[    9.352580] raspberrypi5 kernel[675]: [    4.593453] EXT4-fs (dm-0): mounted filesystem b93005f2-bb20-4418-808e-cced9fe49fd4 ro with ordered data mode. Quota mode: none.
+[    9.352598] raspberrypi5 kernel[675]: [    5.177265] systemd[1]: System time before build time, advancing clock.
+[    9.352617] raspberrypi5 kernel[675]: [    5.235582] NET: Registered PF_INET6 protocol family
+[    9.352638] raspberrypi5 kernel[675]: [    5.240825] Segment Routing with IPv6
+[    9.352656] raspberrypi5 kernel[675]: [    5.244503] In-situ OAM (IOAM) with IPv6
+[    9.352674] raspberrypi5 kernel[675]: [    5.350544] systemd[1]: systemd 255.22^ running in system mode (-PAM -AUDIT -SELINUX -APPARMOR +IMA -SMACK +SECCOMP -GCRYPT -GNUTLS -OPENSSL +ACL +BLKID -CURL -ELFUTILS -FIDO2 -IDN2 -IDN -IPTC +KMOD -LIBCRYPTSETUP +LIBFDISK -PCRE2 -PWQUALITY -P11KIT -QRENCODE -TPM2 -BZIP2 -LZ4 -XZ -ZLIB +ZSTD -BPF_FRAMEWORK +XKBCOMMON +UTMP +SYSVINIT default-hierarchy=unified)
+[    9.352694] raspberrypi5 kernel[675]: [    5.382751] systemd[1]: Detected architecture arm64.
+[    9.352712] raspberrypi5 kernel[675]: [    5.428051] systemd[1]: Hostname set to <raspberrypi5>.
+[    9.352730] raspberrypi5 kernel[675]: [    5.457410] systemd[1]: Initializing machine ID from random generator.
+[    9.352748] raspberrypi5 kernel[675]: [    5.464010] systemd[1]: Installed transient /etc/machine-id file.
+[    9.352766] raspberrypi5 kernel[675]: [    5.536959] systemd-sysv-generator[497]: SysV service '/etc/init.d/dropbear' lacks a native systemd unit file, automatically generating a unit file for compatibility.
+[    9.352785] raspberrypi5 kernel[675]: [    5.551913] systemd-sysv-generator[497]: Please update package to include a native systemd unit file.
+[    9.352803] raspberrypi5 kernel[675]: [    5.561213] systemd-sysv-generator[497]: ! This compatibility logic is deprecated, expect removal soon. !
+[    9.352822] raspberrypi5 kernel[675]: [    5.712133] systemd[1]: multi-user.target: Found ordering cycle on device-platform-healthcheck.service/start
+[    9.352840] raspberrypi5 kernel[675]: [    5.722025] systemd[1]: multi-user.target: Found dependency on device-service.service/start
+[    9.352859] raspberrypi5 kernel[675]: [    5.730428] systemd[1]: multi-user.target: Found dependency on multi-user.target/start
+[    9.352877] raspberrypi5 kernel[675]: [    5.738387] systemd[1]: multi-user.target: Job device-platform-healthcheck.service/start deleted to break ordering cycle starting with multi-user.target/start
+[    9.352895] raspberrypi5 kernel[675]: [    5.770823] systemd[1]: Queued start job for default target Multi-User System.
+[    9.352914] raspberrypi5 kernel[675]: [    5.795149] systemd[1]: Created slice Slice /system/getty.
+[    9.352932] raspberrypi5 kernel[675]: [    5.814814] systemd[1]: Created slice Slice /system/modprobe.
+[    9.352950] raspberrypi5 kernel[675]: [    5.834699] systemd[1]: Created slice User and Session Slice.
+[    9.352968] raspberrypi5 kernel[675]: [    5.854630] systemd[1]: Started Dispatch Password Requests to Console Directory Watch.
+[    9.352986] raspberrypi5 kernel[675]: [    5.878623] systemd[1]: Started Forward Password Requests to Wall Directory Watch.
+[    9.353004] raspberrypi5 kernel[675]: [    5.902603] systemd[1]: Reached target Path Units.
+[    9.353023] raspberrypi5 kernel[675]: [    5.922576] systemd[1]: Reached target Remote File Systems.
+[    9.353041] raspberrypi5 kernel[675]: [    5.942584] systemd[1]: Reached target Slice Units.
+[    9.353059] raspberrypi5 kernel[675]: [    5.962585] systemd[1]: Reached target Swaps.
+[    9.353077] raspberrypi5 kernel[675]: [    5.981555] systemd[1]: Listening on Syslog Socket.
+[    9.353095] raspberrypi5 kernel[675]: [    5.998631] systemd[1]: Listening on initctl Compatibility Named Pipe.
+[    9.353113] raspberrypi5 kernel[675]: [    6.022780] systemd[1]: Listening on Journal Audit Socket.
+[    9.353132] raspberrypi5 kernel[675]: [    6.042652] systemd[1]: Listening on Journal Socket (/dev/log).
+[    9.353150] raspberrypi5 kernel[675]: [    6.062658] systemd[1]: Listening on Journal Socket.
+[    9.353168] raspberrypi5 kernel[675]: [    6.082683] systemd[1]: Listening on Network Service Netlink Socket.
+[    9.353186] raspberrypi5 kernel[675]: [    6.105525] systemd[1]: Listening on udev Control Socket.
+[    9.353204] raspberrypi5 kernel[675]: [    6.126641] systemd[1]: Listening on udev Kernel Socket.
+[    9.353222] raspberrypi5 kernel[675]: [    6.146646] systemd[1]: Listening on User Database Manager Socket.
+[    9.353240] raspberrypi5 kernel[675]: [    6.166669] systemd[1]: Huge Pages File System was skipped because of an unmet condition check (ConditionPathExists=/sys/kernel/mm/hugepages).
+[    9.353259] raspberrypi5 kernel[675]: [    6.202643] systemd[1]: Mounting POSIX Message Queue File System...
+[    9.353278] raspberrypi5 kernel[675]: [    6.223150] systemd[1]: Mounting Kernel Debug File System...
+[    9.353296] raspberrypi5 kernel[675]: [    6.229532] systemd[1]: Mounting Kernel Trace File System...
+[    9.353314] raspberrypi5 kernel[675]: [    6.247771] systemd[1]: Mounting Temporary Directory /tmp...
+[    9.353334] raspberrypi5 kernel[675]: [    6.267429] systemd[1]: Starting Create List of Static Device Nodes...
+[    9.353353] raspberrypi5 kernel[675]: [    6.303327] systemd[1]: Starting Load Kernel Module configfs...
+[    9.353371] raspberrypi5 kernel[675]: [    6.310085] systemd[1]: Starting Load Kernel Module drm...
+[    9.353388] raspberrypi5 kernel[675]: [    6.327340] systemd[1]: Starting Load Kernel Module fuse...
+[    9.353406] raspberrypi5 kernel[675]: [    6.348139] systemd[1]: Starting Journal Service...
+[    9.353425] raspberrypi5 kernel[675]: [    6.370693] systemd[1]: Starting Load Kernel Modules...
+[    9.353443] raspberrypi5 kernel[675]: [    6.376932] fuse: init (API version 7.39)
+[    9.353461] raspberrypi5 kernel[675]: [    6.391319] systemd[1]: Starting Generate network units from Kernel command line...
+[    9.353480] raspberrypi5 kernel[675]: [    6.411632] systemd[1]: Starting Remount Root and Kernel File Systems...
+[    9.353498] raspberrypi5 kernel[675]: [    6.416229] systemd-journald[508]: Collecting audit messages is enabled.
+[    9.353516] raspberrypi5 kernel[675]: [    6.437846] custom_acq: loading out-of-tree module taints kernel.
+[    9.353534] raspberrypi5 kernel[675]: [    6.467423] systemd[1]: Starting Coldplug All udev Devices...
+[    9.353552] raspberrypi5 kernel[675]: [    6.474230] systemd[1]: Started Journal Service.
+[    9.353571] raspberrypi5 kernel[675]: [    6.494680] EXT4-fs (dm-0): re-mounted b93005f2-bb20-4418-808e-cced9fe49fd4 ro. Quota mode: none.
+[    9.353589] raspberrypi5 kernel[675]: [    6.828059] systemd-journald[508]: Received client request to flush runtime journal.
+[    9.353607] raspberrypi5 kernel[675]: [    7.055274] audit: type=1334 audit(1750927454.875:2): prog-id=6 op=LOAD
+[    9.353625] raspberrypi5 kernel[675]: [    7.061944] audit: type=1334 audit(1750927454.875:3): prog-id=7 op=LOAD
+[    9.353642] raspberrypi5 kernel[675]: [    7.160949] rpi-gpiomem 107d508500.gpiomem: window base 0x107d508500 size 0x00000040
+[    9.353661] raspberrypi5 kernel[675]: [    7.161348] rp1-firmware rp1_firmware: RP1 Firmware version 23fca1cd776798b50bd3e640ecb242215778e7f8
+[    9.353678] raspberrypi5 kernel[675]: [    7.178238] rpi-gpiomem 107d508500.gpiomem: initialised 1 regions as /dev/gpiomem1
+[    9.353696] raspberrypi5 kernel[675]: [    7.180710] rp1-pio 1f00178000.pio: Created instance as pio0
+[    9.353714] raspberrypi5 kernel[675]: [    7.186918] rpi-gpiomem 107d517c00.gpiomem: window base 0x107d517c00 size 0x00000040
+[    9.353732] raspberrypi5 kernel[675]: [    7.200794] rpi-gpiomem 107d517c00.gpiomem: initialised 1 regions as /dev/gpiomem2
+[    9.353750] raspberrypi5 kernel[675]: [    7.208964] rpi-gpiomem 107d504100.gpiomem: window base 0x107d504100 size 0x00000020
+[    9.353767] raspberrypi5 kernel[675]: [    7.217497] rpi-gpiomem 107d504100.gpiomem: initialised 1 regions as /dev/gpiomem3
+[    9.353785] raspberrypi5 kernel[675]: [    7.226090] input: pwr_button as /devices/platform/pwr_button/input/input4
+[    9.353804] raspberrypi5 kernel[675]: [    7.227390] rpi-gpiomem 107d510700.gpiomem: window base 0x107d510700 size 0x00000020
+[    9.353821] raspberrypi5 kernel[675]: [    7.246976] rpi-gpiomem 107d510700.gpiomem: initialised 1 regions as /dev/gpiomem4
+[    9.353839] raspberrypi5 kernel[675]: [    7.247121] custom-acq spi0.0: custom-acq bound, DEVICE_ID=0xac00acc0
+[    9.353857] raspberrypi5 kernel[675]: [    7.254910] rpi-gpiomem 1f000d0000.gpiomem: window base 0x1f000d0000 size 0x00030000
+[    9.353875] raspberrypi5 kernel[675]: [    7.273064] rpi-gpiomem 1f000d0000.gpiomem: initialised 1 regions as /dev/gpiomem0
+[    9.353893] raspberrypi5 kernel[675]: [    7.286396] [drm] Initialized v3d 1.0.0 20180419 for 1002000000.v3d on minor 1
+[    9.353910] raspberrypi5 kernel[675]: [    7.375022] cfg80211: Loading compiled-in X.509 certificates for regulatory database
+[    9.353928] raspberrypi5 kernel[675]: [    7.385246] Loaded X.509 cert 'benh@debian.org: 577e021cb980e0e820821ba7b54b4961b8b4fadf'
+[    9.353946] raspberrypi5 kernel[675]: [    7.393686] Loaded X.509 cert 'romain.perier@gmail.com: 3abbc6ec146e09d1b6016ab9d6cf71dd233f0328'
+[    9.353963] raspberrypi5 kernel[675]: [    7.402796] Loaded X.509 cert 'sforshee: 00b28ddf47aef9cea7'
+[    9.353981] raspberrypi5 kernel[675]: [    7.408666] Loaded X.509 cert 'wens: 61c038651aabdcf94bd0ac7ff06c7248db18c600'
+[    9.353999] raspberrypi5 kernel[675]: [    7.416203] platform regulatory.0: Direct firmware load for regulatory.db failed with error -2
+[    9.354019] raspberrypi5 kernel[675]: [    7.424882] cfg80211: failed to load regulatory.db
+[    9.354037] raspberrypi5 kernel[675]: [    7.430527] brcmfmac: F1 signature read @0x18000000=0x15264345
+[    9.354055] raspberrypi5 kernel[675]: [    7.431743] brcmfmac: brcmf_fw_alloc_request: using brcm/brcmfmac43455-sdio for chip BCM4345/6
+[    9.354073] raspberrypi5 kernel[675]: [    7.442192] usbcore: registered new interface driver brcmfmac
+[    9.354091] raspberrypi5 kernel[675]: [    7.467399] audit: type=1334 audit(1750927455.287:4): prog-id=8 op=LOAD
+[    9.354109] raspberrypi5 kernel[675]: [    7.553828] audit: type=1334 audit(1750927455.371:5): prog-id=9 op=LOAD
+[    9.354127] raspberrypi5 kernel[675]: [    7.562032] audit: type=1334 audit(1750927455.371:6): prog-id=10 op=LOAD
+[    9.354145] raspberrypi5 kernel[675]: [    7.570823] audit: type=1334 audit(1750927455.371:7): prog-id=11 op=LOAD
+[    9.354163] raspberrypi5 kernel[675]: [    7.605837] brcmfmac: brcmf_c_process_txcap_blob: no txcap_blob available (err=-2)
+[    9.354180] raspberrypi5 kernel[675]: [    7.618625] brcmfmac: brcmf_c_preinit_dcmds: Firmware: BCM4345/6 wl0: Aug 29 2023 01:47:08 version 7.45.265 (28bca26 CY) FWID 01-b677b91b
+[    9.354198] raspberrypi5 kernel[675]: [    7.719841] macb 1f00100000.ethernet eth0: PHY [1f00100000.ethernet-ffffffff:01] driver [Broadcom BCM54213PE] (irq=POLL)
+[    9.354216] raspberrypi5 kernel[675]: [    7.730791] macb 1f00100000.ethernet eth0: configuring for phy/rgmii-id link mode
+[    9.354234] raspberrypi5 kernel[675]: [    7.740904] pps pps0: new PPS source ptp0
+[    9.354252] raspberrypi5 kernel[675]: [    7.744963] macb 1f00100000.ethernet: gem-ptp-timer ptp clock registered.
+[    9.354270] raspberrypi5 kernel[675]: [    7.776870] brcmfmac: brcmf_cfg80211_set_power_mgmt: power save enabled
+[    9.354287] raspberrypi5 kernel[675]: [    8.760359] audit: type=1338 audit(1750927456.579:8): module=crypt op=ctr ppid=627 pid=647 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm="cryptsetup" exe="/usr/sbin/cryptsetup" dev=254:1 error_msg='success' res=1
+[    9.354306] raspberrypi5 kernel[675]: [    8.784456] audit: type=1300 audit(1750927456.579:8): arch=c00000b7 syscall=29 success=yes exit=0 a0=6 a1=c138fd09 a2=5555ab7a4850 a3=7 items=6 ppid=627 pid=647 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm="cryptsetup" exe="/usr/sbin/cryptsetup" key=(null)
+[    9.354324] raspberrypi5 kernel[675]: [    8.812642] audit: type=1307 audit(1750927456.579:8): cwd="/"
+[    9.354342] raspberrypi5 kernel[675]: [    8.818443] audit: type=1302 audit(1750927456.579:8): item=0 name=(null) inode=1025 dev=00:07 mode=040755 ouid=0 ogid=0 rdev=00:00 nametype=PARENT cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid=0
+[    9.354360] raspberrypi5 kernel[675]: [    9.335494] EXT4-fs (dm-1): mounted filesystem 0d8d484b-ed87-4af3-99a4-66e7a1e1b55f r/w with ordered data mode. Quota mode: none.
+[    9.363837] raspberrypi5 systemd[1]: Started System Logging Service.
+[    9.380761] raspberrypi5 (syslogd)[676]: busybox-syslog.service: Referenced but unset environment variable evaluates to an empty string: OPTIONS
+[    9.381999] raspberrypi5 systemd[1]: Starting D-Bus System Message Bus...
+[    9.396853] raspberrypi5 systemd[1]: Started Getty on tty1.
+[    9.416116] raspberrypi5 systemd[1]: Reached target Login Prompts.
+[    9.433318] raspberrypi5 audit: BPF prog-id=14 op=LOAD
+[    9.433418] raspberrypi5 audit: BPF prog-id=15 op=LOAD
+[    9.433447] raspberrypi5 audit: BPF prog-id=16 op=LOAD
+[    9.448246] raspberrypi5 systemd[1]: Starting User Login Management...
+[    9.460867] raspberrypi5 systemd[1]: Started wpa_supplicant for wlan0 (device-platform).
+[    9.476184] raspberrypi5 systemd[1]: Reached target Network.
+[    9.477048] raspberrypi5 systemd-logind[679]: New seat seat0.
+[    9.479425] raspberrypi5 systemd-logind[679]: Watching system buttons on /dev/input/event4 (pwr_button)
+[    9.479504] raspberrypi5 systemd-logind[679]: Watching system buttons on /dev/input/event0 (vc4-hdmi-0)
+[    9.479942] raspberrypi5 systemd-logind[679]: Watching system buttons on /dev/input/event2 (vc4-hdmi-1)
+[    9.480567] raspberrypi5 systemd[1]: Started User Login Management.
+[    9.522463] raspberrypi5 systemd[1]: Started D-Bus System Message Bus.
+[    9.538289] raspberrypi5 systemd[1]: Reached target Multi-User System.
+[    9.552758] raspberrypi5 audit: BPF prog-id=17 op=LOAD
+[    9.568150] raspberrypi5 systemd[1]: Starting custom-acq device service...
+[    9.580712] raspberrypi5 systemd[1]: Starting Record Runlevel Change in UTMP...
+[    9.605969] raspberrypi5 systemd[1]: systemd-update-utmp-runlevel.service: Deactivated successfully.
+[    9.606070] raspberrypi5 systemd[1]: Finished Record Runlevel Change in UTMP.
+[    9.643462] raspberrypi5 wpa_supplicant[680]: Successfully initialized wpa_supplicant
+[    9.718069] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.967] [info] device online: DEVICE_ID=0xac00acc0 FW_VERSION=0x00010400
+[    9.718328] raspberrypi5 systemd[1]: Started custom-acq device service.
+[    9.719276] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.968] [info] seq=0 value=0
+[    9.720036] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.969] [info] seq=1 value=1
+[    9.721034] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.970] [info] seq=2 value=2
+[    9.722033] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.971] [info] seq=3 value=3
+[    9.723033] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.972] [info] seq=4 value=4
+[    9.724034] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.973] [info] seq=5 value=5
+[    9.725033] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.974] [info] seq=6 value=6
+[    9.726033] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.975] [info] seq=7 value=7
+[    9.727033] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.976] [info] seq=8 value=8
+[    9.728033] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.977] [info] seq=9 value=9
+[    9.729036] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.978] [info] seq=10 value=10
+[    9.730033] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.979] [info] seq=11 value=11
+[    9.731033] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.980] [info] seq=12 value=12
+[    9.732034] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.981] [info] seq=13 value=13
+[    9.732536] raspberrypi5 systemd[1]: Startup finished in 4.673s (kernel) + 5.058s (userspace) = 9.732s.
+[    9.733075] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.982] [info] seq=14 value=14
+[    9.734035] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.983] [info] seq=15 value=15
+[    9.735033] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.984] [info] seq=16 value=16
+[    9.736040] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.985] [info] seq=17 value=17
+[    9.737034] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.986] [info] seq=18 value=18
+[    9.738044] raspberrypi5 device-service[685]: [2025-06-26 08:44:17.987] [info] seq=19 value=19
+[    9.742168] raspberrypi5 wpa_supplicant[680]: nl80211: kernel reports: Registration to specific type not supported
+[   10.219016] raspberrypi5 device-service[685]: [2025-06-26 08:44:18.468] [info] seq=500 value=500
+[   10.718983] raspberrypi5 device-service[685]: [2025-06-26 08:44:18.968] [info] seq=1000 value=1000
+[   11.218958] raspberrypi5 device-service[685]: [2025-06-26 08:44:19.468] [info] seq=1500 value=1500
+[   11.718922] raspberrypi5 device-service[685]: [2025-06-26 08:44:19.968] [info] seq=2000 value=2000
+[   12.218891] raspberrypi5 device-service[685]: [2025-06-26 08:44:20.468] [info] seq=2500 value=2500
+[   12.263284] raspberrypi5 systemd[1]: systemd-rfkill.service: Deactivated successfully.
+[   12.581084] raspberrypi5 wpa_supplicant[680]: wlan0: Trying to associate with 2c:91:ab:58:30:2c (SSID='FRITZ!Box 6660 Cable AO' freq=5540 MHz)
+[   12.718863] raspberrypi5 device-service[685]: [2025-06-26 08:44:20.968] [info] seq=3000 value=3000
+[   13.218830] raspberrypi5 device-service[685]: [2025-06-26 08:44:21.468] [info] seq=3500 value=3500
+[   13.366509] raspberrypi5 wpa_supplicant[680]: wlan0: CTRL-EVENT-ASSOC-REJECT bssid=00:00:00:00:00:00 status_code=16
+[   13.366509] raspberrypi5 wpa_supplicant[680]: BSSID 2c:91:ab:58:30:2c ignore list count incremented to 2, ignoring for 10 seconds
+[   13.523887] raspberrypi5 wpa_supplicant[680]: wlan0: Trying to associate with 2c:91:ab:58:30:2b (SSID='FRITZ!Box 6660 Cable AO' freq=2432 MHz)
+[   13.670848] raspberrypi5 wpa_supplicant[680]: wlan0: Associated with 2c:91:ab:58:30:2b
+[   13.671089] raspberrypi5 wpa_supplicant[680]: wlan0: CTRL-EVENT-SUBNET-STATUS-UPDATE status=0
+[   13.671194] raspberrypi5 systemd-networkd[618]: wlan0: Connected WiFi access point: FRITZ!Box 6660 Cable AO (2c:91:ab:58:30:2b)
+[   13.678439] raspberrypi5 wpa_supplicant[680]: wlan0: WPA: Key negotiation completed with 2c:91:ab:58:30:2b [PTK=CCMP GTK=CCMP]
+[   13.678471] raspberrypi5 wpa_supplicant[680]: wlan0: CTRL-EVENT-CONNECTED - Connection to 2c:91:ab:58:30:2b completed [id=0 id_str=]
+[   13.678710] raspberrypi5 systemd-networkd[618]: wlan0: Gained carrier
+[   13.718812] raspberrypi5 device-service[685]: [2025-06-26 08:44:21.968] [info] seq=4000 value=4000
+[   13.725668] raspberrypi5 wpa_supplicant[680]: RRM: Ignoring radio measurement request: Not RRM network
+[   14.218773] raspberrypi5 device-service[685]: [2025-06-26 08:44:22.468] [info] seq=4500 value=4500
+[   14.718758] raspberrypi5 device-service[685]: [2025-06-26 08:44:22.968] [info] seq=5000 value=5000
+[   14.718803] raspberrypi5 device-service[685]: [2025-06-26 08:44:22.968] [info] metrics: rate=1000.0/s samples_read=5000 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=753us
+[   14.752111] raspberrypi5 systemd-networkd[618]: wlan0: Gained IPv6LL
+[   14.752760] raspberrypi5 systemd-timesyncd[670]: Network configuration changed, trying to establish connection.
+[   15.218752] raspberrypi5 device-service[685]: [2025-06-26 08:44:23.468] [info] seq=5500 value=5500
+[   15.718707] raspberrypi5 device-service[685]: [2025-06-26 08:44:23.967] [info] seq=6000 value=6000
+[   15.795158] raspberrypi5 wpa_supplicant[680]: RRM: Ignoring radio measurement request: Not RRM network
+[   16.218679] raspberrypi5 device-service[685]: [2025-06-26 08:44:24.467] [info] seq=6500 value=6500
+[   16.257591] raspberrypi5 systemd-timesyncd[670]: Network configuration changed, trying to establish connection.
+[   16.259267] raspberrypi5 systemd-timesyncd[670]: Network configuration changed, trying to establish connection.
+[   16.718638] raspberrypi5 device-service[685]: [2025-06-26 08:44:24.967] [info] seq=7000 value=7000
+[   17.218620] raspberrypi5 device-service[685]: [2025-06-26 08:44:25.467] [info] seq=7500 value=7500
+[   17.716049] raspberrypi5 systemd-networkd[618]: wlan0: DHCPv4 address 192.168.178.172/24, gateway 192.168.178.1 acquired from 192.168.178.1
+[   17.717305] raspberrypi5 systemd-timesyncd[670]: Network configuration changed, trying to establish connection.
+[   17.717657] raspberrypi5 systemd-timesyncd[670]: Network configuration changed, trying to establish connection.
+[   17.717872] raspberrypi5 systemd-timesyncd[670]: Network configuration changed, trying to establish connection.
+[   17.718594] raspberrypi5 device-service[685]: [2025-06-26 08:44:25.967] [info] seq=8000 value=8000
+[   17.860146] raspberrypi5 wpa_supplicant[680]: RRM: Ignoring radio measurement request: Not RRM network
+[   17.920358] raspberrypi5 systemd-timesyncd[670]: Network configuration changed, trying to establish connection.
+[   18.218534] raspberrypi5 device-service[685]: [2025-06-26 08:44:26.467] [info] seq=8500 value=8500
+[   18.235085] raspberrypi5 systemd-networkd[618]: wlan0: Lost carrier
+[   18.235180] raspberrypi5 systemd-networkd[618]: wlan0: DHCP lease lost
+[   18.236799] raspberrypi5 wpa_supplicant[680]: wlan0: Associated with 2c:91:ab:58:30:2c
+[   18.237424] raspberrypi5 wpa_supplicant[680]: wlan0: CTRL-EVENT-SUBNET-STATUS-UPDATE status=0
+[   18.242231] raspberrypi5 wpa_supplicant[680]: wlan0: WPA: Key negotiation completed with 2c:91:ab:58:30:2c [PTK=CCMP GTK=CCMP]
+[   18.242270] raspberrypi5 wpa_supplicant[680]: wlan0: CTRL-EVENT-CONNECTED - Connection to 2c:91:ab:58:30:2c completed [id=0 id_str=]
+[   18.260028] raspberrypi5 systemd-networkd[618]: wlan0: DHCPv6 lease lost
+[   18.260466] raspberrypi5 systemd-networkd[618]: wlan0: Gained carrier
+[   18.284295] raspberrypi5 systemd-timesyncd[670]: Network configuration changed, trying to establish connection.
+[   18.718517] raspberrypi5 device-service[685]: [2025-06-26 08:44:26.967] [info] seq=9000 value=9000
+[   19.218473] raspberrypi5 device-service[685]: [2025-06-26 08:44:27.467] [info] seq=9500 value=9500
+[   19.718441] raspberrypi5 device-service[685]: [2025-06-26 08:44:27.967] [info] seq=10000 value=10000
+[   19.718978] raspberrypi5 device-service[685]: [2025-06-26 08:44:27.968] [info] metrics: rate=1000.2/s samples_read=10001 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=754us
+[   19.967732] raspberrypi5 systemd-timesyncd[670]: Network configuration changed, trying to establish connection.
+[   19.971366] raspberrypi5 systemd-timesyncd[670]: Network configuration changed, trying to establish connection.
+[   20.218414] raspberrypi5 device-service[685]: [2025-06-26 08:44:28.467] [info] seq=10500 value=10500
+[   20.718379] raspberrypi5 device-service[685]: [2025-06-26 08:44:28.967] [info] seq=11000 value=11000
+[   21.120481] raspberrypi5 systemd-timesyncd[670]: Network configuration changed, trying to establish connection.
+[   21.218353] raspberrypi5 device-service[685]: [2025-06-26 08:44:29.467] [info] seq=11500 value=11500
+[   21.568320] raspberrypi5 systemd-timesyncd[670]: Network configuration changed, trying to establish connection.
+[   21.718321] raspberrypi5 device-service[685]: [2025-06-26 08:44:29.967] [info] seq=12000 value=12000
+[   22.218283] raspberrypi5 device-service[685]: [2025-06-26 08:44:30.467] [info] seq=12500 value=12500
+[   22.718257] raspberrypi5 device-service[685]: [2025-06-26 08:44:30.967] [info] seq=13000 value=13000
+[   23.164051] raspberrypi5 systemd-networkd[618]: wlan0: DHCPv4 address 192.168.178.172/24, gateway 192.168.178.1 acquired from 192.168.178.1
+[   23.165333] raspberrypi5 systemd-timesyncd[670]: Network configuration changed, trying to establish connection.
+[   23.165709] raspberrypi5 systemd-timesyncd[670]: Network configuration changed, trying to establish connection.
+[   23.218229] raspberrypi5 device-service[685]: [2025-06-26 08:44:31.467] [info] seq=13500 value=13500
+[   23.266219] raspberrypi5 systemd[1]: Created slice Slice /system/dropbear.
+[   23.267290] raspberrypi5 systemd[1]: Starting Encrypted data partition (/data)...
+[   23.285433] raspberrypi5 device-platform-data[706]: Device data already exists.
+[   23.285995] raspberrypi5 device-platform-data[702]: device-platform-data: FAILED to set up /dev/mmcblk0p7 - /data is a tmpfs for this boot
+[   23.287273] raspberrypi5 device-platform-data[702]: /usr/sbin/device-platform-data: line 59: install: not found
+[   23.287895] raspberrypi5 systemd[1]: device-platform-data.service: Main process exited, code=exited, status=127/n/a
+[   23.287992] raspberrypi5 systemd[1]: device-platform-data.service: Failed with result 'exit-code'.
+[   23.288168] raspberrypi5 systemd[1]: Failed to start Encrypted data partition (/data).
+[   23.289728] raspberrypi5 systemd[1]: Starting SSH Key Generation...
+[   23.294550] raspberrypi5 dropbear-hostkey[715]: /usr/sbin/dropbear-hostkey: line 11: install: not found
+[   23.294871] raspberrypi5 dropbear-hostkey[715]: dropbear-hostkey: /data not usable - host key in /run/dropbear (changes every boot)
+[   23.323903] raspberrypi5 dropbear-hostkey[717]: Generating 2048 bit rsa key, this may take a while...
+[   23.328158] raspberrypi5 wpa_supplicant[680]: RRM: Ignoring radio measurement request: Not RRM network
+[   23.704503] raspberrypi5 dropbear-hostkey[717]: Couldn't create new file /run/dropbear/dropbear_rsa_host_key.tmp717: No such file or directory
+[   23.704503] raspberrypi5 dropbear-hostkey[717]: Exited: Failed to generate key.
+[   23.705977] raspberrypi5 systemd[1]: Finished SSH Key Generation.
+[   23.718205] raspberrypi5 device-service[685]: [2025-06-26 08:44:31.967] [info] seq=14000 value=14000
+[   23.728446] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:35882).
+[   23.729086] raspberrypi5 systemd[1]: dropbear@0-192.168.178.172:22-192.168.178.33:35882.service: Deactivated successfully.
+[   24.218173] raspberrypi5 device-service[685]: [2025-06-26 08:44:32.467] [info] seq=14500 value=14500
+[   24.718145] raspberrypi5 device-service[685]: [2025-06-26 08:44:32.967] [info] seq=15000 value=15000
+[   24.719125] raspberrypi5 device-service[685]: [2025-06-26 08:44:32.968] [info] metrics: rate=1000.0/s samples_read=15001 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=755us
+[   25.218110] raspberrypi5 device-service[685]: [2025-06-26 08:44:33.467] [info] seq=15500 value=15500
+[   25.718077] raspberrypi5 device-service[685]: [2025-06-26 08:44:33.967] [info] seq=16000 value=16000
+[   26.218049] raspberrypi5 device-service[685]: [2025-06-26 08:44:34.467] [info] seq=16500 value=16500
+[   26.718018] raspberrypi5 device-service[685]: [2025-06-26 08:44:34.967] [info] seq=17000 value=17000
+[   27.218000] raspberrypi5 device-service[685]: [2025-06-26 08:44:35.467] [info] seq=17500 value=17500
+[   27.717943] raspberrypi5 device-service[685]: [2025-06-26 08:44:35.967] [info] seq=18000 value=18000
+[   28.217917] raspberrypi5 device-service[685]: [2025-06-26 08:44:36.467] [info] seq=18500 value=18500
+[   28.717884] raspberrypi5 device-service[685]: [2025-06-26 08:44:36.967] [info] seq=19000 value=19000
+[   28.770525] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:35890).
+[   28.774665] raspberrypi5 systemd[1]: dropbear@1-192.168.178.172:22-192.168.178.33:35890.service: Deactivated successfully.
+[   29.217868] raspberrypi5 device-service[685]: [2025-06-26 08:44:37.467] [info] seq=19500 value=19500
+[   29.717830] raspberrypi5 device-service[685]: [2025-06-26 08:44:37.967] [info] seq=20000 value=20000
+[   29.719299] raspberrypi5 device-service[685]: [2025-06-26 08:44:37.968] [info] metrics: rate=1000.2/s samples_read=20002 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=754us
+[   30.166740] raspberrypi5 systemd-journald[508]: Forwarding to syslog missed 269 messages.
+[   30.217806] raspberrypi5 device-service[685]: [2025-06-26 08:44:38.467] [info] seq=20500 value=20500
+[   30.402151] raspberrypi5 wpa_supplicant[680]: RRM: Ignoring radio measurement request: Not RRM network
+[   30.717769] raspberrypi5 device-service[685]: [2025-06-26 08:44:38.967] [info] seq=21000 value=21000
+[   31.217739] raspberrypi5 device-service[685]: [2025-06-26 08:44:39.467] [info] seq=21500 value=21500
+[   31.717708] raspberrypi5 device-service[685]: [2025-06-26 08:44:39.967] [info] seq=22000 value=22000
+[   32.217673] raspberrypi5 device-service[685]: [2025-06-26 08:44:40.466] [info] seq=22500 value=22500
+[   32.669343] raspberrypi5 wpa_supplicant[680]: RRM: Ignoring radio measurement request: Not RRM network
+[   32.717646] raspberrypi5 device-service[685]: [2025-06-26 08:44:40.966] [info] seq=23000 value=23000
+[   33.217615] raspberrypi5 device-service[685]: [2025-06-26 08:44:41.466] [info] seq=23500 value=23500
+[   33.717585] raspberrypi5 device-service[685]: [2025-06-26 08:44:41.966] [info] seq=24000 value=24000
+[   33.822283] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:45810).
+[   33.826457] raspberrypi5 systemd[1]: dropbear@2-192.168.178.172:22-192.168.178.33:45810.service: Deactivated successfully.
+[   34.217565] raspberrypi5 device-service[685]: [2025-06-26 08:44:42.466] [info] seq=24500 value=24500
+[   34.717527] raspberrypi5 device-service[685]: [2025-06-26 08:44:42.966] [info] seq=25000 value=25000
+[   34.719450] raspberrypi5 device-service[685]: [2025-06-26 08:44:42.968] [info] metrics: rate=1000.0/s samples_read=25002 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=754us
+[   35.217490] raspberrypi5 device-service[685]: [2025-06-26 08:44:43.466] [info] seq=25500 value=25500
+[   35.717462] raspberrypi5 device-service[685]: [2025-06-26 08:44:43.966] [info] seq=26000 value=26000
+[   36.217430] raspberrypi5 device-service[685]: [2025-06-26 08:44:44.466] [info] seq=26500 value=26500
+[   36.717398] raspberrypi5 device-service[685]: [2025-06-26 08:44:44.966] [info] seq=27000 value=27000
+[   37.217373] raspberrypi5 device-service[685]: [2025-06-26 08:44:45.466] [info] seq=27500 value=27500
+[   37.717338] raspberrypi5 device-service[685]: [2025-06-26 08:44:45.966] [info] seq=28000 value=28000
+[   38.217306] raspberrypi5 device-service[685]: [2025-06-26 08:44:46.466] [info] seq=28500 value=28500
+[   38.717276] raspberrypi5 device-service[685]: [2025-06-26 08:44:46.966] [info] seq=29000 value=29000
+[   39.034176] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:45822).
+[   39.039039] raspberrypi5 systemd[1]: dropbear@3-192.168.178.172:22-192.168.178.33:45822.service: Deactivated successfully.
+[   39.217260] raspberrypi5 device-service[685]: [2025-06-26 08:44:47.466] [info] seq=29500 value=29500
+[   39.717217] raspberrypi5 device-service[685]: [2025-06-26 08:44:47.966] [info] seq=30000 value=30000
+[   39.719647] raspberrypi5 device-service[685]: [2025-06-26 08:44:47.968] [info] metrics: rate=1000.2/s samples_read=30003 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=754us
+[   40.217192] raspberrypi5 device-service[685]: [2025-06-26 08:44:48.466] [info] seq=30500 value=30500
+[   40.717157] raspberrypi5 device-service[685]: [2025-06-26 08:44:48.966] [info] seq=31000 value=31000
+[   41.217122] raspberrypi5 device-service[685]: [2025-06-26 08:44:49.466] [info] seq=31500 value=31500
+[   41.717093] raspberrypi5 device-service[685]: [2025-06-26 08:44:49.966] [info] seq=32000 value=32000
+[   42.217062] raspberrypi5 device-service[685]: [2025-06-26 08:44:50.466] [info] seq=32500 value=32500
+[   42.717030] raspberrypi5 device-service[685]: [2025-06-26 08:44:50.966] [info] seq=33000 value=33000
+[   43.217004] raspberrypi5 device-service[685]: [2025-06-26 08:44:51.466] [info] seq=33500 value=33500
+[   43.716974] raspberrypi5 device-service[685]: [2025-06-26 08:44:51.966] [info] seq=34000 value=34000
+[   44.154220] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:52908).
+[   44.159047] raspberrypi5 systemd[1]: dropbear@4-192.168.178.172:22-192.168.178.33:52908.service: Deactivated successfully.
+[   44.216952] raspberrypi5 device-service[685]: [2025-06-26 08:44:52.466] [info] seq=34500 value=34500
+[   44.716913] raspberrypi5 device-service[685]: [2025-06-26 08:44:52.966] [info] seq=35000 value=35000
+[   44.719898] raspberrypi5 device-service[685]: [2025-06-26 08:44:52.969] [info] metrics: rate=1000.0/s samples_read=35003 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=754us
+[   45.216866] raspberrypi5 device-service[685]: [2025-06-26 08:44:53.466] [info] seq=35500 value=35500
+[   45.716842] raspberrypi5 device-service[685]: [2025-06-26 08:44:53.966] [info] seq=36000 value=36000
+[   46.216816] raspberrypi5 device-service[685]: [2025-06-26 08:44:54.466] [info] seq=36500 value=36500
+[   46.716787] raspberrypi5 device-service[685]: [2025-06-26 08:44:54.966] [info] seq=37000 value=37000
+[   47.216754] raspberrypi5 device-service[685]: [2025-06-26 08:44:55.466] [info] seq=37500 value=37500
+[   47.716723] raspberrypi5 device-service[685]: [2025-06-26 08:44:55.966] [info] seq=38000 value=38000
+[   48.216692] raspberrypi5 device-service[685]: [2025-06-26 08:44:56.465] [info] seq=38500 value=38500
+[   48.716658] raspberrypi5 device-service[685]: [2025-06-26 08:44:56.965] [info] seq=39000 value=39000
+[   49.216632] raspberrypi5 device-service[685]: [2025-06-26 08:44:57.465] [info] seq=39500 value=39500
+[   49.274267] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:52918).
+[   49.278542] raspberrypi5 systemd[1]: dropbear@5-192.168.178.172:22-192.168.178.33:52918.service: Deactivated successfully.
+[   49.716611] raspberrypi5 device-service[685]: [2025-06-26 08:44:57.965] [info] seq=40000 value=40000
+[   49.720035] raspberrypi5 device-service[685]: [2025-06-26 08:44:57.969] [info] metrics: rate=1000.2/s samples_read=40004 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=754us
+[   50.216578] raspberrypi5 device-service[685]: [2025-06-26 08:44:58.465] [info] seq=40500 value=40500
+[   50.716547] raspberrypi5 device-service[685]: [2025-06-26 08:44:58.965] [info] seq=41000 value=41000
+[   51.216513] raspberrypi5 device-service[685]: [2025-06-26 08:44:59.465] [info] seq=41500 value=41500
+[   51.716479] raspberrypi5 device-service[685]: [2025-06-26 08:44:59.965] [info] seq=42000 value=42000
+[   52.216451] raspberrypi5 device-service[685]: [2025-06-26 08:45:00.465] [info] seq=42500 value=42500
+[   52.716418] raspberrypi5 device-service[685]: [2025-06-26 08:45:00.965] [info] seq=43000 value=43000
+[   53.216390] raspberrypi5 device-service[685]: [2025-06-26 08:45:01.465] [info] seq=43500 value=43500
+[   53.716357] raspberrypi5 device-service[685]: [2025-06-26 08:45:01.965] [info] seq=44000 value=44000
+[   54.216327] raspberrypi5 device-service[685]: [2025-06-26 08:45:02.465] [info] seq=44500 value=44500
+[   54.318206] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:43672).
+[   54.323071] raspberrypi5 systemd[1]: dropbear@6-192.168.178.172:22-192.168.178.33:43672.service: Deactivated successfully.
+[   54.716305] raspberrypi5 device-service[685]: [2025-06-26 08:45:02.965] [info] seq=45000 value=45000
+[   54.720282] raspberrypi5 device-service[685]: [2025-06-26 08:45:02.969] [info] metrics: rate=1000.0/s samples_read=45004 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=753us
+[   55.216268] raspberrypi5 device-service[685]: [2025-06-26 08:45:03.465] [info] seq=45500 value=45500
+[   55.716235] raspberrypi5 device-service[685]: [2025-06-26 08:45:03.965] [info] seq=46000 value=46000
+[   56.216209] raspberrypi5 device-service[685]: [2025-06-26 08:45:04.465] [info] seq=46500 value=46500
+[   56.716171] raspberrypi5 device-service[685]: [2025-06-26 08:45:04.965] [info] seq=47000 value=47000
+[   57.216141] raspberrypi5 device-service[685]: [2025-06-26 08:45:05.465] [info] seq=47500 value=47500
+[   57.716110] raspberrypi5 device-service[685]: [2025-06-26 08:45:05.965] [info] seq=48000 value=48000
+[   58.216079] raspberrypi5 device-service[685]: [2025-06-26 08:45:06.465] [info] seq=48500 value=48500
+[   58.716047] raspberrypi5 device-service[685]: [2025-06-26 08:45:06.965] [info] seq=49000 value=49000
+[   59.216017] raspberrypi5 device-service[685]: [2025-06-26 08:45:07.465] [info] seq=49500 value=49500
+[   59.362233] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:43686).
+[   59.366345] raspberrypi5 systemd[1]: dropbear@7-192.168.178.172:22-192.168.178.33:43686.service: Deactivated successfully.
+[   59.716022] raspberrypi5 device-service[685]: [2025-06-26 08:45:07.965] [info] seq=50000 value=50000
+[   59.720554] raspberrypi5 device-service[685]: [2025-06-26 08:45:07.969] [info] metrics: rate=1000.2/s samples_read=50005 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=772us
+[   60.166740] raspberrypi5 systemd-journald[508]: Forwarding to syslog missed 80 messages.
+[   60.215978] raspberrypi5 device-service[685]: [2025-06-26 08:45:08.465] [info] seq=50500 value=50500
+[   60.715942] raspberrypi5 device-service[685]: [2025-06-26 08:45:08.965] [info] seq=51000 value=51000
+[   61.215915] raspberrypi5 device-service[685]: [2025-06-26 08:45:09.465] [info] seq=51500 value=51500
+[   61.715883] raspberrypi5 device-service[685]: [2025-06-26 08:45:09.965] [info] seq=52000 value=52000
+[   62.215850] raspberrypi5 device-service[685]: [2025-06-26 08:45:10.465] [info] seq=52500 value=52500
+[   62.715821] raspberrypi5 device-service[685]: [2025-06-26 08:45:10.965] [info] seq=53000 value=53000
+[   63.215790] raspberrypi5 device-service[685]: [2025-06-26 08:45:11.465] [info] seq=53500 value=53500
+[   63.416836] raspberrypi5 systemd-timesyncd[670]: Timed out waiting for reply from [2a02:2455:311:e400:2e91:abff:fe58:3029]:123 (2a02:2455:311:e400:2e91:abff:fe58:3029).
+[   63.425813] raspberrypi5 systemd-resolved[669]: Clock change detected. Flushing caches.
+[   63.426948] raspberrypi5 systemd-timesyncd[670]: Contacted time server [fdb7:c391:9a00:0:2e91:abff:fe58:3029]:123 (fdb7:c391:9a00:0:2e91:abff:fe58:3029).
+[   63.427039] raspberrypi5 systemd-timesyncd[670]: Initial clock synchronization to Thu 2026-09-24 12:30:19.801774 UTC.
+[   63.715778] raspberrypi5 device-service[685]: [2026-09-24 12:30:20.091] [info] seq=54000 value=54000
+[   64.215730] raspberrypi5 device-service[685]: [2026-09-24 12:30:20.591] [info] seq=54500 value=54500
+[   64.415036] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:59090).
+[   64.420360] raspberrypi5 systemd[1]: dropbear@8-192.168.178.172:22-192.168.178.33:59090.service: Deactivated successfully.
+[   64.715715] raspberrypi5 device-service[685]: [2026-09-24 12:30:21.091] [info] seq=55000 value=55000
+[   64.720814] raspberrypi5 device-service[685]: [2026-09-24 12:30:21.096] [info] metrics: rate=1000.2/s samples_read=55006 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=774us
+[   65.215671] raspberrypi5 device-service[685]: [2026-09-24 12:30:21.591] [info] seq=55500 value=55500
+[   65.715640] raspberrypi5 device-service[685]: [2026-09-24 12:30:22.091] [info] seq=56000 value=56000
+[   66.215608] raspberrypi5 device-service[685]: [2026-09-24 12:30:22.591] [info] seq=56500 value=56500
+[   66.715578] raspberrypi5 device-service[685]: [2026-09-24 12:30:23.091] [info] seq=57000 value=57000
+[   67.215545] raspberrypi5 device-service[685]: [2026-09-24 12:30:23.591] [info] seq=57500 value=57500
+[   67.715516] raspberrypi5 device-service[685]: [2026-09-24 12:30:24.091] [info] seq=58000 value=58000
+[   68.215484] raspberrypi5 device-service[685]: [2026-09-24 12:30:24.591] [info] seq=58500 value=58500
+[   68.715454] raspberrypi5 device-service[685]: [2026-09-24 12:30:25.091] [info] seq=59000 value=59000
+[   69.215422] raspberrypi5 device-service[685]: [2026-09-24 12:30:25.591] [info] seq=59500 value=59500
+[   69.471452] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:59096).
+[   69.476661] raspberrypi5 systemd[1]: dropbear@9-192.168.178.172:22-192.168.178.33:59096.service: Deactivated successfully.
+[   69.715408] raspberrypi5 device-service[685]: [2026-09-24 12:30:26.091] [info] seq=60000 value=60000
+[   69.720966] raspberrypi5 device-service[685]: [2026-09-24 12:30:26.097] [info] metrics: rate=1000.0/s samples_read=60006 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=772us
+[   70.215362] raspberrypi5 device-service[685]: [2026-09-24 12:30:26.591] [info] seq=60500 value=60500
+[   70.715327] raspberrypi5 device-service[685]: [2026-09-24 12:30:27.091] [info] seq=61000 value=61000
+[   71.215295] raspberrypi5 device-service[685]: [2026-09-24 12:30:27.591] [info] seq=61500 value=61500
+[   71.715265] raspberrypi5 device-service[685]: [2026-09-24 12:30:28.091] [info] seq=62000 value=62000
+[   72.215237] raspberrypi5 device-service[685]: [2026-09-24 12:30:28.591] [info] seq=62500 value=62500
+[   72.715203] raspberrypi5 device-service[685]: [2026-09-24 12:30:29.091] [info] seq=63000 value=63000
+[   73.215172] raspberrypi5 device-service[685]: [2026-09-24 12:30:29.591] [info] seq=63500 value=63500
+[   73.715142] raspberrypi5 device-service[685]: [2026-09-24 12:30:30.091] [info] seq=64000 value=64000
+[   74.215111] raspberrypi5 device-service[685]: [2026-09-24 12:30:30.591] [info] seq=64500 value=64500
+[   74.715084] raspberrypi5 device-service[685]: [2026-09-24 12:30:31.091] [info] seq=65000 value=65000
+[   74.721138] raspberrypi5 device-service[685]: [2026-09-24 12:30:31.097] [info] metrics: rate=1000.2/s samples_read=65007 gap_count=0 buffer=1 kfifo_overflow=0 sample_age=773us
+[   75.215050] raspberrypi5 device-service[685]: [2026-09-24 12:30:31.591] [info] seq=65500 value=65500
+[   75.539746] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:59708).
+[   75.544385] raspberrypi5 systemd[1]: dropbear@10-192.168.178.172:22-192.168.178.33:59708.service: Deactivated successfully.
+[   75.715040] raspberrypi5 device-service[685]: [2026-09-24 12:30:32.091] [info] seq=66000 value=464
+[   76.215003] raspberrypi5 device-service[685]: [2026-09-24 12:30:32.591] [info] seq=66500 value=964
+[   76.714969] raspberrypi5 device-service[685]: [2026-09-24 12:30:33.091] [info] seq=67000 value=1464
+[   77.214932] raspberrypi5 device-service[685]: [2026-09-24 12:30:33.591] [info] seq=67500 value=1964
+[   77.714897] raspberrypi5 device-service[685]: [2026-09-24 12:30:34.091] [info] seq=68000 value=2464
+[   78.214865] raspberrypi5 device-service[685]: [2026-09-24 12:30:34.590] [info] seq=68500 value=2964
+[   78.714833] raspberrypi5 device-service[685]: [2026-09-24 12:30:35.090] [info] seq=69000 value=3464
+[   79.214804] raspberrypi5 device-service[685]: [2026-09-24 12:30:35.590] [info] seq=69500 value=3964
+[   79.714770] raspberrypi5 device-service[685]: [2026-09-24 12:30:36.090] [info] seq=70000 value=4464
+[   79.721372] raspberrypi5 device-service[685]: [2026-09-24 12:30:36.097] [info] metrics: rate=1000.0/s samples_read=70007 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=771us
+[   80.214745] raspberrypi5 device-service[685]: [2026-09-24 12:30:36.590] [info] seq=70500 value=4964
+[   80.611115] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:59718).
+[   80.617116] raspberrypi5 systemd[1]: dropbear@11-192.168.178.172:22-192.168.178.33:59718.service: Deactivated successfully.
+[   80.714733] raspberrypi5 device-service[685]: [2026-09-24 12:30:37.090] [info] seq=71000 value=5464
+[   81.214692] raspberrypi5 device-service[685]: [2026-09-24 12:30:37.590] [info] seq=71500 value=5964
+[   81.714660] raspberrypi5 device-service[685]: [2026-09-24 12:30:38.090] [info] seq=72000 value=6464
+[   82.214626] raspberrypi5 device-service[685]: [2026-09-24 12:30:38.590] [info] seq=72500 value=6964
+[   82.714595] raspberrypi5 device-service[685]: [2026-09-24 12:30:39.090] [info] seq=73000 value=7464
+[   83.214563] raspberrypi5 device-service[685]: [2026-09-24 12:30:39.590] [info] seq=73500 value=7964
+[   83.714532] raspberrypi5 device-service[685]: [2026-09-24 12:30:40.090] [info] seq=74000 value=8464
+[   84.214501] raspberrypi5 device-service[685]: [2026-09-24 12:30:40.590] [info] seq=74500 value=8964
+[   84.714471] raspberrypi5 device-service[685]: [2026-09-24 12:30:41.090] [info] seq=75000 value=9464
+[   84.721509] raspberrypi5 device-service[685]: [2026-09-24 12:30:41.097] [info] metrics: rate=1000.0/s samples_read=75007 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=774us
+[   85.214441] raspberrypi5 device-service[685]: [2026-09-24 12:30:41.590] [info] seq=75500 value=9964
+[   85.714418] raspberrypi5 device-service[685]: [2026-09-24 12:30:42.090] [info] seq=76000 value=10464
+[   85.731097] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:39446).
+[   85.737342] raspberrypi5 systemd[1]: dropbear@12-192.168.178.172:22-192.168.178.33:39446.service: Deactivated successfully.
+[   86.214390] raspberrypi5 device-service[685]: [2026-09-24 12:30:42.590] [info] seq=76500 value=10964
+[   86.714354] raspberrypi5 device-service[685]: [2026-09-24 12:30:43.090] [info] seq=77000 value=11464
+[   87.214318] raspberrypi5 device-service[685]: [2026-09-24 12:30:43.590] [info] seq=77500 value=11964
+[   87.714287] raspberrypi5 device-service[685]: [2026-09-24 12:30:44.090] [info] seq=78000 value=12464
+[   88.214254] raspberrypi5 device-service[685]: [2026-09-24 12:30:44.590] [info] seq=78500 value=12964
+[   88.714226] raspberrypi5 device-service[685]: [2026-09-24 12:30:45.090] [info] seq=79000 value=13464
+[   89.214181] raspberrypi5 device-service[685]: [2026-09-24 12:30:45.590] [info] seq=79500 value=13964
+[   89.714155] raspberrypi5 device-service[685]: [2026-09-24 12:30:46.090] [info] seq=80000 value=14464
+[   89.721704] raspberrypi5 device-service[685]: [2026-09-24 12:30:46.097] [info] metrics: rate=1000.2/s samples_read=80008 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=771us
+[   90.214129] raspberrypi5 device-service[685]: [2026-09-24 12:30:46.590] [info] seq=80500 value=14964
+[   90.214129] raspberrypi5 systemd-journald[508]: Forwarding to syslog missed 81 messages.
+[   90.714093] raspberrypi5 device-service[685]: [2026-09-24 12:30:47.090] [info] seq=81000 value=15464
+[   90.851029] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:39452).
+[   90.857103] raspberrypi5 systemd[1]: dropbear@13-192.168.178.172:22-192.168.178.33:39452.service: Deactivated successfully.
+[   91.214074] raspberrypi5 device-service[685]: [2026-09-24 12:30:47.590] [info] seq=81500 value=15964
+[   91.714036] raspberrypi5 device-service[685]: [2026-09-24 12:30:48.090] [info] seq=82000 value=16464
+[   92.214012] raspberrypi5 device-service[685]: [2026-09-24 12:30:48.590] [info] seq=82500 value=16964
+[   92.713974] raspberrypi5 device-service[685]: [2026-09-24 12:30:49.090] [info] seq=83000 value=17464
+[   93.213941] raspberrypi5 device-service[685]: [2026-09-24 12:30:49.590] [info] seq=83500 value=17964
+[   93.713908] raspberrypi5 device-service[685]: [2026-09-24 12:30:50.090] [info] seq=84000 value=18464
+[   94.213879] raspberrypi5 device-service[685]: [2026-09-24 12:30:50.589] [info] seq=84500 value=18964
+[   94.713847] raspberrypi5 device-service[685]: [2026-09-24 12:30:51.089] [info] seq=85000 value=19464
+[   94.721959] raspberrypi5 device-service[685]: [2026-09-24 12:30:51.098] [info] metrics: rate=1000.2/s samples_read=85009 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=772us
+[   95.213815] raspberrypi5 device-service[685]: [2026-09-24 12:30:51.589] [info] seq=85500 value=19964
+[   95.713789] raspberrypi5 device-service[685]: [2026-09-24 12:30:52.089] [info] seq=86000 value=20464
+[   95.905195] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:56658).
+[   95.910133] raspberrypi5 systemd[1]: dropbear@14-192.168.178.172:22-192.168.178.33:56658.service: Deactivated successfully.
+[   96.213767] raspberrypi5 device-service[685]: [2026-09-24 12:30:52.589] [info] seq=86500 value=20964
+[   96.713712] raspberrypi5 device-service[685]: [2026-09-24 12:30:53.089] [info] seq=87000 value=21464
+[   97.213613] raspberrypi5 device-service[685]: [2026-09-24 12:30:53.589] [info] seq=87500 value=21964
+[   97.713515] raspberrypi5 device-service[685]: [2026-09-24 12:30:54.089] [info] seq=88000 value=22464
+[   98.213417] raspberrypi5 device-service[685]: [2026-09-24 12:30:54.589] [info] seq=88500 value=22964
+[   98.713325] raspberrypi5 device-service[685]: [2026-09-24 12:30:55.089] [info] seq=89000 value=23464
+[   99.213234] raspberrypi5 device-service[685]: [2026-09-24 12:30:55.589] [info] seq=89500 value=23964
+[   99.713141] raspberrypi5 device-service[685]: [2026-09-24 12:30:56.089] [info] seq=90000 value=24464
+[   99.722132] raspberrypi5 device-service[685]: [2026-09-24 12:30:56.098] [info] metrics: rate=1000.0/s samples_read=90009 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=771us
+[  100.213057] raspberrypi5 device-service[685]: [2026-09-24 12:30:56.589] [info] seq=90500 value=24964
+[  100.712973] raspberrypi5 device-service[685]: [2026-09-24 12:30:57.089] [info] seq=91000 value=25464
+[  100.951167] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:56670).
+[  100.956383] raspberrypi5 systemd[1]: dropbear@15-192.168.178.172:22-192.168.178.33:56670.service: Deactivated successfully.
+[  101.212902] raspberrypi5 device-service[685]: [2026-09-24 12:30:57.588] [info] seq=91500 value=25964
+[  101.712815] raspberrypi5 device-service[685]: [2026-09-24 12:30:58.088] [info] seq=92000 value=26464
+[  102.212731] raspberrypi5 device-service[685]: [2026-09-24 12:30:58.588] [info] seq=92500 value=26964
+[  102.712651] raspberrypi5 device-service[685]: [2026-09-24 12:30:59.088] [info] seq=93000 value=27464
+[  103.212574] raspberrypi5 device-service[685]: [2026-09-24 12:30:59.588] [info] seq=93500 value=27964
+[  103.712497] raspberrypi5 device-service[685]: [2026-09-24 12:31:00.088] [info] seq=94000 value=28464
+[  104.212421] raspberrypi5 device-service[685]: [2026-09-24 12:31:00.588] [info] seq=94500 value=28964
+[  104.712348] raspberrypi5 device-service[685]: [2026-09-24 12:31:01.088] [info] seq=95000 value=29464
+[  104.722570] raspberrypi5 device-service[685]: [2026-09-24 12:31:01.098] [info] metrics: rate=1000.4/s samples_read=95011 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=772us
+[  105.212276] raspberrypi5 device-service[685]: [2026-09-24 12:31:01.588] [info] seq=95500 value=29964
+[  105.712205] raspberrypi5 device-service[685]: [2026-09-24 12:31:02.088] [info] seq=96000 value=30464
+[  105.991210] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:54048).
+[  105.996526] raspberrypi5 systemd[1]: dropbear@16-192.168.178.172:22-192.168.178.33:54048.service: Deactivated successfully.
+[  106.212153] raspberrypi5 device-service[685]: [2026-09-24 12:31:02.588] [info] seq=96500 value=30964
+[  106.712073] raspberrypi5 device-service[685]: [2026-09-24 12:31:03.088] [info] seq=97000 value=31464
+[  107.212018] raspberrypi5 device-service[685]: [2026-09-24 12:31:03.588] [info] seq=97500 value=31964
+[  107.711934] raspberrypi5 device-service[685]: [2026-09-24 12:31:04.088] [info] seq=98000 value=32464
+[  108.211869] raspberrypi5 device-service[685]: [2026-09-24 12:31:04.587] [info] seq=98500 value=32964
+[  108.711802] raspberrypi5 device-service[685]: [2026-09-24 12:31:05.087] [info] seq=99000 value=33464
+[  109.211742] raspberrypi5 device-service[685]: [2026-09-24 12:31:05.587] [info] seq=99500 value=33964
+[  109.711682] raspberrypi5 device-service[685]: [2026-09-24 12:31:06.087] [info] seq=100000 value=34464
+[  109.722778] raspberrypi5 device-service[685]: [2026-09-24 12:31:06.098] [info] metrics: rate=1000.2/s samples_read=100012 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=774us
+[  110.211615] raspberrypi5 device-service[685]: [2026-09-24 12:31:06.587] [info] seq=100500 value=34964
+[  110.711561] raspberrypi5 device-service[685]: [2026-09-24 12:31:07.087] [info] seq=101000 value=35464
+[  111.123397] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:54060).
+[  111.128848] raspberrypi5 systemd[1]: dropbear@17-192.168.178.172:22-192.168.178.33:54060.service: Deactivated successfully.
+[  111.211519] raspberrypi5 device-service[685]: [2026-09-24 12:31:07.587] [info] seq=101500 value=35964
+[  111.711448] raspberrypi5 device-service[685]: [2026-09-24 12:31:08.087] [info] seq=102000 value=36464
+[  112.211387] raspberrypi5 device-service[685]: [2026-09-24 12:31:08.587] [info] seq=102500 value=36964
+[  112.711330] raspberrypi5 device-service[685]: [2026-09-24 12:31:09.087] [info] seq=103000 value=37464
+[  113.211272] raspberrypi5 device-service[685]: [2026-09-24 12:31:09.587] [info] seq=103500 value=37964
+[  113.711220] raspberrypi5 device-service[685]: [2026-09-24 12:31:10.087] [info] seq=104000 value=38464
+[  114.211165] raspberrypi5 device-service[685]: [2026-09-24 12:31:10.587] [info] seq=104500 value=38964
+[  114.711110] raspberrypi5 device-service[685]: [2026-09-24 12:31:11.087] [info] seq=105000 value=39464
+[  114.722930] raspberrypi5 device-service[685]: [2026-09-24 12:31:11.099] [info] metrics: rate=1000.0/s samples_read=105012 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=773us
+[  115.211060] raspberrypi5 device-service[685]: [2026-09-24 12:31:11.587] [info] seq=105500 value=39964
+[  115.711013] raspberrypi5 device-service[685]: [2026-09-24 12:31:12.087] [info] seq=106000 value=40464
+[  116.210955] raspberrypi5 device-service[685]: [2026-09-24 12:31:12.587] [info] seq=106500 value=40964
+[  116.247313] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:53654).
+[  116.252447] raspberrypi5 systemd[1]: dropbear@18-192.168.178.172:22-192.168.178.33:53654.service: Deactivated successfully.
+[  116.710920] raspberrypi5 device-service[685]: [2026-09-24 12:31:13.087] [info] seq=107000 value=41464
+[  117.210856] raspberrypi5 device-service[685]: [2026-09-24 12:31:13.586] [info] seq=107500 value=41964
+[  117.710807] raspberrypi5 device-service[685]: [2026-09-24 12:31:14.086] [info] seq=108000 value=42464
+[  118.210758] raspberrypi5 device-service[685]: [2026-09-24 12:31:14.586] [info] seq=108500 value=42964
+[  118.710709] raspberrypi5 device-service[685]: [2026-09-24 12:31:15.086] [info] seq=109000 value=43464
+[  119.210660] raspberrypi5 device-service[685]: [2026-09-24 12:31:15.586] [info] seq=109500 value=43964
+[  119.710612] raspberrypi5 device-service[685]: [2026-09-24 12:31:16.086] [info] seq=110000 value=44464
+[  119.723111] raspberrypi5 device-service[685]: [2026-09-24 12:31:16.099] [info] metrics: rate=1000.2/s samples_read=110013 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=772us
+[  120.210571] raspberrypi5 device-service[685]: [2026-09-24 12:31:16.586] [info] seq=110500 value=44964
+[  120.666739] raspberrypi5 systemd-journald[508]: Forwarding to syslog missed 78 messages.
+[  120.710521] raspberrypi5 device-service[685]: [2026-09-24 12:31:17.086] [info] seq=111000 value=45464
+[  121.210474] raspberrypi5 device-service[685]: [2026-09-24 12:31:17.586] [info] seq=111500 value=45964
+[  121.366350] raspberrypi5 systemd[1]: Starting Write this boot's log to the autoboot partition (boot recorder)...
+[  121.371513] raspberrypi5 systemd[1]: Started SSH Per-Connection Server (192.168.178.33:53664).
+[  121.373690] raspberrypi5 systemd[1]: dropbear@19-192.168.178.172:22-192.168.178.33:53664.service: Deactivated successfully.

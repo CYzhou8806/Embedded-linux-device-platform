@@ -1,0 +1,80 @@
+ln -sf /home/orbis/optee/build/../out-br/images/rootfs.cpio.gz /home/orbis/optee/build/../out/bin/
+cd /home/orbis/optee/build/../out/bin && \
+	export QEMU=/home/orbis/optee/build/../qemu/build/qemu-system-aarch64 && \
+	export QEMU_CHECK_ARGS="-nographic -smp 2 -cpu max,sme=on,pauth-impdef=on -d unimp -semihosting-config enable=on,target=native -m 1057 -bios bl1.bin -initrd rootfs.cpio.gz -kernel Image -append 'console=ttyAMA0,38400 keep_bootcon root=/dev/vda2 ' -machine virt,acpi=off,secure=on,mte=off,gic-version=3,virtualization=false  -object rng-random,filename=/dev/urandom,id=rng0 -device virtio-rng-pci,rng=rng0,max-bytes=1024,period=1000 -netdev user,id=vmnic -device virtio-net-device,netdev=vmnic  -serial mon:stdio -serial file:serial1.log" && \
+	export XEN_BOOT=n && \
+	export XEN_FFA= && \
+	export RUST_ENABLE=y && \
+	expect /home/orbis/optee/build/../build/qemu-check.exp -- --timeout 4800 || \
+	(if [ "" ]; then \
+		echo "== $PWD/serial0.log:"; \
+		cat serial0.log; \
+		echo "== end of $PWD/serial0.log:"; \
+		echo "== $PWD/serial1.log:"; \
+		cat serial1.log; \
+		echo "== end of $PWD/serial1.log:"; \
+	fi; false)
+Starting QEMU... done, guest is booted.
+Running: xtest ...
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+##################################################
+########################################
+Status: PASS (1490 test cases)
+Running: keyctl tests...
+Status: keyctl tests successful
+Test Rust example applications:
+Running acipher-rs...
+Test success
+Running aes-rs...
+Test success
+Running authentication-rs...
+Test success
+Running big_int-rs...
+Test success
+Running diffie_hellman-rs...
+Test success
+Running digest-rs...
+Test success
+Running hello_world-rs...
+Test success
+Running hotp-rs...
+Test success
+Running random-rs...
+Test success
+Running secure_storage-rs...
+Test success
+Running supp_plugin-rs...
+Test success
+Running time-rs...
+Test success
+Running signature_verification-rs...
+Test success
+Rust examples tested successfully
+exit=0

@@ -1,0 +1,41 @@
+device-platform-image-prod, first boot on the Raspberry Pi 5 (2026-09-24)
+Image: device-platform-image-prod-raspberrypi5.rootfs-20260924081113.wic
+Card contents checked against the build before booting: kernel_2712.img ==
+deployed Image, dropbear args, masked serial getty, ro fstab, admin key.
+
+Access
+  admin, SSH key                     -> login OK, sudo OK
+  root, same SSH key                 -> Permission denied (publickey)
+  admin, password methods only       -> Permission denied (publickey)   (server offers no password method)
+  -L 18080:192.168.178.1:80 through the device, then HTTP to it
+                                     -> channel open failed: administratively prohibited
+     control: HTTP to 192.168.178.1 directly -> 200
+  dropbear running as                -> /usr/sbin/dropbear -i -r /var/lib/dropbear/dropbear_rsa_host_key -w -s -j -k
+  listening sockets                  -> :::22 only (plus systemd-resolved on 127.0.0.53/54)
+  serial-getty@ttyAMA10              -> masked, inactive
+
+Root filesystem
+  mount                              -> /dev/mmcblk0p2 on / type ext4 (ro,relatime)
+  touch /etc/x                       -> Read-only file system
+
+device-service under the sandbox
+  active, MCU device_id=0xac00acc0 fw=0x00010300, 1000 samples/s, kfifo_overflow=0
+  /proc/<pid>/status                 -> Uid 0, CapEff=CapBnd=0x804000 (CAP_IPC_LOCK, CAP_SYS_NICE), NoNewPrivs=1, Seccomp=2
+  its mounts                         -> / ro, /home ro+noexec, /sys rw, /tmp private
+  network namespace                  -> differs from PID 1 (PrivateNetwork)
+  write sample_rate with the same sandbox properties (systemd-run)
+                                     -> wrote 900, read back 900, restored 1000; /etc still read-only
+
+After one reboot (sudo reboot)
+  SSH host key   SHA256:/kjyH7sakNae6s1LnoEeM+56Lx9nka/slkT+2GoszxA
+              -> SHA256:wDpLE42OIYoiibX+1InMUv9bqUCHNmilIWB3TIyTGRI   (ssh: Host key verification failed)
+  machine-id     cbaf738fe1c74195ba5c5582da76649a -> 4a9f09b3d49d4ad5983cd84ff5fcabc2  (tmpfs on /etc/machine-id)
+  IP address     192.168.178.177 -> 192.168.178.178   (DHCP4 Client ID: IAID/DUID, DUID from machine-id)
+  MCU            still 0xac00acc0, device-service active without an MCU reset
+
+Fix verified (device-platform-image-verity, which contains the prod image + the fix, 2026-09-24)
+  wlan0.network [DHCPv4] ClientIdentifier=mac
+  reboot:  machine-id 2355aab4... -> 2f163a60... (still regenerated)
+           IP 192.168.178.172 -> 192.168.178.172 (stable; DHCP4 Client ID: 2c:cf:67:f3:ee:42)
+  host key still changes, and with a stable IP the client now says:
+           WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED! ... man-in-the-middle attack

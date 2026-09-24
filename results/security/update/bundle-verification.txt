@@ -1,0 +1,12 @@
+ACCEPTED ok       release bundle, production keyring
+REJECTED ok       development bundle, production keyring
+                  signature verification failed: Verify error: unable to get local issuer certificate
+REJECTED ok       release bundle, development keyring
+                  signature verification failed: Verify error: unable to get local issuer certificate
+ACCEPTED ok       release bundle, 1 byte changed in the payload (signature only - see below)
+REJECTED ok       release bundle, 1 byte changed in the signature
+                  Invalid bundle format: Signature data is no valid CMS
+-- install-time payload check (dm-verity against the root hash in the signed manifest)
+payload  OK       release bundle
+payload  FAILED   release bundle, 1 byte changed in the payload
+                  Verification failed at position 27168768.

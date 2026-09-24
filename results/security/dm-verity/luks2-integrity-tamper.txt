@@ -1,0 +1,18 @@
+LUKS2 + dm-integrity (hmac-sha256): one byte changed on the card, underneath the encryption (2026-09-24)
+offset 943718400 into /dev/mmcblk0p7 (free space near the end of the partition); original byte read first, restored afterwards
+
+raw byte at p7+943718400: fe
+== read the end of /dev/mapper/data before tampering
+141+1 records out
+raw byte now: ff
+== read the end of /dev/mapper/data after one byte changed on the card
+dd: /dev/mapper/data: Input/output error
+restored: fe
+== read again
+141+1 records out
+[  349.507850] trusted_key: device-mapper: crypt: dm-1: INTEGRITY AEAD ERROR, sector 1687560
+[  349.516139] audit: type=1339 audit(1790267267.723:30): module=crypt op=integrity-aead dev=254:1 sector=1687560 res=0
+[  349.537941] trusted_key: device-mapper: crypt: dm-1: INTEGRITY AEAD ERROR, sector 1687560
+[  349.546170] Buffer I/O error on dev dm-2, logical block 210945, async page read
+
+cross-check: sector 1687560 (512 B) / 8 = 210945 = the 4 KiB logical block the page cache reported

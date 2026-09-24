@@ -1,0 +1,5 @@
+compiled sources: 6357 .c/.S (+ headers = 30443)
+NVD version match only:    {'Patched': 11148, 'Unpatched': 3853}
++ kernel CNA + compiled:   {'Patched': 13495, 'Unpatched': 3602, 'Ignored': 3189}
+  why not affected:        {'rejected': 314, 'not-applicable-config': 2875}
+unpatched 3602: 1102 fixed in a later 6.6.y (newest needed 6.6.157), 323 fixed only in newer branches, 2177 NVD-only without CNA fix data

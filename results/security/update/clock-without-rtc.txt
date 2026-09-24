@@ -1,0 +1,28 @@
+Certificate time checks and a board without an RTC (2026-09-24)
+
+Where the board's clock starts: the boot recorder's log of an early boot shows
+systemd's messages at "Thu 2025-06-26 08:44:31 UTC"; `date` two minutes later
+(after NTP) printed 2026-09-24 12:31:17. 2025-06-26 08:44:13 is systemd's
+SOURCE_DATE_EPOCH in this build (poky systemd_255.22.bb: PACKAGECONFIG
+set-time-epoch -> -Dtime-epoch=SOURCE_DATE_EPOCH; value 1750927453 in
+build-verity/tmp/work/cortexa76-poky-linux/systemd/*/source-date-epoch/).
+/var/lib/systemd/timesync/clock, which would carry the last synced time over a
+reboot, is on tmpfs in the read-only image - so every boot starts at that date.
+
+Certificates (real HSM hierarchy):
+  Update CA          notBefore 2026-09-23 23:37:33  notAfter 2036-09-20
+  release signing 1  notBefore 2026-09-23 23:37:33  notAfter 2028-09-22
+Bundle: ~/images/update-ab-1.0.2.raucb (release-1), CMS signingTime 2026-09-24 14:48:07
+
+Method: rauc-native 1.15.2 `rauc info -C keyring:check-purpose=codesign
+--keyring=<Update CA>` on the build host, with time() / clock_gettime(REALTIME)
+replaced through a 15-line LD_PRELOAD shim (FIXTIME). Host test, not on the board
+(SSH to the board was not permitted from the assistant's session).
+
+clock                   options                          result
+now (2026-09-24)        -                                ACCEPTED
+2025-06-26 08:44 (boot) -                                REJECTED  Verify error: certificate is not yet valid
+1970-01-01 (no epoch)   -                                REJECTED  Verify error: certificate is not yet valid
+2029-01-01              -                                REJECTED  Verify error: certificate has expired
+2025-06-26 08:44 (boot) use-bundle-signing-time=true     ACCEPTED
+2029-01-01              use-bundle-signing-time=true     ACCEPTED  <- expired key still accepted

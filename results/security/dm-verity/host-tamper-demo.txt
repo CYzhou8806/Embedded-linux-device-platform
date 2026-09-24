@@ -1,0 +1,29 @@
+== image: device-platform-image-raspberrypi5.rootfs.ext3 (188743680 bytes)
+== 1. build the hash tree
+VERITY header information for rootfs.hashtree
+UUID:            	7d4c1f56-3694-4041-93a3-0cd4605adf95
+Hash type:       	1
+Data blocks:     	46080
+Data block size: 	4096
+Hash blocks:     	364
+Hash block size: 	4096
+Hash algorithm:  	sha256
+Salt:            	8df211452ee93502514f180d5cb870f2c5f92f40073fad9859da7d7c7c596cf6
+Root hash:      	73f2d9e5953227f084216959b5191525c822d53d99c7eb175519572d611b228d
+Hash device size: 	1495040 [bytes]
+hash tree: 1495040 bytes for 188743680 bytes of data
+== 2. verify the untouched image
+verify: OK
+== 3. change one byte inside /opt/device-service/device-service
+filesystem block 31968 (block size 1024) -> byte offset 32735332 -> verity block 7992
+before: f4c988eeeea0d249…
+after:  62eab4ec77721da6…  <- plain ext4 serves the modified binary
+== 4. verify the tampered image against the original root hash
+Verification failed at position 32735232.
+Verification of data area failed.
+verify: FAILED, as it must (32735232 = start of the modified 4 KiB block)
+== 5. an attacker who also rebuilds the hash tree gets a different root hash
+attacker root hash: 56ea5b584bea5c7a528a8cee9346671082e0e3936d46a0b4d0dc6b26c89e907f
+original root hash: 73f2d9e5953227f084216959b5191525c822d53d99c7eb175519572d611b228d
+-> the attack only works if the root hash on the kernel command line can be changed too,
+   which is why it has to live inside the signed boot.img (docs/security/secure-boot.md)

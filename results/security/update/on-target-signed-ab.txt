@@ -1,0 +1,139 @@
+device-platform-image-ab 1.1.0, signed boot.img in both boot slots, kernel 6.12.93 (2026-09-24)
+Flashed from ~/images/signed-ab-1.1.0/device-platform-image-ab-raspberrypi5-signed.img
+(security/signing/make-signed-ab-release.sh). First boot: ping after ~30 s, SSH at ~1 min.
+
+== first boot, slot A
+uname -r: 6.12.93-v8-16k
+/proc/cmdline: ... root=/dev/mmcblk0p5 rauc.slot=A rootfstype=ext4 rootwait net.ifnames=0
+  (the command line inside the signed ramdisk, picked by [boot_partition=2] there)
+chosen/bootloader/partition = 2, tryboot = 0
+failed units: 0; "ordering cycle" lines in the journal: 0
+
+-- boot partition p2 as the firmware sees it: only the signed ramdisk
+-rwxr-xr-x 62761984 boot.img
+-rwxr-xr-x      602 boot.sig
+-rwxr-xr-x       74 config.txt      (boot_ramdisk=1)
+-rwxr-xr-x       74 tryboot.txt     (same)
+
+-- dm-verity root (task 9)
+0 286720 verity 1 179:5 179:5 1024 4096 143360 35841 sha256 <root hash> <salt> 1 restart_on_corruption
+device-mapper: verity: sha256 using shash "sha256-ce"
+
+-- data partition (task 10): LUKS2 + integrity, created on this first boot
+type LUKS2, cipher aes-xts-plain64, keysize 768 bits (512 XTS + 256 HMAC), integrity hmac(sha256), tag 32 bytes
+crypto driver: authenc(hmac(sha256-ce),xts-aes-ce)
+dm devices: data, data_dif (the dm-integrity layer underneath), rootfs
+
+-- clock floor (task 4 countermeasure)
+clock-floor: clock was Thu Jun 26 08:45:05 UTC 2025, moved forward to @1790264917   (= image build time 2026-09-24 15:48:37)
+NTPSynchronized=yes (later)
+
+-- acquisition
+device-service active; metrics: rate=1000.0/s gap_count=0 kfifo_overflow=0; device_id 0xac00acc0
+
+-- modules (task 7): all signed
+/proc/sys/kernel/tainted = 4608 = 4096 (O: out-of-tree module) + 512 (W: a kernel WARNING, below)
+no E taint (unsigned module): custom_acq's signature was accepted
+/sys/module/custom_acq/taint: O
+
+-- the WARNING: FORTIFY_SOURCE (newly enabled) in the WiFi driver
+memcpy: detected field-spanning write (size 27) of single field "eventmask_msg->mask"
+  at drivers/net/wireless/broadcom/brcm80211/brcmfmac/fweh.c:466 (size 1)
+WARNING: CPU: 2 PID: 83 at .../brcmfmac/fweh.c:466 brcmf_fweh_activate_events+0x298/0x2b0 [brcmfmac]
+  (struct eventmsgs_ext declares u8 mask[1] - an old-style variable-length array; the buffer
+   was allocated with the full length, so no memory was overwritten. Warn-only; WiFi works.)
+Checked W+X mappings: passed, no W+X pages found      (DEBUG_WX)
+
+-- sysctl (task 7)
+kernel.kptr_restrict = 2
+kernel.dmesg_restrict = 1
+kernel.unprivileged_bpf_disabled = 1
+net.core.bpf_jit_harden = 2
+kernel.kexec_load_disabled   -> unknown key (CONFIG_KEXEC=n: nothing to disable)
+kernel.sysrq = 0
+fs.suid_dumpable = 0
+dev.tty.ldisc_autoload = 0
+kernel.yama.ptrace_scope     -> unknown key: /sys/kernel/security/lsm = "capability" only.
+                                CONFIG_SECURITY_YAMA=y but CONFIG_LSM="" (Raspberry Pi defconfig):
+                                built in, never initialised. Fixed in hardening.cfg (CONFIG_LSM="yama"),
+                                shipped as the 1.1.1 update below.
+vm.unprivileged_userfaultfd  -> unknown key (CONFIG_USERFAULTFD=n)
+kernel.perf_event_paranoid = 2
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.all.rp_filter = 1
+
+== update 1.1.1 into slot B: signed boot.img through A/B, and a rotated signing key (tasks 3, 5)
+1.1.1 = the same image with CONFIG_LSM="yama"; bundle re-signed with release-2 (HSM key 05)
+rauc info: Verified inline signature by 'O = device-platform, CN = device-platform release signing 2'
+  (device keyring unchanged: only the Update CA - rotation needs nothing on the device)
+Installing `/tmp/update-1.1.1-release2.raucb` succeeded   (13.1 s)
+p3 now: boot.img 62761984, boot.sig 602, config.txt, tryboot.txt
+reboot "0 tryboot" ->
+  root=/dev/mmcblk0p6 rauc.slot=B; chosen/bootloader partition=3 tryboot=1
+  -> [boot_partition=3] inside the signed ramdisk's config.txt DOES apply (cmdline-b.txt picked)
+  /sys/kernel/security/lsm = capability,yama; kernel.yama.ptrace_scope = 1
+healthcheck 16:50:17: device-service active, MCU answering - marking slot good
+  rauc status: marked slot(s) rootfs.1 as good
+autoboot.txt: [all] boot_partition=3, [tryboot] boot_partition=2
+Booted from: rootfs.1 (B), Activated: rootfs.1 (B); rate=1000.2/s gap_count=0
+
+== dm-verity restart_on_corruption + A/B fallback (task 9)
+install 1.1.0 into slot A (RAUC marks it bad = not confirmed)
+predicted on the build host: /usr/lib/systemd/systemd starts at fs block 61756 (1 KiB) = offset 63238144 in the
+  rootfs image; byte +64 = 0x06
+on the card: p5+63238144 = 7f454c46 (".ELF"), +64 = 06   -> matches
+write 0xff at p5+63238144+64, reboot "0 tryboot"  (16:57:23, boot_id 334dd80a...)
+-> next boot: 16:57:37, root=/dev/mmcblk0p6 rauc.slot=B, partition=3, tryboot=0
+   chosen/bootloader/count = 4 since power-on (A, tryboot B, tryboot A (corrupted), B)
+   the attempt on A lasted ~14 s including shutdown: it rebooted as soon as systemd's first block was read
+   slot A: boot status bad (never confirmed), B: good; device-service active
+control: the same 1.1.0 slot content booted normally on first boot; the only difference was the one byte
+restored 0x06; sha256(p5) = sha256(bundle 1.1.0 rootfs image) = 80d009b739ce63e0...
+(the kernel's "data block 61756 is corrupted" line itself is not captured: the attempt's journal is in
+ RAM and the reboot is immediate - an HDMI screen or pstore would show it)
+
+== 1.2.0 into slot A (release-2 signed): MODULE_SIG_FORCE, COMPAT/IO_URING off, MCU gate, CRL in the keyring
+pre-check on the running 1.1.1 with the gate script and the pairing key copied to /run:
+  mcu-auth: OK - MCU 0xac00acc0 fw 0x00010400 answered the challenge (38729 cycles)     (right key)
+  mcu-auth: FAIL - wrong answer from MCU 0xac00acc0 (not the paired device, or not paired)  (random key)
+  mcu-auth: FAIL - no pairing key at /run/devauth/none                                     (no key)
+pairing key then placed at /data/devauth/mcu.key (root 0600, LUKS partition)
+CRL re-issued with 365 days (nextUpdate 2027-09-24) before building - the first one had 30
+install 1.2.0 -> A, reboot "0 tryboot":
+  root=/dev/mmcblk0p5 rauc.slot=A, partition=2, tryboot=1
+  device-service ExecStartPre: mcu-auth: OK - MCU 0xac00acc0 fw 0x00010400 answered the challenge (35113 cycles)
+  healthcheck: device-service active, MCU answering - marking slot good -> Booted/Activated rootfs.0 (A)
+  tainted = 4608 (O + W only: no unsigned module; FORCE on, custom_acq loaded)
+  lsm = capability,yama
+  io_uring: only the syscall entry names remain in kallsyms (__arm64_sys_io_uring_*, cond_syscall -> ENOSYS)
+  /etc/rauc/system.conf: check-crl=true, path=/etc/rauc/keyring-with-crl.pem
+revocation on the device:
+  rauc install 1.1.0 (signed with release-1):  signature verification failed: Verify error: certificate revoked
+  rauc info    1.2.0 (signed with release-2):  Verified inline signature by '... release signing 2'
+ramoops: NOT active in 1.2.0 - see 1.2.1
+  /proc/device-tree/reserved-memory has no ramoops node although dtoverlay=ramoops and
+  overlays/ramoops.dtbo were inside the signed ramdisk: the kernel tree's overlay writes reg with one
+  address cell; BCM2712's reserved-memory has two address cells + one size cell, and ramoops-pi4
+  (right layout) declares brcm,bcm2711. The firmware accepted the line and silently applied nothing.
+
+== 1.2.1 -> B (ramoops overlay for BCM2712, recipes-bsp/ramoops-pi5-overlay)
+OF: reserved mem: 0x000000000b000000..0x000000000b03ffff (256 KiB) map non-reusable ramoops@b000000
+pstore: Registered ramoops as persistent store backend; ramoops: using 0x40000@0xb000000
+healthcheck -> rauc-tryboot-backend: committed slot B
+
+== dm-verity restart, now with the evidence (task 9 again)
+first attempt: slot A still held 1.2.0 (no working ramoops) - pstore after the fallback held only the
+  B boot that issued the tryboot (its RAM region survived the A boot untouched)
+second attempt: 1.2.1 installed into A; systemd first block predicted on the host = 61755,
+  card: 7f454c46 / +64 = 06; byte -> ff; reboot "0 tryboot" 18:33:06; back on B 18:33:44,
+  partition=3 tryboot=0 bootloader count=10
+/sys/fs/pstore/console-ramoops-0 (the failed attempt on A, full file: results/security/dm-verity/pstore-verity-restart-console.txt):
+  [    3.148742] Run /init as init process
+  [    4.440277] device-mapper: verity: sha256 using shash "sha256-ce"
+  [    4.905102] device-mapper: verity: 179:5: data block 61755 is corrupted
+  [    4.939623] reboot: Restarting system with command 'dm-verity device corrupted'
+byte restored; sha256(p5) == sha256(1.2.1 rootfs image) = 2d2e8cfe532aea0e...
+
+== 1.2.2 -> A (boot recorder mounts pstore itself: this systemd has no pstore support)
+committed on A; mcu-auth OK (35069 cycles);
+p1:bootlog-1.txt "== pstore (previous boot)": console-ramoops-0 ... "reboot: Restarting system with command '0 tryboot'"

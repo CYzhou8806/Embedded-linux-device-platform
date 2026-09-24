@@ -1,0 +1,24 @@
+Device authentication on the board (2026-09-24): STM32F103 firmware v1.4, custom_acq driver with auth_* sysfs
+MCU UID 35ffdb05334d523717702051, key derived by tools/pair-mcu.sh (stand-in master, see script)
+
+== 1. idle MCU (device-service stopped), 10 rounds
+device_id=0xac00acc0 fw_version=0x00010400
+nonce 6d6da6f483c6a2b336ff75a3633903d6 -> 38162d447f3d3ac2555b2e0bfd398954  VALID  wrong-key check: rejected  cycles=35110
+nonce 560cff2225da5bcc77e334eac6ebd056 -> a7593524f5846ed1fbeb95f8a5cf0d45  VALID  wrong-key check: rejected  cycles=35111
+nonce f70c06790f8d5e79c89d80e02f9c92b4 -> cbf000e31faa6fbef3476a5dc6fed85f  VALID  wrong-key check: rejected  cycles=35110
+nonce 95615f00b0c58eb19881d7e2409f6c27 -> 3087d369508c70886991058024b61bab  VALID  wrong-key check: rejected  cycles=35072
+nonce 1c52bd0970f269632baf58d29b761784 -> a88c3162074bfebce457f904f629353f  VALID  wrong-key check: rejected  cycles=35106
+nonce c8517555fe7b05ca7a389ee743c95620 -> 0b3fe8649a966f14a335e5e9b8687406  VALID  wrong-key check: rejected  cycles=35116
+nonce dd7ac2f1af0c905f4dbed47be44f1efb -> f021e3a4ccb38654f4983ddcacbb5b91  VALID  wrong-key check: rejected  cycles=35062
+nonce e0a17338ca155a1fbf7bb6379e160f7f -> b31892857eb9aefc20cf7a583dad234c  VALID  wrong-key check: rejected  cycles=35115
+nonce 971a410c8ccbc53d482b007a48f7b588 -> 77bef9e89351f0b24fd59cfde6d573fb  VALID  wrong-key check: rejected  cycles=35114
+nonce 02eaba512bead783155bb55b5edbe7da -> 58bd56ff3baefd365ff87264bff61c81  VALID  wrong-key check: rejected  cycles=35116
+10/10 valid, answers distinct per nonce: True
+cycles: min 35062 max 35116 -> 487.0..487.7 us at 72 MHz
+
+== 2. during 1000 Hz acquisition, 100 rounds
+before: rearm_fail=0 spi_errors=0 kfifo_overflow=0 policy_dropped=0
+100/100 valid, answers distinct per nonce: True
+cycles: min 40411 max 41727 -> 561.3..579.5 us at 72 MHz
+after:  rearm_fail=0 spi_errors=0 kfifo_overflow=0 policy_dropped=0
+[2026-09-24 10:38:24.072] [info] metrics: rate=1000.2/s samples_read=10000 gap_count=0 buffer=0 kfifo_overflow=0 sample_age=774us

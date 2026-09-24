@@ -1,0 +1,16 @@
+PASS  new device is provisioned and certified
+        device serial: fake0001
+        device key:    sha256 d6feba4df367a0165c44b819eb0b83684eb5d002b375b89cb541713446779eff
+        proof of possession: OK
+PASS  same serial a second time is refused (log)
+        provision: device fake0001 is already in the provisioning log - refusing to issue a second identity
+PASS  device with an identity we never issued is refused
+        device serial: fake0002
+        devid: provision: 0xffff0003 (origin 4)
+        provision: device refused to provision (existing identity not in our log?)
+PASS  device that can't prove possession is refused
+        device serial: fake0003
+        device key:    sha256 49371ddeeed1d49636f6c3507b0511de36fdcb27b9de3692c4e5d2e943465469
+        provision: proof of possession FAILED: the device does not hold the key it reported
+PASS  certificate carries the device's key, not the throwaway CSR key
+PASS  exactly one log record

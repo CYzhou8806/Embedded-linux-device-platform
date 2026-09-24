@@ -1,0 +1,27 @@
+== setup (device-platform-image-verity on the Raspberry Pi 5)
+root: /dev/mapper/rootfs on / type ext4 (ro,relatime)
+btrfs module loaded: 0 (the file is never used)
+file: /usr/lib/modules/6.6.63-v8-16k/kernel/fs/btrfs/btrfs.ko.xz
+file sha256 before: 1b441078fa9907b0
+raw byte at /dev/mmcblk0p2 + 77180928: 0x13
+
+== 1. as root, write 0xff to the raw partition underneath dm-verity
+raw byte now: 0xff
+
+== 2. read the file through the verity root
+sha256sum: can't read '/usr/lib/modules/6.6.63-v8-16k/kernel/fs/btrfs/btrfs.ko.xz': Input/output error
+sha256sum exit=1
+-- kernel log:
+[  119.395761] device-mapper: verity: 179:2: data block 75372 is corrupted
+[  119.402504] audit: type=1339 audit(1790240284.039:14): module=verity op=verify-data dev=179:2 sector=75372 res=0
+[  119.407999] device-mapper: verity: 179:2: data block 75372 is corrupted
+[  119.424579] audit: type=1339 audit(1790240284.063:15): module=verity op=verify-data dev=179:2 sector=75372 res=0
+
+== 3. put the original byte back
+raw byte: 0x13
+file sha256 after restore: 1b441078fa9907b0
+-- kernel log since:
+[  119.395761] device-mapper: verity: 179:2: data block 75372 is corrupted
+[  119.402504] audit: type=1339 audit(1790240284.039:14): module=verity op=verify-data dev=179:2 sector=75372 res=0
+[  119.407999] device-mapper: verity: 179:2: data block 75372 is corrupted
+[  119.424579] audit: type=1339 audit(1790240284.063:15): module=verity op=verify-data dev=179:2 sector=75372 res=0

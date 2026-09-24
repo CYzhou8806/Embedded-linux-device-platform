@@ -1,0 +1,53 @@
+device-platform-image-ab on the Raspberry Pi 5 (2026-09-24)
+Layout: p1 autoboot.txt | p2/p3 boot A/B | p5/p6 dm-verity root A/B | p7 LUKS2 data
+Firmware bootloader 2026-05-26 (086b83e3), autoboot.txt with tryboot_a_b=1.
+
+== first boot (slot A)
+booted: rauc.slot=A, bootpart 2
+/dev/mapper/rootfs on / type ext4 (ro,relatime)
+/dev/mapper/data on /data type ext4 (rw,nosuid,nodev,relatime)
+device-platform-data: /dev/mmcblk0p7 is not LUKS yet - creating (first boot)
+device-platform-data: luksFormat done, opening / creating ext4 / mounting
+host key dir: /data/dropbear
+failed units: 0
+device-service: user acq, CapEff=CapBnd=0x804000, 1000.2 samples/s, gap_count=0
+  /dev/acq0 root:acq 0660, control root:acq --w--w----, sample_rate root:acq -rw-rw-r--
+packages 171 (was 1919), kernel modules 31 (was 1808), no Bluetooth / camera / codec modules
+
+== reboot: state survives the read-only root
+SSH host key SHA256:MVvl492gEZVe7x8f+IGmjUJrLQ/fhYtoICwNHzrucDY before and after
+IP 192.168.178.172 before and after; LUKS opened, not re-created
+
+== anti-rollback: 0.9.0 bundle (release-signed) on a 1.0.0 system
+LastError: Version mismatch: Expected at least '1.0.0' but bundle manifest has '0.9.0'
+Installing `/data/update-ab-old.raucb` failed; autoboot.txt unchanged
+
+== failed update (slot B got a bundle built from a broken image: SSH never came up)
+install into B succeeded; autoboot.txt: [all] boot_partition=2, [tryboot] boot_partition=3
+reboot "0 tryboot" -> slot B boots, SSH: Connection reset by peer (the broken image)
+power cycle -> booted: rauc.slot=A, bootpart 2; autoboot.txt still [all]=2
+rauc status: rootfs.1 (B) boot status bad, rootfs.0 (A) good - never committed
+
+== successful update: 1.0.2 into B
+Installing `/data/update-ab-1.0.2.raucb` succeeded (install of 1.0.1 took 14.8 s)
+reboot "0 tryboot" -> booted: rauc.slot=B, bootpart 3
+healthcheck (timer, 30 s after boot): device-service active, MCU answering - marking slot good
+rauc status: marked slot(s) rootfs.1 as good
+autoboot.txt: [all] boot_partition=3, [tryboot] boot_partition=2
+Booted from: rootfs.1 (B), Activated: rootfs.1 (B)
+normal reboot -> booted: rauc.slot=B, bootpart 3, tryboot flag 0
+SSH host key unchanged (same as on slot A): SHA256:MVvl492gEZVe7x8f+IGmjUJrLQ/fhYtoICwNHzrucDY
+device authentication (image's own driver): 5/5 valid, 40747..41729 cycles
+
+== found on the board and fixed on the way
+1. `install` not in the image (coreutils gone with the package cut): the data
+   setup and the SSH host-key script both failed; SSH dead. Boot recorder
+   (bootlog-*.txt on p1) showed it: "install: not found".
+   -> mkdir/chmod; every command used by the scripts checked against the rootfs.
+2. SSH depended on /data. -> host key on /data if usable, else /run (dropbear-hostkey).
+3. The health check was WantedBy=multi-user.target and After=device-service,
+   which is After=multi-user.target: systemd deleted the job at every boot
+   ("Found ordering cycle ... deleted to break ordering cycle"); slots would
+   never be committed. -> started by a timer.
+4. device-platform-data could be started twice (Wants= from a later unit):
+   "Device data already exists" -> idempotent.

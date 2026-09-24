@@ -1,0 +1,55 @@
+Kernel configuration hardening: 6.6.63 (flashed before) / 6.12.93 + hardening.cfg (1.1.0) / 6.12.93 1.2.x (+ MODULE_SIG_FORCE, COMPAT and IO_URING off, CONFIG_LSM=yama)
+security/hardening/kconfig-hardening-check.py <configs>
+(hand-picked arm64 subset of KSPP; the full kernel-hardening-checker is GitHub-only and was not run)
+
+option                            want  config-6.6.63-veri  config-6.12.93-har  config-6.12.93-1.2  why
+-- self-protection
+STRICT_KERNEL_RWX                 y     OK   y              OK   y              OK   y              kernel text read-only, data non-executable
+STRICT_MODULE_RWX                 y     OK   y              OK   y              OK   y              same for modules
+RANDOMIZE_BASE                    y     OK   y              OK   y              OK   y              KASLR
+VMAP_STACK                        y     OK   y              OK   y              OK   y              stack overflow hits a guard page instead of memory next to it
+STACKPROTECTOR_STRONG             y     OK   y              OK   y              OK   y              stack canaries in the kernel
+HARDENED_USERCOPY                 y     FAIL n              OK   y              OK   y              bounds-check copy_to/from_user against the slab object
+FORTIFY_SOURCE                    y     FAIL n              OK   y              OK   y              compile-time/run-time checks of memcpy & co.
+INIT_STACK_ALL_ZERO               y     OK   y              OK   y              OK   y              no uninitialised stack variables leak or get used
+INIT_ON_ALLOC_DEFAULT_ON          y     FAIL n              OK   y              OK   y              heap memory zeroed on allocation
+INIT_ON_FREE_DEFAULT_ON           y     FAIL n              FAIL n              FAIL n              heap memory zeroed on free (costs a few %)
+SLAB_FREELIST_HARDENED            y     FAIL n              OK   y              OK   y              slab freelist pointers obfuscated/checked
+SLAB_FREELIST_RANDOM              y     FAIL n              OK   y              OK   y              slab allocation order randomised
+SHUFFLE_PAGE_ALLOCATOR            y     FAIL n              OK   y              OK   y              page allocator randomised
+LIST_HARDENED                     y     FAIL n              OK   y              OK   y              linked-list corruption checks (6.6+)
+BUG_ON_DATA_CORRUPTION            y     FAIL n              OK   y              OK   y              stop on detected corruption instead of continuing
+SCHED_STACK_END_CHECK             y     FAIL n              OK   y              OK   y              detect task stack overrun at schedule()
+DEBUG_WX                          y     FAIL n              OK   y              OK   y              warn at boot about writable+executable mappings
+UNMAP_KERNEL_AT_EL0               y     OK   y              OK   y              OK   y              KPTI (Meltdown class)
+MITIGATE_SPECTRE_BRANCH_HISTORY   y     OK   y              OK   y              OK   y              Spectre-BHB
+ARM64_PAN                         y     OK   y              OK   y              OK   y              kernel can't touch user memory by accident (Armv8.1 PAN)
+ARM64_PTR_AUTH_KERNEL             y     OK   y              OK   y              OK   y              return-address signing (needs Armv8.3; A76 hasn't it)
+ARM64_BTI_KERNEL                  y     FAIL -              FAIL -              FAIL -              branch target identification (needs Armv8.5; A76 hasn't it)
+SECCOMP_FILTER                    y     OK   y              OK   y              OK   y              seccomp (used by the device-service sandbox)
+SECURITY_YAMA                     y     FAIL n              OK   y              OK   y              ptrace scope restriction
+SECURITY_LOCKDOWN_LSM             y     FAIL n              FAIL n              FAIL n              lockdown: root can't modify the running kernel
+SECURITY_DMESG_RESTRICT           y     FAIL n              OK   y              OK   y              dmesg_restrict=1 by default
+MODULE_SIG                        y     FAIL n              OK   y              OK   y              kernel module signatures
+MODULE_SIG_FORCE                  y     FAIL -              FAIL n              OK   y              refuse unsigned modules
+BPF_UNPRIV_DEFAULT_OFF            y     OK   y              OK   y              OK   y              unprivileged eBPF off by default
+STRICT_DEVMEM                     y     FAIL n              OK   y              OK   y              /dev/mem limited to I/O regions
+IO_STRICT_DEVMEM                  y     FAIL -              OK   y              OK   y              ... and not to regions a driver claimed
+-- attack surface
+DEVMEM                            n     FAIL y              FAIL y              FAIL y              /dev/mem at all
+PROC_KCORE                        n     OK   n              OK   n              OK   n              /proc/kcore: kernel memory as a file
+KEXEC                             n     OK   n              OK   n              OK   n              replace the running kernel
+HIBERNATION                       n     FAIL y              OK   n              OK   n              memory image on disk
+LEGACY_TIOCSTI                    n     FAIL y              OK   n              OK   n              inject input into another terminal
+LDISC_AUTOLOAD                    n     FAIL y              OK   n              OK   n              load line disciplines on request
+COMPAT                            n     FAIL y              FAIL y              OK   n              32-bit syscall ABI - a second syscall surface
+IO_URING                          n     FAIL y              FAIL y              OK   n              io_uring - frequent source of kernel CVEs
+USERFAULTFD                       n     OK   n              OK   n              OK   n              used to win kernel race conditions
+BINFMT_MISC                       n     FAIL m              FAIL m              FAIL m              arbitrary interpreters for binaries
+MAGIC_SYSRQ                       n     FAIL y              FAIL y              FAIL y              SysRq
+KPROBES                           n     FAIL y              FAIL y              FAIL y              debugging: arbitrary kernel instrumentation
+FTRACE                            n     FAIL y              FAIL y              FAIL y              debugging: function tracer (this project uses it - case 04/09)
+
+config-6.6.63-verity: 15/44 as recommended
+config-6.12.93-hardened: 33/44 as recommended
+config-6.12.93-1.2.x: 36/44 as recommended

@@ -1,0 +1,62 @@
+Signing-key rotation and revocation - what a device accepts (2026-09-24)
+
+Method: `rauc info` (RAUC 1.15.2, rauc-native from build-verity) - the signature
+and certificate check `rauc install` starts with - with the device's settings
+(check-purpose=codesign; check-crl as listed). The bundle is the real
+device-platform-bundle-ab (1.0.2), re-signed with `rauc resign`.
+
+KEYS IN THIS RUN: a THROWAWAY file-based CA with the same profile as the HSM
+Update CA (P-256, CA:TRUE pathlen:0, keyCertSign+cRLSign; release certs
+CA:FALSE, digitalSignature, codeSigning), built in a scratch directory. The same
+steps against the real token are security/signing/hsm-rotate-release-key.sh +
+test-key-rotation.sh (key id 05 / release-2); writing to the token was not
+permitted from the assistant's session and is left for the owner to run.
+
+CA database after `openssl ca -revoke r1 -crl_reason keyCompromise` / `-valid r2`:
+R  280923150511Z  260924150511Z,keyCompromise  CA3C9806...  /CN=throwaway release 1
+V  280923150511Z                               C7348760...  /CN=throwaway release 2
+expired CRL for the last test: lastUpdate 2026-08-01, nextUpdate 2026-09-01
+
+bundle   keyring                 check-crl  result
+-- rotation: keyring untouched (CA only)
+release-1  CA                    false      ACCEPTED
+release-2  CA                    false      ACCEPTED   <- new key, no keyring change
+-- revocation
+release-1  CA + CRL              true       REJECTED   signature verification failed: Verify error: certificate revoked
+release-2  CA + CRL              true       ACCEPTED
+-- revocation needs both halves
+release-1  CA + CRL              false      ACCEPTED   rauc-WARNING: Detected CRL but CRL checking is disabled!
+release-1  CA (no CRL)           true       REJECTED   Verify error: unable to get certificate CRL
+release-2  CA (no CRL)           true       REJECTED   Verify error: unable to get certificate CRL   <- valid key, still refused
+-- expired CRL
+release-2  CA + expired CRL      true       REJECTED   Verify error: CRL has expired                 <- blocks every update
+release-2  CA + expired CRL      false      ACCEPTED   rauc-WARNING: Detected CRL but CRL checking is disabled!
+-- CRL and a wrong clock (clock set to 2025-06-26 08:44, the board's pre-NTP time)
+release-2  CA + CRL              true       REJECTED   Verify error: CRL is not yet valid
+release-2  CA + CRL, use-bundle-signing-time=true   ACCEPTED
+
+== THE SAME WITH THE REAL TOKEN (run by the owner, 2026-09-24 16:17 UTC)
+hsm-rotate-release-key.sh: key id 05 generated in SoftHSM, release-2 issued by the Update CA (id 03),
+release-1 revoked (keyCompromise), CRL signed by the CA key in the token.
+test-key-rotation.sh ~/images/signed-ab-1.1.0/work/dev.raucb ~/images/update-ab-1.0.2.raucb /tmp/rot
+
+release-1 bundle signed by: device-platform release signing 1
+release-2 bundle signed by: device-platform release signing 2
+serial=0FC49D732D8B5EF797A44FA389A8A2E3  subject=O = device-platform, CN = device-platform release signing 1
+serial=7EA5336B8F49ACFE5F7758AD4CFB97D3  subject=O = device-platform, CN = device-platform release signing 2
+  CRL: Last Update: Sep 24 16:17:03 2026 GMT
+  CRL: Next Update: Oct 24 16:17:03 2026 GMT
+  CRL: Serial Number: 0FC49D732D8B5EF797A44FA389A8A2E3
+  CRL: Revocation Date: Sep 24 16:17:03 2026 GMT
+
+-- rotation: the device's keyring is not touched (Update CA only)
+ACCEPTED ok    release-1 bundle, CA keyring
+ACCEPTED ok    release-2 bundle, CA keyring
+-- revocation: CA + CRL in the keyring, check-crl=true
+REJECTED ok    release-1 bundle (revoked key)   Verify error: certificate revoked
+ACCEPTED ok    release-2 bundle
+-- revocation only works where the CRL is enforced
+ACCEPTED ok    release-1, CRL in keyring but check-crl=false   rauc-WARNING: Detected CRL but CRL checking is disabled!
+REJECTED ok    release-1, check-crl=true but no CRL in keyring   Verify error: unable to get certificate CRL
+-- an expired CRL on the device
+REJECTED ok    release-2 bundle, CRL expired 2026-09-01   Verify error: CRL has expired

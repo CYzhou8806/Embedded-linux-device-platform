@@ -64,6 +64,7 @@ real hardware, not simulated.
 | Middleware | `devbus`: zero-copy shared-memory pub/sub between processes on the device (loan/send, per-subscriber lock-free queues and drop policies, crash reclaim via pidfd), measured against Unix sockets |
 | Real-time | Self-built PREEMPT_RT and non-RT kernels from one source, booted on the target through one-shot `tryboot`; kernel × tuning latency matrix with `cyclictest` alongside |
 | Cross-platform | The same source and the same board on two Linux distributions and six kernels (self-built and vendor), to separate what the kernel contributes from what the image does — see [`platforms/`](platforms/) |
+| Security | Threat model and audit of this device (14 findings); production image with key-only SSH, read-only rootfs and a sandboxed service; CVE triage with the kernel's real compiled-file list; Pi 5 secure-boot signing with keys in a PKCS#11 token; an OP-TEE trusted application for device identity; signed RAUC updates; a provisioning station — see [`docs/security/`](docs/security/README.md) |
 
 ## Results
 
@@ -85,6 +86,21 @@ real hardware, not simulated.
 - **Backpressure that acts before data is lost**: the pipeline's cliff is sharp, but median latency climbs ~11× *before* throughput, sequence gaps or the driver's overflow counter move at all (second chart above). Feeding that leading signal into the rate controller held the MCU at a working point 6% below the cliff for 25 s with the lagging counters reading exactly zero. Picking the right statistic took two wrong ones, both caught on hardware and both written up.
 - Full write-up, methodology, and all raw CSVs: [`docs/performance.md`](docs/performance.md) and [`results/`](results/). Charts regenerate from the committed CSVs (`tools/plot-platforms.py`), so a number in the text and a number in a picture cannot drift apart.
 
+## Security
+
+The device was built for bring-up and measurement; [`docs/security/`](docs/security/README.md)
+is the work of making it deployable, starting from an [audit of the device
+as built](docs/security/threat-model.md). Most of it runs on the board; the parts
+that don't — OP-TEE (QEMU), and anything needing the Pi's one-time-programmable
+fuses — say so in their documents, together with what is a stand-in.
+
+- **Production image**: no passwords anywhere, key-only SSH for an unprivileged admin, no login on the UART, read-only root; `device-service`'s systemd exposure score 9.4 → 1.8. **Booted on the board**: every access that should fail was attempted and failed; the one reboot also showed the SSH host key and the IP address changing each boot (read-only root), now written up with the fix.
+- **CVE triage**: 3,869 unpatched entries from `cve-check`. Userspace 16 → 4, each closed with evidence from the image. For the kernel, the list of files it actually compiles removed 2,875 CVEs (the list Yocto generated would have removed 90), and 1,102 of the rest are fixed by following the 6.6 stable branch — the kernel is 94 stable releases behind.
+- **Secure boot (Pi 5)**: `boot.img` signed and a counter-signed EEPROM image built with an RSA key that never left a PKCS#11 token, and the signed image booted on the board through the firmware's one-shot tryboot — after an HDMI photo showed that tryboot wants `tryboot.img`, not `boot.img`. The OTP key hash is deliberately **not** programmed on the project's only board.
+- **OP-TEE**: a TA that generates a non-extractable device key and answers challenges with it (xtest 143/143 on QEMU Armv8-A). Rolling back its secure storage let it create a second identity — a concrete demonstration of why RPMB exists.
+- **Device authentication on SPI**: the MCU answers challenges with HMAC-SHA256 under a per-chip key derived from its unique ID; 487 µs per answer on the Cortex-M3, and 100 answers during 1000 Hz acquisition cost zero samples. Read-out protection level 1 blocked the debugger from reading the key — and removing it erased the chip, as designed.
+- **Integrity and updates**: on the board, a byte changed on the SD card underneath the dm-verity root made the kernel reject exactly the block predicted on the build host ([case 10](docs/debugging/case-10-dm-verity-one-byte-on-the-card.md)). A/B updates run on the Pi 5 firmware's own tryboot with RAUC: an update that broke SSH was undone by one power cycle, a healthy one committed itself 30 s after boot, and an older release-signed bundle was refused. The image went from 1919 packages to 171, with a LUKS2 data partition (the crypto extensions built in cut dm-verity's read cost from 27 % to 16 %).
+
 ## Repository layout
 
 ```
@@ -98,7 +114,8 @@ yocto/meta-device-platform/  Custom Yocto layer (driver, service, image recipes)
 experiments/scheduler-baseline/  Standalone cyclictest-style RT probe
 experiments/rt-kernel/    PREEMPT_RT kernel build + safe tryboot deployment for the Pi 5
 platforms/                The two Linux distributions this runs on, and how they differ
-docs/                     Performance report, debugging case studies, walkthroughs
+security/                 Signing (PKCS#11), OP-TEE TA, dm-verity and CVE tooling
+docs/                     Performance report, debugging case studies, security, walkthroughs
 results/                  Raw latency/throughput data, charts, logic-analyzer captures
 ```
 

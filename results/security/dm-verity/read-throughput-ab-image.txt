@@ -1,0 +1,16 @@
+device-platform-image-ab: verity: sha256 using implementation "sha256-ce"
+LUKS:  cipher: aes-xts-plain64  keysize: 512 bits 
+driver       : xts-aes-ce
+kernel 6.6.63-v8-16k; 150 MiB sequential per run, page cache dropped before each run
+/dev/mmcblk0p5       run 1:   1.81 s    82.9 MiB/s
+/dev/mmcblk0p5       run 2:   1.81 s    82.9 MiB/s
+/dev/mmcblk0p5       run 3:   1.81 s    82.9 MiB/s
+/dev/mapper/rootfs   run 1:   2.16 s    69.4 MiB/s
+/dev/mapper/rootfs   run 2:   2.18 s    68.8 MiB/s
+/dev/mapper/rootfs   run 3:   2.12 s    70.8 MiB/s
+/dev/mmcblk0p7       run 1:   1.80 s    83.3 MiB/s
+/dev/mmcblk0p7       run 2:   1.80 s    83.3 MiB/s
+/dev/mmcblk0p7       run 3:   1.81 s    82.9 MiB/s
+/dev/mapper/data     run 1:   1.95 s    76.9 MiB/s
+/dev/mapper/data     run 2:   1.93 s    77.7 MiB/s
+/dev/mapper/data     run 3:   1.95 s    76.9 MiB/s

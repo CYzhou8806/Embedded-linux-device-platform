@@ -1,6 +1,6 @@
 # Debugging case studies
 
-Nine root-cause investigations from building this platform, written up
+Eleven case studies from building this platform (ten root-cause investigations and one verification), written up
 as *how the cause was found*, not as a list of fixes. Each one follows
 the same shape: what was observed, what the first hypothesis was, what
 ruled it out, what the actual mechanism turned out to be, and what was
@@ -22,6 +22,8 @@ what the case is worth.
 | [07](case-07-preempt-rt-comparison-exposes-a-different-bottleneck.md) | Kernel / scheduling | Set out to measure PREEMPT_RT, found the bottleneck was intrinsic SPI pacing instead, and the planned metric was invalid on that card. **Follow-up:** the ~650 samples/s that made it invalid was one module parameter one step past a cliff, not the card. |
 | [08](case-08-busy-spin-subscriber-hit-by-rt-throttling.md) | Real-time Linux | The fastest configuration had the worst tail: **RT throttling** takes the CPU from all RT tasks for 50 ms of every second, which an isolated core does not need protecting from. |
 | [09](case-09-preempt-rt-busy-spin-starves-rcu.md) | Real-time Linux | A busy-spinning FIFO task starved `rcuc/N` on PREEMPT_RT, and the `nohz_full` that should have prevented it had been silently ignored because the kernel was built without it. **Follow-up:** the starvation is real, but its 130 ms cost was `printk` to a 115200-baud console — a clean latency histogram does not mean a clean kernel. |
+| [10](case-10-dm-verity-one-byte-on-the-card.md) | Security / Yocto | One byte changed on the card: the kernel rejected exactly the data block computed on the build host (75372). Before that, a partition label written by `wic` into the verified filesystem would have made the image fail its first boot — caught only by a byte comparison. |
+| [11](case-11-ab-update-four-failures-invisible-on-the-build-host.md) | Security / systemd | Signed A/B updates failed three times on the board for reasons the build host couldn't show: a BusyBox applet missing after the package cut (SSH died with it), SSH depending on the new data partition, and an ordering cycle that made systemd silently delete the health check. Then a stale bundle became a real bad update — and the one-shot `tryboot` rolled it back. |
 
 ## Recurring lessons
 

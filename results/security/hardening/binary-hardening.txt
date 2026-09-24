@@ -1,0 +1,322 @@
+Compile-time hardening of device-platform-image-ab's root filesystem (2026-09-24)
+security/hardening/binary-hardening-report.py /opt/yocto/build-verity/tmp/work/raspberrypi5-poky-linux/device-platform-image-ab/1.0/rootfs --list
+(poky's security_flags.inc: -fstack-protector-strong, -D_FORTIFY_SOURCE=2, PIE, -z relro -z now; glibc and gcc-runtime built without SECURITY_CFLAGS by design)
+
+executables: 178
+  pie          178/178  (100.0 %)
+  relro        178/178  (100.0 %)
+  full_relro   178/178  (100.0 %)
+  nx           178/178  (100.0 %)
+  canary       172/178  ( 96.6 %)
+  fortify      157/178  ( 88.2 %)
+  bti_pac      178/178  (100.0 %)
+shared libraries: 94
+  relro         94/94  (100.0 %)
+  full_relro    94/94  (100.0 %)
+  nx            94/94  (100.0 %)
+  canary        80/94  ( 85.1 %)
+  fortify       60/94  ( 63.8 %)
+  bti_pac       92/94  ( 97.9 %)
+
+kind pie relro full nx  canary fortify bti/pac  path
+exe  y   y     y    y   y      y       y        opt/device-service/device-service
+exe  y   y     y    y   y      y       y        usr/bin/acq-bridge
+exe  y   y     y    y   y      y       y        usr/bin/bootctl
+exe  y   y     y    y   y      y       y        usr/bin/busctl
+exe  y   y     y    y   y      y       y        usr/bin/busybox.nosuid
+exe  y   y     y    y   y      y       y        usr/bin/busybox.suid
+exe  y   y     y    y   y      y       y        usr/bin/chvt.kbd
+exe  y   y     y    y   y      y       y        usr/bin/cvtsudoers
+exe  y   y     y    y   y      y       y        usr/bin/dbus-cleanup-sockets
+exe  y   y     y    y   y      y       y        usr/bin/dbus-daemon
+exe  y   y     y    y   y      y       y        usr/bin/dbus-launch
+exe  y   y     y    y   y      y       y        usr/bin/dbus-monitor
+exe  y   y     y    y   y      y       y        usr/bin/dbus-run-session
+exe  y   y     y    y   y      y       y        usr/bin/dbus-send
+exe  y   y     y    y   y      y       y        usr/bin/dbus-update-activation-environment
+exe  y   y     y    y   -      y       y        usr/bin/dbus-uuidgen
+exe  y   y     y    y   y      y       y        usr/bin/deallocvt.kbd
+exe  y   y     y    y   y      y       y        usr/bin/devbus-bench
+exe  y   y     y    y   y      y       y        usr/bin/devbus-ls
+exe  y   y     y    y   y      y       y        usr/bin/dumpkeys
+exe  y   y     y    y   y      y       y        usr/bin/fgconsole.kbd
+exe  y   y     y    y   y      y       y        usr/bin/getkeycodes
+exe  y   y     y    y   -      y       y        usr/bin/groups.shadow
+exe  y   y     y    y   y      y       y        usr/bin/hostnamectl
+exe  y   y     y    y   y      y       y        usr/bin/journalctl
+exe  y   y     y    y   y      y       y        usr/bin/kbd_mode
+exe  y   y     y    y   y      y       y        usr/bin/kbdinfo
+exe  y   y     y    y   y      y       y        usr/bin/kbdrate
+exe  y   y     y    y   y      y       y        usr/bin/kmod
+exe  y   y     y    y   y      y       y        usr/bin/loadkeys
+exe  y   y     y    y   y      y       y        usr/bin/loadunimap
+exe  y   y     y    y   y      y       y        usr/bin/localectl
+exe  y   y     y    y   y      y       y        usr/bin/login.shadow
+exe  y   y     y    y   y      y       y        usr/bin/loginctl
+exe  y   y     y    y   y      y       y        usr/bin/lz4
+exe  y   y     y    y   y      y       y        usr/bin/mapscrn
+exe  y   y     y    y   y      y       y        usr/bin/mksquashfs
+exe  y   y     y    y   y      y       y        usr/bin/mount.util-linux
+exe  y   y     y    y   y      y       y        usr/bin/mpicalc
+exe  y   y     y    y   y      y       y        usr/bin/networkctl
+exe  y   y     y    y   y      y       y        usr/bin/newgrp.shadow
+exe  y   y     y    y   y      y       y        usr/bin/openssl
+exe  y   y     y    y   y      y       y        usr/bin/openvt.kbd
+exe  y   y     y    y   y      y       y        usr/bin/psfxtable
+exe  y   y     y    y   y      y       y        usr/bin/rauc
+exe  y   y     y    y   y      y       y        usr/bin/resolvectl
+exe  y   y     y    y   -      y       y        usr/bin/scmp_sys_resolver
+exe  y   y     y    y   y      y       y        usr/bin/setfont
+exe  y   y     y    y   y      y       y        usr/bin/setkeycodes
+exe  y   y     y    y   y      y       y        usr/bin/setleds
+exe  y   y     y    y   y      y       y        usr/bin/setmetamode
+exe  y   y     y    y   y      y       y        usr/bin/setvtrgb
+exe  y   y     y    y   y      y       y        usr/bin/showconsolefont
+exe  y   y     y    y   y      y       y        usr/bin/showkey.kbd
+exe  y   y     y    y   y      y       y        usr/bin/su.shadow
+exe  y   y     y    y   y      y       y        usr/bin/sudo
+exe  y   y     y    y   y      y       y        usr/bin/sudoreplay
+exe  y   y     y    y   y      y       y        usr/bin/systemctl
+exe  y   y     y    y   -      y       y        usr/bin/systemd-ac-power
+exe  y   y     y    y   y      y       y        usr/bin/systemd-ask-password
+exe  y   y     y    y   y      y       y        usr/bin/systemd-cat
+exe  y   y     y    y   y      y       y        usr/bin/systemd-cgls
+exe  y   y     y    y   y      y       y        usr/bin/systemd-cgtop
+exe  y   y     y    y   y      y       y        usr/bin/systemd-creds
+exe  y   y     y    y   y      y       y        usr/bin/systemd-delta
+exe  y   y     y    y   y      y       y        usr/bin/systemd-detect-virt
+exe  y   y     y    y   y      y       y        usr/bin/systemd-dissect
+exe  y   y     y    y   y      y       y        usr/bin/systemd-escape
+exe  y   y     y    y   y      y       y        usr/bin/systemd-hwdb
+exe  y   y     y    y   y      y       y        usr/bin/systemd-id128
+exe  y   y     y    y   y      y       y        usr/bin/systemd-inhibit
+exe  y   y     y    y   y      y       y        usr/bin/systemd-machine-id-setup
+exe  y   y     y    y   y      y       y        usr/bin/systemd-mount
+exe  y   y     y    y   y      y       y        usr/bin/systemd-notify
+exe  y   y     y    y   y      y       y        usr/bin/systemd-path
+exe  y   y     y    y   y      y       y        usr/bin/systemd-run
+exe  y   y     y    y   y      y       y        usr/bin/systemd-socket-activate
+exe  y   y     y    y   y      y       y        usr/bin/systemd-stdio-bridge
+exe  y   y     y    y   y      y       y        usr/bin/systemd-sysusers
+exe  y   y     y    y   y      y       y        usr/bin/systemd-tmpfiles
+exe  y   y     y    y   y      y       y        usr/bin/systemd-tty-ask-password-agent
+exe  y   y     y    y   y      y       y        usr/bin/timedatectl
+exe  y   y     y    y   y      y       y        usr/bin/udevadm
+exe  y   y     y    y   y      y       y        usr/bin/umount.util-linux
+exe  y   y     y    y   y      y       y        usr/bin/unsquashfs
+exe  y   y     y    y   y      -       y        usr/bin/update-mime-database
+exe  y   y     y    y   y      y       y        usr/bin/userdbctl
+exe  y   y     y    y   y      y       y        usr/bin/varlinkctl
+exe  y   y     y    y   y      y       y        usr/bin/yat2m
+lib  y   y     y    y   y      y       y        usr/lib/cryptsetup/libcryptsetup-token-ssh.so
+exe  y   y     y    y   y      y       y        usr/lib/e2initrd_helper
+lib  y   y     y    y   -      -       y        usr/lib/ld-linux-aarch64.so.1
+lib  y   y     y    y   y      -       y        usr/lib/libBrokenLocale.so.1
+lib  y   y     y    y   y      y       y        usr/lib/libX11.so.6.4.0
+lib  y   y     y    y   y      y       y        usr/lib/libXau.so.6.0.0
+lib  y   y     y    y   y      -       y        usr/lib/libXdmcp.so.6.0.0
+lib  y   y     y    y   y      -       y        usr/lib/libacl.so.1.1.2302
+lib  y   y     y    y   -      -       y        usr/lib/libanl.so.1
+lib  y   y     y    y   y      -       y        usr/lib/libattr.so.1.1.2501
+lib  y   y     y    y   y      y       y        usr/lib/libblkid.so.1.1.0
+lib  y   y     y    y   -      -       y        usr/lib/libc.so.6
+lib  y   y     y    y   y      y       y        usr/lib/libcap.so.2.69
+lib  y   y     y    y   y      y       y        usr/lib/libcom_err.so.2.1
+lib  y   y     y    y   y      y       y        usr/lib/libcrypt.so.2.0.0
+lib  y   y     y    y   y      y       y        usr/lib/libcrypto.so.3
+lib  y   y     y    y   y      y       y        usr/lib/libcryptsetup.so.12.10.0
+lib  y   y     y    y   y      y       y        usr/lib/libcurl.so.4.8.0
+lib  y   y     y    y   y      y       y        usr/lib/libdbus-1.so.3.32.4
+lib  y   y     y    y   y      y       y        usr/lib/libdevmapper.so.1.02
+lib  y   y     y    y   -      -       y        usr/lib/libdl.so.2
+lib  y   y     y    y   y      y       y        usr/lib/libe2p.so.2.3
+lib  y   y     y    y   y      y       y        usr/lib/libexpat.so.1.10.0
+lib  y   y     y    y   y      y       y        usr/lib/libext2fs.so.2.4
+lib  y   y     y    y   y      y       y        usr/lib/libfdisk.so.1.1.0
+lib  y   y     y    y   y      -       -        usr/lib/libffi.so.8.1.4
+lib  y   y     y    y   y      y       y        usr/lib/libfmt.so.10.2.1
+lib  y   y     y    y   -      -       y        usr/lib/libgcc_s.so.1
+lib  y   y     y    y   y      y       y        usr/lib/libgcrypt.so.20.4.4
+lib  y   y     y    y   y      y       y        usr/lib/libgio-2.0.so.0.7800.6
+lib  y   y     y    y   y      y       y        usr/lib/libglib-2.0.so.0.7800.6
+lib  y   y     y    y   y      -       y        usr/lib/libgmodule-2.0.so.0.7800.6
+lib  y   y     y    y   y      y       y        usr/lib/libgobject-2.0.so.0.7800.6
+lib  y   y     y    y   y      y       y        usr/lib/libgpg-error.so.0.35.0
+lib  y   y     y    y   -      -       y        usr/lib/libgthread-2.0.so.0.7800.6
+lib  y   y     y    y   y      y       y        usr/lib/libidn2.so.0.4.0
+lib  y   y     y    y   y      y       y        usr/lib/libjson-c.so.5.3.0
+lib  y   y     y    y   y      -       y        usr/lib/libjson-glib-1.0.so.0.800.0
+lib  y   y     y    y   y      y       y        usr/lib/libkmod.so.2.4.1
+lib  y   y     y    y   y      -       y        usr/lib/liblz4.so.1.9.4
+lib  y   y     y    y   y      -       y        usr/lib/liblzma.so.5.4.7
+lib  y   y     y    y   y      -       y        usr/lib/liblzo2.so.2.0.0
+lib  y   y     y    y   y      -       y        usr/lib/libm.so.6
+lib  y   y     y    y   y      y       y        usr/lib/libmount.so.1.1.0
+lib  y   y     y    y   y      -       y        usr/lib/libmvec.so.1
+lib  y   y     y    y   y      y       y        usr/lib/libnl-3.so.200.26.0
+lib  y   y     y    y   y      y       y        usr/lib/libnl-genl-3.so.200.26.0
+lib  y   y     y    y   y      y       y        usr/lib/libnl-route-3.so.200.26.0
+lib  y   y     y    y   y      y       y        usr/lib/libnsl.so.1
+lib  y   y     y    y   y      -       y        usr/lib/libnss_compat.so.2
+lib  y   y     y    y   -      -       y        usr/lib/libnss_dns.so.2
+lib  y   y     y    y   -      -       y        usr/lib/libnss_files.so.2
+lib  y   y     y    y   y      y       y        usr/lib/libnss_myhostname.so.2
+lib  y   y     y    y   y      y       y        usr/lib/libnss_systemd.so.2
+lib  y   y     y    y   y      y       y        usr/lib/libpam.so.0.85.1
+lib  y   y     y    y   y      y       y        usr/lib/libpam_misc.so.0.82.1
+lib  y   y     y    y   y      y       y        usr/lib/libpamc.so.0.82.1
+lib  y   y     y    y   y      y       y        usr/lib/libpcre2-8.so.0.12.0
+lib  y   y     y    y   y      y       y        usr/lib/libpcre2-posix.so.3.0.5
+lib  y   y     y    y   y      y       y        usr/lib/libpopt.so.0.0.2
+lib  y   y     y    y   y      y       y        usr/lib/libpsx.so.2.69
+lib  y   y     y    y   -      -       y        usr/lib/libpthread.so.0
+lib  y   y     y    y   y      y       y        usr/lib/libresolv.so.2
+lib  y   y     y    y   -      -       y        usr/lib/librt.so.1
+lib  y   y     y    y   y      y       y        usr/lib/libseccomp.so.2.5.5
+lib  y   y     y    y   y      y       y        usr/lib/libsmartcols.so.1.1.0
+lib  y   y     y    y   y      y       y        usr/lib/libspdlog.so.1.13.0
+lib  y   y     y    y   y      y       y        usr/lib/libssh.so.4.9.6
+lib  y   y     y    y   y      y       y        usr/lib/libssl.so.3
+lib  y   y     y    y   -      -       y        usr/lib/libstdc++.so.6.0.32
+lib  y   y     y    y   y      y       y        usr/lib/libsystemd.so.0.38.0
+lib  y   y     y    y   y      y       y        usr/lib/libudev.so.1.7.8
+lib  y   y     y    y   y      y       y        usr/lib/libunistring.so.5.1.0
+lib  y   y     y    y   -      -       y        usr/lib/libutil.so.1
+lib  y   y     y    y   y      y       y        usr/lib/libuuid.so.1.3.0
+lib  y   y     y    y   y      y       y        usr/lib/libxcb.so.1.1.0
+lib  y   y     y    y   y      y       y        usr/lib/libxml2.so.2.12.10
+lib  y   y     y    y   y      y       y        usr/lib/libz.so.1.3.1
+lib  y   y     y    y   y      y       -        usr/lib/libzstd.so.1.5.5
+lib  y   y     y    y   y      -       y        usr/lib/ossl-modules/legacy.so
+lib  y   y     y    y   -      -       y        usr/lib/security/pam_deny.so
+lib  y   y     y    y   y      -       y        usr/lib/security/pam_permit.so
+lib  y   y     y    y   y      -       y        usr/lib/security/pam_umask.so
+lib  y   y     y    y   y      y       y        usr/lib/security/pam_unix.so
+lib  y   y     y    y   y      -       y        usr/lib/security/pam_warn.so
+lib  y   y     y    y   y      y       y        usr/lib/sudo/audit_json.so
+lib  y   y     y    y   y      -       y        usr/lib/sudo/group_file.so
+lib  y   y     y    y   y      y       y        usr/lib/sudo/libsudo_util.so.0.0.0
+lib  y   y     y    y   y      y       y        usr/lib/sudo/sudo_intercept.so
+lib  y   y     y    y   y      -       y        usr/lib/sudo/sudo_noexec.so
+lib  y   y     y    y   y      y       y        usr/lib/sudo/sudoers.so
+lib  y   y     y    y   y      -       y        usr/lib/sudo/system_group.so
+lib  y   y     y    y   y      y       y        usr/lib/systemd/libsystemd-core-255.so
+lib  y   y     y    y   y      y       y        usr/lib/systemd/libsystemd-shared-255.so
+exe  y   y     y    y   y      -       y        usr/lib/systemd/system-generators/systemd-debug-generator
+exe  y   y     y    y   y      y       y        usr/lib/systemd/system-generators/systemd-fstab-generator
+exe  y   y     y    y   y      -       y        usr/lib/systemd/system-generators/systemd-getty-generator
+exe  y   y     y    y   y      y       y        usr/lib/systemd/system-generators/systemd-gpt-auto-generator
+exe  y   y     y    y   y      -       y        usr/lib/systemd/system-generators/systemd-hibernate-resume-generator
+exe  y   y     y    y   y      -       y        usr/lib/systemd/system-generators/systemd-rc-local-generator
+exe  y   y     y    y   y      y       y        usr/lib/systemd/system-generators/systemd-run-generator
+exe  y   y     y    y   y      -       y        usr/lib/systemd/system-generators/systemd-system-update-generator
+exe  y   y     y    y   y      y       y        usr/lib/systemd/system-generators/systemd-sysv-generator
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-backlight
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-battery-check
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-boot-check-no-failures
+exe  y   y     y    y   -      -       y        usr/lib/systemd/systemd-cgroups-agent
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-executor
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-fsck
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-growfs
+exe  y   y     y    y   y      -       y        usr/lib/systemd/systemd-hibernate-resume
+exe  y   y     y    y   y      -       y        usr/lib/systemd/systemd-hostnamed
+exe  y   y     y    y   y      -       y        usr/lib/systemd/systemd-initctl
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-journald
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-localed
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-logind
+exe  y   y     y    y   y      -       y        usr/lib/systemd/systemd-makefs
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-modules-load
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-network-generator
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-networkd
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-networkd-wait-online
+exe  y   y     y    y   -      -       y        usr/lib/systemd/systemd-quotacheck
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-random-seed
+exe  y   y     y    y   y      -       y        usr/lib/systemd/systemd-remount-fs
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-reply-password
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-resolved
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-rfkill
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-shutdown
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-sleep
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-socket-proxyd
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-storagetm
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-sulogin-shell
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-sysctl
+exe  y   y     y    y   y      -       y        usr/lib/systemd/systemd-time-wait-sync
+exe  y   y     y    y   y      -       y        usr/lib/systemd/systemd-timedated
+exe  y   y     y    y   y      -       y        usr/lib/systemd/systemd-timesyncd
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-update-done
+exe  y   y     y    y   y      -       y        usr/lib/systemd/systemd-update-utmp
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-user-runtime-dir
+exe  y   y     y    y   y      -       y        usr/lib/systemd/systemd-userdbd
+exe  y   y     y    y   y      -       y        usr/lib/systemd/systemd-userwork
+exe  y   y     y    y   y      y       y        usr/lib/systemd/systemd-vconsole-setup
+exe  y   y     y    y   y      -       y        usr/lib/systemd/systemd-volatile-root
+exe  y   y     y    y   y      y       y        usr/lib/systemd/user-environment-generators/30-systemd-environment-d-generator
+exe  y   y     y    y   y      y       y        usr/lib/udev/ata_id
+exe  y   y     y    y   y      y       y        usr/lib/udev/cdrom_id
+exe  y   y     y    y   y      y       y        usr/lib/udev/dmi_memory_id
+exe  y   y     y    y   y      y       y        usr/lib/udev/fido_id
+exe  y   y     y    y   y      y       y        usr/lib/udev/iocost
+exe  y   y     y    y   y      y       y        usr/lib/udev/mtd_probe
+exe  y   y     y    y   y      y       y        usr/lib/udev/scsi_id
+exe  y   y     y    y   y      y       y        usr/lib/udev/v4l_id
+exe  y   y     y    y   y      y       y        usr/libexec/dbus-daemon-launch-helper
+exe  y   y     y    y   y      y       y        usr/libexec/gio-launch-desktop
+exe  y   y     y    y   y      -       y        usr/libexec/gio-querymodules
+exe  y   y     y    y   y      y       y        usr/libexec/sftp-server
+exe  y   y     y    y   y      y       y        usr/sbin/agetty
+exe  y   y     y    y   y      y       y        usr/sbin/cryptsetup
+exe  y   y     y    y   y      y       y        usr/sbin/cryptsetup-ssh
+exe  y   y     y    y   y      y       y        usr/sbin/dmsetup
+exe  y   y     y    y   y      y       y        usr/sbin/dropbearmulti
+exe  y   y     y    y   y      y       y        usr/sbin/faillock
+exe  y   y     y    y   y      y       y        usr/sbin/fsck.ext3
+exe  y   y     y    y   y      y       y        usr/sbin/fsck.util-linux
+exe  y   y     y    y   y      y       y        usr/sbin/integritysetup
+lib  y   y     y    y   -      -       y        usr/sbin/ldconfig
+exe  y   y     y    y   y      y       y        usr/sbin/mke2fs.e2fsprogs
+exe  y   y     y    y   y      y       y        usr/sbin/mkhomedir_helper
+exe  y   y     y    y   y      y       y        usr/sbin/pam_timestamp_check
+exe  y   y     y    y   y      y       y        usr/sbin/pwhistory_helper
+exe  y   y     y    y   y      y       y        usr/sbin/sudo_logsrvd
+exe  y   y     y    y   y      y       y        usr/sbin/sudo_sendlog
+exe  y   y     y    y   y      y       y        usr/sbin/sulogin.util-linux
+exe  y   y     y    y   y      y       y        usr/sbin/swapoff.util-linux
+exe  y   y     y    y   y      y       y        usr/sbin/swapon.util-linux
+exe  y   y     y    y   y      y       y        usr/sbin/unix_chkpwd
+exe  y   y     y    y   y      y       y        usr/sbin/unix_update
+exe  y   y     y    y   y      y       y        usr/sbin/veritysetup
+exe  y   y     y    y   y      y       y        usr/sbin/visudo
+exe  y   y     y    y   y      y       y        usr/sbin/wpa_cli
+exe  y   y     y    y   y      y       y        usr/sbin/wpa_passphrase
+exe  y   y     y    y   y      y       y        usr/sbin/wpa_supplicant
+
+canary/FORTIFY are a lower bound: only visible where the compiler inserted a check.
+
+== control 1: two aarch64 binaries of one test program, built with the project SDK
+kind pie relro full nx  canary fortify bti/pac  path
+exe  y   y     y    y   y      y       y        bin/sdk-default-flags
+exe  -   -     -    y   -      -       -        bin/unhardened
+
+  sdk-default-flags: $CC $CFLAGS $LDFLAGS from the SDK environment
+  unhardened: -fno-stack-protector -U_FORTIFY_SOURCE -no-pie -Wl,-z,norelro -Wl,-z,lazy
+
+== control 2: OP-TEE's buildroot rootfs (~/optee/out-br/target), a different build system's defaults
+executables: 67
+  pie           67/67  (100.0 %)
+  relro         67/67  (100.0 %)
+  full_relro    67/67  (100.0 %)
+  nx            67/67  (100.0 %)
+  canary        44/67  ( 65.7 %)
+  fortify       27/67  ( 40.3 %)
+  bti_pac        0/67  (  0.0 %)
+shared libraries: 54
+  relro         54/54  (100.0 %)
+  full_relro    31/54  ( 57.4 %)
+  nx            54/54  (100.0 %)
+  canary        29/54  ( 53.7 %)
+  fortify       18/54  ( 33.3 %)
+  bti_pac        0/54  (  0.0 %)
+
+canary/FORTIFY are a lower bound: only visible where the compiler inserted a check.

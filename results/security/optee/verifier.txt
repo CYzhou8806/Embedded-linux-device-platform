@@ -1,0 +1,7 @@
+nonce:     7c96c683dedd6076cdbf5f6180ed3e15dd0003cab45b293cdab6a87b43d916e9
+pubkey:    04063dbc84f231ea2552e2ed14a848c079a6f619da87b968f650bf88172f48a62db0bbf2d6218b9561651e9e2a88eb55226ba51fbbf3169e253fff7e3b55e8dec9
+signature: c43de0f424dcd86703d57b994f93af5ef35b37cad06220253f32f87f0fdde2f352a79e2c00a92448897e98616913bb53f9da4a49cf3e9108b1d4fa784dd48e18
+verify (correct nonce): VALID
+verify (other nonce):   INVALID
+same key after TA panic: yes
+re-provisioned after rollback: yes - a DIFFERENT identity: rollback accepted

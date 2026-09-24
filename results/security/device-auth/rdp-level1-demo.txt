@@ -1,0 +1,25 @@
+STM32F103 read-out protection level 1, on the project's MCU (2026-09-24, OpenOCD 0.12 + CMSIS-DAP)
+
+Before (RDP level 0 - finding F10 of the threat model):
+  FLASH_OBR  0x4002201c: 03fffffc        (RDPRT = 0)
+  key page   0x0807f800: 61b413d4 a88f1b26 ...   <- the device-authentication key, read by the debugger
+
+stm32f1x lock 0 -> "stm32x locked"
+  FLASH_OBR  0x4002201c: 03fffffe        (RDPRT = 1)
+  mdw 0x0807f800 -> Error: Failed to read memory at 0x0807f804
+
+MCU after the lock: no SPI response until a power-on reset of the STM32 board
+  (RM0008: with the debugger connected when protection is set, flash stays
+  inaccessible - to the CPU as well - until POR; NRST is not enough).
+After unplugging/replugging the STM32's power:
+  firmware runs, 3/3 authentications valid (41135..41622 cycles, acquisition running)
+  debugger read of the key page still fails
+Attaching the debugger again (openocd init) stopped the MCU again (fw_version -> EIO):
+  under RDP1 a debug probe can't read the key, but it can stop the device.
+
+stm32f1x unlock 0 -> "stm32x unlocked."
+  FLASH_OBR  0x4002201c: 03fffffc
+  0x0807f800: ffffffff ffffffff          <- key gone
+  0x08000000: ffffffff ffffffff          <- firmware gone: removing protection mass-erases the chip
+Restored: firmware v1.4 reprogrammed, tools/pair-mcu.sh (same UID -> same key, sha256 64875f9f...),
+  3/3 authentications valid. The MCU is left at RDP level 0 (development board).

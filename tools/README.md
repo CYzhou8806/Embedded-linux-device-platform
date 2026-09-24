@@ -11,6 +11,20 @@ CMSIS-DAP 等）插在 Windows 上，通过 usbipd-win + USB/IP 直通进 VM，V
 
 ## 装系统后跑一次（配置类）
 
+> **2026-09 起开发机换成了 Ubuntu 24.04 裸机**（不再是 Hyper-V 里的
+> AlmaLinux VM）：调试器直插 USB，下面 usbip 那套（`setup-windows.ps1`、
+> `setup-linux-mcu-toolchain.sh`、`debug-connect.sh`）只在回到 VM 方案时才需要。
+
+- **`setup-ubuntu-host.sh`**：Ubuntu 24.04 主机执行（`sudo bash`）。一次装齐
+  Yocto Scarthgap 主机依赖、本项目的编译/测试依赖、apt 版
+  arm-none-eabi-gcc + OpenOCD、安全工作要用的 SoftHSM2 / opensc /
+  cryptsetup / OP-TEE 构建依赖，建 `/opt/yocto`，并放开 AppArmor 对非特权
+  user namespace 的限制（bitbake 需要；这是对开发机的有意放宽）。
+
+  ```bash
+  sudo bash tools/setup-ubuntu-host.sh
+  ```
+
 - **`setup-windows.ps1`**：Windows 主机执行（管理员 PowerShell）。装
   usbipd-win、开放防火墙 TCP 3240、把 Hyper-V 虚拟网卡的网络分类改成
   Private（usbipd-win 对 Public 分类的连接有已知的静默拦截问题）。重复
@@ -31,6 +45,14 @@ CMSIS-DAP 等）插在 Windows 上，通过 usbipd-win + USB/IP 直通进 VM，V
   ```
 
 ## 日常用（干活类）
+
+- **`provision-device.sh`**：产线工站脚本（安全工作 B7）。设备自己生成身份密钥，
+  工站做持有证明、用 HSM 里的 Device CA 签发设备证书、追加审计记录。
+  说明见 [`docs/security/update-and-provisioning.md`](../docs/security/update-and-provisioning.md) §5。
+
+  ```bash
+  DEVICE_EXEC="ssh admin@192.168.178.173 sudo" tools/provision-device.sh
+  ```
 
 - **`debug-connect.sh`**：Linux VM 执行（`sudo bash`）。调试前先跑这个，
   自检（内核模块、usbip 客户端）+ 自愈 + 把调试器直通进 VM。已经连接的
