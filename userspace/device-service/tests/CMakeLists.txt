@@ -16,4 +16,7 @@ add_executable(device-service-tests
 target_include_directories(device-service-tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(device-service-tests PRIVATE GTest::gtest GTest::gtest_main Threads::Threads nlohmann_json::nlohmann_json spdlog::spdlog)
 
-gtest_discover_tests(device-service-tests)
+# PRE_TEST: list the tests when ctest runs, not at build time. Discovery at
+# build time executes the test binary, which fails in a cross build (an
+# aarch64 binary on an x86 host, e.g. with the Yocto SDK).
+gtest_discover_tests(device-service-tests DISCOVERY_MODE PRE_TEST)

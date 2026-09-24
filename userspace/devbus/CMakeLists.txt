@@ -50,5 +50,8 @@ if(BUILD_TESTING)
 	include(GoogleTest)
 	add_executable(devbus-tests tests/test_devbus.cpp)
 	target_link_libraries(devbus-tests PRIVATE devbus GTest::gtest GTest::gtest_main)
-	gtest_discover_tests(devbus-tests)
+	# PRE_TEST: list the tests when ctest runs, not at build time. Discovery at
+	# build time executes the test binary, which fails in a cross build (an
+	# aarch64 binary on an x86 host, e.g. with the Yocto SDK).
+	gtest_discover_tests(devbus-tests DISCOVERY_MODE PRE_TEST)
 endif()

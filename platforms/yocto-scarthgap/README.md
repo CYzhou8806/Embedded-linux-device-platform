@@ -40,6 +40,55 @@ podman build -t devbus-xbuild experiments/rt-kernel/
 The result is fully static, which is also why the same binaries run
 unmodified on [Raspberry Pi OS](../raspberry-pi-os/).
 
+### The SDK
+
+`bitbake -c populate_sdk device-platform-image` produces a standard SDK:
+a self-extracting installer with the cross toolchain and a **sysroot that
+matches the image exactly** — same glibc, same library versions, same
+compiler flags.
+
+```bash
+./poky-glibc-x86_64-device-platform-image-cortexa76-raspberrypi5-toolchain-5.0.20.sh -y -d ~/sdk/device-platform
+. ~/sdk/device-platform/environment-setup-cortexa76-poky-linux   # sets CC/CXX, --sysroot, OE's CMake toolchain file
+cmake -S userspace/devbus -B build-devbus -G Ninja && cmake --build build-devbus
+```
+
+| | |
+| --- | --- |
+| First SDK build | 49 min (on a machine that had already built the image) |
+| Rebuild after changing its contents | 5.6 min |
+| Installer / installed | 254 MB / 1.7 GB |
+| devbus / device-service, incl. unit tests | 7 s / 11 s |
+| Unit tests of the cross-built binaries | 16/16 and 28/28 pass under user-mode QEMU (`qemu-aarch64 -L <sysroot>`, Yocto's own `qemu-native`) — no board needed |
+
+Two things had to change before the SDK could build this repository:
+
+- **The sysroot only contains `-dev` packages of what is installed in the
+  image.** nlohmann-json is header-only and GoogleTest is test-only, so
+  neither is ever installed, and the first SDK could build devbus but not
+  device-service. `TOOLCHAIN_TARGET_TASK:append = " nlohmann-json-dev
+  googletest-dev"` in the image recipe adds build-only dependencies.
+- **`gtest_discover_tests()` ran the test binary at build time** to list
+  its tests — an aarch64 binary on an x86 host. `DISCOVERY_MODE PRE_TEST`
+  defers that to `ctest`, which runs where the binary can run.
+
+Compared with the podman container above: the SDK's sysroot is the image's
+own, so a binary built with it links against exactly what the target has,
+dynamically, and picks up the image's hardening flags
+(`-fstack-protector-strong -D_FORTIFY_SOURCE=2 -mbranch-protection=standard`,
+full RELRO) — nothing assembled by hand. The container is lighter (no
+Yocto build needed) and its static binaries run on both distributions,
+which is why the kernel experiments kept using it.
+
+`populate_sdk_ext` builds the **extensible SDK** instead: it carries a
+BitBake environment and sstate, and adds `devtool` — `devtool modify
+device-service` checks the recipe's source out into a workspace,
+`devtool build` / `devtool deploy-target` build it and copy it to the board
+over SSH, and `devtool finish` turns the changes into patches or a
+bbappend in a layer. The standard SDK is for application developers who
+only need to compile against the image; the eSDK is for people who
+change recipes without a full Yocto setup of their own.
+
 ## Deployment
 
 - Image components: reflashed, or hot-swapped for iteration (`scp` the

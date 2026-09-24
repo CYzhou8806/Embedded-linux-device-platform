@@ -49,3 +49,10 @@ KERNEL_DEVICETREE:append = " overlays/custom-acq.dtbo"
 # config.txt) is a shared recipe, not specific to this image, so a
 # variable set only in this recipe has no effect on it. See layer.conf's
 # RPI_EXTRA_CONFIG comment.
+
+# SDK (bitbake -c populate_sdk device-platform-image): the sysroot gets the
+# -dev packages of what is *installed in the image*. nlohmann-json is
+# header-only and gtest is test-only, so neither is ever installed, and
+# without this line the SDK can build devbus but not device-service or any
+# of the unit tests. See platforms/yocto-scarthgap/README.md.
+TOOLCHAIN_TARGET_TASK:append = " nlohmann-json-dev googletest-dev"
