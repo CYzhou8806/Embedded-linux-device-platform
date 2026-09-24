@@ -1,0 +1,8 @@
+#!/bin/sh
+# Install a signed RAUC bundle into the other slot and boot it once.
+#   device-platform-update <bundle.raucb>
+set -eu
+[ $# -eq 1 ] || { echo "usage: $0 <bundle.raucb>" >&2; exit 2; }
+rauc install "$1"
+echo "installed; booting the new slot once through tryboot"
+systemctl reboot --reboot-argument="0 tryboot"

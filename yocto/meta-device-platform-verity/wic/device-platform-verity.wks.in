@@ -1,0 +1,10 @@
+# SD card for device-platform-image-verity: meta-raspberrypi's boot
+# partition, and the root filesystem copied byte for byte from the
+# dm-verity image (data followed by its hash tree). rawcopy, not the rootfs
+# plugin: the partition must be exactly the image the root hash was computed
+# over. No --label here: wic writes a label into the filesystem it copies,
+# which changes the superblock after the hash tree was built (found by
+# comparing the partition with the .verity file - it no longer matched).
+# --fstype only sets the partition type (83).
+part /boot --source bootimg-partition --ondisk mmcblk0 --fstype=vfat --label boot --active --align 4096 --size 100
+part / --source rawcopy --ondisk mmcblk0 --fstype=ext4 --sourceparams="file=${IMGDEPLOYDIR}/${DM_VERITY_IMAGE}-${MACHINE}${IMAGE_NAME_SUFFIX}.${DM_VERITY_IMAGE_TYPE}.verity" --align 4096

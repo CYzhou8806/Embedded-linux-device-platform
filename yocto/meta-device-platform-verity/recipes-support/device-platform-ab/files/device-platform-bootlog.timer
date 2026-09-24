@@ -1,0 +1,8 @@
+[Unit]
+Description=Boot recorder, two minutes after boot
+
+[Timer]
+OnBootSec=2min
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,32 @@
+/*
+ * ramoops for the Raspberry Pi 5: keep the previous boot's kernel log in
+ * RAM across a reboot, readable in /sys/fs/pstore afterwards.
+ *
+ * The kernel tree's "ramoops" overlay writes reg as <addr size> (one cell
+ * each); BCM2712's reserved-memory node uses two address cells and one size
+ * cell. "ramoops-pi4" has that layout but declares brcm,bcm2711, so the Pi 5
+ * firmware doesn't take it either. With the generic one, dtoverlay=ramoops
+ * was accepted in config.txt and silently produced no node - found on the
+ * board (no /proc/device-tree/reserved-memory/ramoops*, no /sys/fs/pstore).
+ *
+ * 256 KiB at 0x0b000000 (above the 64 MiB CMA pool at 0x06000000):
+ * 128 KiB console log of the previous boot, 2 x 64 KiB oops/panic records.
+ */
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2712";
+
+	fragment@0 {
+		target = <&rmem>;
+		__overlay__ {
+			ramoops: ramoops@b000000 {
+				compatible = "ramoops";
+				reg = <0x0 0x0b000000 0x40000>;
+				record-size = <0x10000>;
+				console-size = <0x20000>;
+			};
+		};
+	};
+};

@@ -1,0 +1,6 @@
+# device-service runs as the unprivileged user "acq" in this image
+# (docs/security/hardening.md): it needs /dev/acq0 and write access to the
+# two sysfs attributes it drives - control (start/stop) and sample_rate
+# (backpressure). Nothing else of the driver is writable by it.
+SUBSYSTEM=="misc", KERNEL=="acq0", GROUP="acq", MODE="0660"
+ACTION=="add|bind", SUBSYSTEM=="spi", DRIVER=="custom-acq", RUN+="/bin/sh -c 'chgrp acq /sys%p/control /sys%p/sample_rate && chmod g+w /sys%p/control /sys%p/sample_rate'"

@@ -1,0 +1,6 @@
+[Unit]
+Description=Write this boot's log to the autoboot partition (boot recorder)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/device-platform-bootlog

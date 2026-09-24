@@ -1,0 +1,27 @@
+#!/bin/sh
+# Boot recorder: the journal lives in RAM on this read-only system, so after
+# a bad boot there is nothing to read. Two minutes after boot, write the
+# failed units, the key services' status and the whole boot journal to the
+# small FAT partition 1 (autoboot), keeping the last three boots. Readable
+# by pulling the card, no network needed.
+# Note: this puts logs on an unencrypted partition - a development aid.
+set -u
+mnt=$(mktemp -d /run/bootlog.XXXXXX)
+mount -t vfat /dev/mmcblk0p1 "$mnt" || exit 1
+rm -f "$mnt/bootlog-3.txt"
+[ -e "$mnt/bootlog-2.txt" ] && mv "$mnt/bootlog-2.txt" "$mnt/bootlog-3.txt"
+[ -e "$mnt/bootlog-1.txt" ] && mv "$mnt/bootlog-1.txt" "$mnt/bootlog-2.txt"
+{
+	date; cat /proc/cmdline
+	echo "== failed units"; systemctl --failed --no-pager
+	echo "== status"; systemctl status device-platform-data dropbearkey dropbear.socket device-service device-platform-healthcheck --no-pager -l
+	# ramoops (dtoverlay=ramoops): the kernel log of the boot *before* this
+	# one, kept in RAM across the reboot - the only trace of a boot that
+	# died before this recorder could run (a verity restart, a panic).
+	# This systemd is built without pstore support, so nothing mounts it.
+	mountpoint -q /sys/fs/pstore || mount -t pstore pstore /sys/fs/pstore
+	echo "== pstore (previous boot)"; ls -la /sys/fs/pstore 2>&1
+	for f in /sys/fs/pstore/*; do [ -f "$f" ] && { echo "-- $f"; tail -n 60 "$f"; }; done
+	echo "== journal"; journalctl -b --no-pager -o short-monotonic
+} > "$mnt/bootlog-1.txt" 2>&1
+sync; umount "$mnt"; rmdir "$mnt"

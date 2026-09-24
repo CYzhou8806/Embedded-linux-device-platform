@@ -1,0 +1,16 @@
+#!/bin/sh
+# Pick where the SSH host key lives, and make sure one exists there.
+# /data (persistent, encrypted) when it is mounted and writable, otherwise
+# /run (lost at reboot). SSH must never depend on /data working: that is the
+# component most likely to break, and SSH is how it gets fixed.
+set -u
+if mountpoint -q /data && [ ! -e /run/device-platform-data.degraded ] && mkdir -p /data/dropbear 2>/dev/null; then
+	dir=/data/dropbear
+else
+	dir=/run/dropbear
+	mkdir -p "$dir"
+	echo "dropbear-hostkey: /data not usable - host key in $dir (changes every boot)" >&2
+fi
+chmod 0700 "$dir"
+[ -e "$dir/dropbear_rsa_host_key" ] || dropbearkey -t rsa -f "$dir/dropbear_rsa_host_key" >/dev/null
+ln -sfn "$dir" /run/dropbear-hostkey

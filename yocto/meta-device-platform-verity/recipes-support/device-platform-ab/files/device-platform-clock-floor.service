@@ -1,0 +1,14 @@
+[Unit]
+Description=Move the clock forward to the last known time (no RTC)
+DefaultDependencies=no
+After=device-platform-data.service
+Wants=device-platform-data.service
+Before=time-set.target systemd-timesyncd.service sysinit.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/device-platform-clock-floor apply
+
+[Install]
+WantedBy=sysinit.target

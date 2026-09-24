@@ -1,0 +1,37 @@
+#!/bin/sh
+# The board has no RTC battery: every boot starts at systemd's built-in time
+# epoch (2025-06-26 in this build), and certificate checks fail until NTP has
+# synced (docs/security/update-and-provisioning.md §7). This gives the clock
+# a floor that only moves forward:
+#   - the image's build time (written into the rootfs at build time), and
+#   - the last time this device saw a correct clock (/data/clock, updated
+#     below whenever systemd reports the clock synchronised).
+#   device-platform-clock-floor apply   early at boot, after /data is mounted
+#   device-platform-clock-floor save    periodically
+set -u
+STAMP=/data/clock
+BUILD=/etc/device-platform-build-time
+now=$(date +%s)
+case "${1:-apply}" in
+apply)
+	floor=0
+	[ -r "$BUILD" ] && floor=$(cat "$BUILD")
+	if [ -r "$STAMP" ]; then
+		saved=$(cat "$STAMP")
+		[ "$saved" -gt "$floor" ] 2>/dev/null && floor=$saved
+	fi
+	if [ "$now" -lt "$floor" ]; then
+		date -u -s "@$floor" >/dev/null && \
+			echo "clock-floor: clock was $(date -u -d "@$now" 2>/dev/null || echo "@$now"), moved forward to @$floor"
+	else
+		echo "clock-floor: clock @$now is past the floor @$floor"
+	fi
+	;;
+save)
+	# Only a clock that NTP confirmed is worth remembering.
+	if [ -e /run/systemd/timesync/synchronized ] && mountpoint -q /data && \
+	   [ ! -e /run/device-platform-data.degraded ]; then
+		echo "$now" > "$STAMP.tmp" && mv "$STAMP.tmp" "$STAMP"
+	fi
+	;;
+esac

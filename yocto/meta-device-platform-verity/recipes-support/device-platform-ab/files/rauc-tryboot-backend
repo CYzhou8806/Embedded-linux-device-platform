@@ -1,0 +1,128 @@
+#!/bin/sh
+# RAUC "custom" bootloader backend for the Raspberry Pi 5 firmware's own A/B
+# support (autoboot.txt + one-shot tryboot), instead of U-Boot.
+# docs/security/update-and-provisioning.md §3.
+#
+#   autoboot.txt on the small FAT partition 1:
+#     [all]
+#     tryboot_a_b=1
+#     boot_partition=<committed slot>     2 = A, 3 = B
+#     [tryboot]
+#     boot_partition=<slot to try once>
+#
+# Policy:
+#   set-primary X      only [tryboot] is pointed at X. The new slot is booted
+#                      once (reboot "0 tryboot"); any later reboot - watchdog,
+#                      power loss, a hang and a power cycle - returns to the
+#                      committed slot.
+#   set-state X good   if X is the slot that is running and it isn't the
+#                      committed one yet, commit it: [all] -> X, [tryboot] ->
+#                      the other slot. This is what `rauc status mark-good`
+#                      triggers after the health check passed.
+#   set-state X bad    remembered in STATE_DIR; never committed.
+#
+# Test hooks (the host tests use them): AUTOBOOT_FILE operates on a plain file
+# instead of mounting partition 1; PARTITION_FILE replaces the device-tree
+# node the firmware fills in; STATE_DIR defaults to the data partition.
+set -eu
+
+AUTOBOOT_DEV="${AUTOBOOT_DEV:-/dev/mmcblk0p1}"
+PARTITION_FILE="${PARTITION_FILE:-/proc/device-tree/chosen/bootloader/partition}"
+STATE_DIR="${STATE_DIR:-/data/rauc/slot-state}"
+
+die() { echo "rauc-tryboot-backend: $*" >&2; exit 1; }
+
+part_of() { case "$1" in A) echo 2 ;; B) echo 3 ;; *) die "unknown slot '$1'" ;; esac; }
+slot_of() { case "$1" in 2) echo A ;; 3) echo B ;; *) die "unexpected boot partition '$1'" ;; esac; }
+other() { case "$1" in A) echo B ;; B) echo A ;; esac; }
+
+# Print the value of boot_partition in section $1 ("all" or "tryboot").
+read_autoboot() {
+	awk -v want="[$1]" '
+		/^\[/ { sec = $0; next }
+		sec == want && /^boot_partition=/ { sub(/^boot_partition=/, ""); print; exit }
+	' "$2"
+}
+
+# Run "$@" with the path of the current autoboot.txt appended; writes go to
+# a temporary file that replaces it only once complete.
+with_autoboot() {
+	if [ -n "${AUTOBOOT_FILE:-}" ]; then
+		"$@" "$AUTOBOOT_FILE"
+		return
+	fi
+	mnt=$(mktemp -d /run/autoboot.XXXXXX)
+	mount -t vfat "$AUTOBOOT_DEV" "$mnt" || die "cannot mount $AUTOBOOT_DEV"
+	rc=0
+	"$@" "$mnt/autoboot.txt" || rc=$?
+	sync
+	umount "$mnt"
+	rmdir "$mnt"
+	return $rc
+}
+
+write_autoboot() {  # write_autoboot <committed part> <tryboot part> <path>
+	tmp="$3.new"
+	printf '[all]\ntryboot_a_b=1\nboot_partition=%s\n[tryboot]\nboot_partition=%s\n' "$1" "$2" > "$tmp"
+	sync
+	mv "$tmp" "$3"
+}
+
+current() {
+	# 4-byte big-endian cell written by the firmware. hexdump, not od: the
+	# BusyBox od on the image has no -A/-t.
+	p=$(hexdump -v -e '1/1 "%u "' "$PARTITION_FILE" 2>/dev/null | awk '{print $NF}')
+	[ -n "$p" ] || die "cannot read $PARTITION_FILE"
+	slot_of "$p"
+}
+
+get_primary() { slot_of "$(read_autoboot all "$1")"; }
+
+set_primary() {  # set_primary <slot> <path>
+	committed=$(read_autoboot all "$2")
+	write_autoboot "$committed" "$(part_of "$1")" "$2"
+}
+
+commit() {  # commit <slot> <path>
+	write_autoboot "$(part_of "$1")" "$(part_of "$(other "$1")")" "$2"
+}
+
+cmd="${1:-}"
+case "$cmd" in
+get-current)
+	current
+	;;
+get-primary)
+	with_autoboot get_primary
+	;;
+set-primary)
+	[ $# -eq 2 ] || die "usage: set-primary <A|B>"
+	part_of "$2" > /dev/null
+	with_autoboot set_primary "$2"
+	;;
+get-state)
+	[ $# -eq 2 ] || die "usage: get-state <A|B>"
+	if [ -e "$STATE_DIR/$2.bad" ]; then echo bad; else echo good; fi
+	;;
+set-state)
+	[ $# -eq 3 ] || die "usage: set-state <A|B> <good|bad>"
+	part_of "$2" > /dev/null
+	mkdir -p "$STATE_DIR"
+	case "$3" in
+	bad)
+		touch "$STATE_DIR/$2.bad"
+		;;
+	good)
+		rm -f "$STATE_DIR/$2.bad"
+		if [ "$(current)" = "$2" ] && [ "$(with_autoboot get_primary)" != "$2" ]; then
+			with_autoboot commit "$2"
+			echo "rauc-tryboot-backend: committed slot $2" >&2
+		fi
+		;;
+	*) die "state must be good or bad" ;;
+	esac
+	;;
+*)
+	die "usage: $0 get-current | get-primary | set-primary <slot> | get-state <slot> | set-state <slot> <good|bad>"
+	;;
+esac

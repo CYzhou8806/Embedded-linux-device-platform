@@ -1,0 +1,15 @@
+# device-platform-image-ab: A/B with the Raspberry Pi 5 firmware's autoboot.txt.
+#   p1  autoboot   FAT, only autoboot.txt - which boot partition is committed / tried
+#   p2  boot A     FAT, kernel + dm-verity initramfs; cmdline-a.txt -> root p5, rauc.slot=A
+#   p3  boot B     same for slot B; cmdline-b.txt -> root p6
+#   p5  rootfs A   dm-verity image (data + hash tree), byte for byte
+#   p6  rootfs B   same image at first; RAUC writes the new one here
+#   p7  data       LUKS2, created on first boot (device-platform-data)
+# rawcopy without --label for the verity images: a label is written into the
+# filesystem and would break the hash tree (case 10).
+part --source rawcopy --sourceparams="file=${IMGDEPLOYDIR}/autoboot.vfat" --ondisk mmcblk0 --fstype=vfat --active --align 4096
+part --source bootimg-partition --ondisk mmcblk0 --fstype=vfat --label bootA --align 4096 --size 128
+part --source bootimg-partition --ondisk mmcblk0 --fstype=vfat --label bootB --align 4096 --size 128
+part / --source rawcopy --ondisk mmcblk0 --fstype=ext4 --sourceparams="file=${IMGDEPLOYDIR}/${DM_VERITY_IMAGE}-${MACHINE}${IMAGE_NAME_SUFFIX}.${DM_VERITY_IMAGE_TYPE}.verity" --align 4096
+part --source rawcopy --ondisk mmcblk0 --fstype=ext4 --sourceparams="file=${IMGDEPLOYDIR}/${DM_VERITY_IMAGE}-${MACHINE}${IMAGE_NAME_SUFFIX}.${DM_VERITY_IMAGE_TYPE}.verity" --align 4096
+part --ondisk mmcblk0 --fstype=ext4 --label data --size 1024 --align 4096

@@ -1,0 +1,20 @@
+[Unit]
+Description=Encrypted data partition (/data)
+# Everything that must survive the read-only root lives here: the SSH host
+# key, RAUC's slot state.
+DefaultDependencies=no
+After=local-fs-pre.target dev-mmcblk0p7.device
+Requires=dev-mmcblk0p7.device
+Before=local-fs.target dropbearkey.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# First boot formats the partition; don't let a default start timeout kill
+# it half way.
+TimeoutStartSec=5min
+ExecStart=/usr/sbin/device-platform-data
+ExecStop=/bin/sh -c 'umount /data; cryptsetup close data'
+
+[Install]
+WantedBy=local-fs.target

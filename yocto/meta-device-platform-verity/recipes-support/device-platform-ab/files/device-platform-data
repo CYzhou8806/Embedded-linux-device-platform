@@ -1,0 +1,71 @@
+#!/bin/sh
+# Open (and on first boot create) the encrypted data partition, mount it on
+# /data. docs/security/integrity-and-encryption.md §3.
+#
+# !!! KEY STAND-IN, NOT SECURE !!!
+# The key is SHA-256 over the board's serial number and a fixed label. Anyone
+# holding the card and knowing (or reading) the serial can derive it. The
+# design derives it with the firmware's HMAC service from the OTP device key
+# (rpi-fw-crypto hmac, then HMAC_LOCKED|READ_LOCKED until reboot); programming
+# that OTP key is irreversible and is not done on this project's only board.
+# What this script *does* show for real: LUKS2 on the Pi, the boot ordering,
+# persistence of state that must survive a read-only root, and the cost.
+set -u
+# Only commands this image has: no coreutils "install" here (found the hard
+# way - it took SSH down with it on the first boot of this image).
+DEV="${DATA_DEV:-/dev/mmcblk0p7}"
+NAME=data
+MNT=/data
+
+key() {
+	serial=$(tr -d '\0' < /proc/device-tree/serial-number)
+	printf 'device-platform-data-v1:%s' "$serial" | sha256sum | cut -d' ' -f1 | tr -d '\n'
+}
+
+setup() {
+	set -e
+	if ! cryptsetup isLuks "$DEV"; then
+		echo "device-platform-data: $DEV is not LUKS yet - creating (first boot)"
+		# The key is 256 bits of (pseudo)random material, not a passphrase,
+		# so a slow memory-hard KDF buys nothing here; pbkdf2 keeps unlock fast.
+		# --integrity: authenticated encryption. Plain XTS only hides data;
+		# a changed ciphertext sector decrypts to garbage the filesystem
+		# reads without complaint. With a per-sector HMAC (dm-integrity) it
+		# is an I/O error instead. The format wipes the whole partition to
+		# initialise the tags - slow once, on first boot.
+		key | cryptsetup luksFormat --batch-mode --type luks2 \
+			--cipher aes-xts-plain64 --key-size 512 \
+			--integrity hmac-sha256 \
+			--pbkdf pbkdf2 --pbkdf-force-iterations 1000 \
+			--key-file - "$DEV"
+		echo "device-platform-data: luksFormat done, opening"
+		key | cryptsetup open --key-file - "$DEV" "$NAME"
+		echo "device-platform-data: creating ext4"
+		mkfs.ext4 -q -L data "/dev/mapper/$NAME"
+	elif [ ! -e "/dev/mapper/$NAME" ]; then
+		key | cryptsetup open --key-file - "$DEV" "$NAME"
+	fi
+	# Idempotent: a unit that Wants= this one can start it a second time.
+	if ! mountpoint -q "$MNT"; then
+		echo "device-platform-data: mounting"
+		mkdir -p "$MNT"
+		mount -o nodev,nosuid "/dev/mapper/$NAME" "$MNT"
+	fi
+}
+
+# Not "if (setup)": inside an if condition errexit is ignored even in the
+# subshell, and a failing step would carry on and report success.
+(setup)
+rc=$?
+if [ $rc -eq 0 ]; then
+	echo "device-platform-data: $MNT mounted from LUKS $DEV"
+else
+	# Degraded mode: keep the device reachable (SSH needs a writable place for
+	# its host key) but mark the boot unhealthy, so an update that broke this
+	# is never committed (device-platform-healthcheck).
+	echo "device-platform-data: FAILED to set up $DEV - /data is a tmpfs for this boot" >&2
+	mountpoint -q "$MNT" || mount -t tmpfs -o mode=0755,nodev,nosuid tmpfs "$MNT"
+	touch /run/device-platform-data.degraded
+fi
+mkdir -p "$MNT/dropbear" "$MNT/rauc"
+chmod 0700 "$MNT/dropbear" "$MNT/rauc"

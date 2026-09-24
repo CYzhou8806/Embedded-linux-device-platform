@@ -1,0 +1,13 @@
+[Unit]
+Description=Commit the booted RAUC slot once the device is healthy
+# Started by device-platform-healthcheck.timer, not WantedBy=multi-user.target:
+# device-service.service is ordered After=multi-user.target, so "after
+# device-service" plus "wanted by multi-user" made an ordering cycle, and
+# systemd silently deleted this job at every boot - the slot was never
+# committed (safe, but the gate didn't exist). Found on the board.
+After=device-service.service device-platform-data.service
+Wants=device-platform-data.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/device-platform-healthcheck

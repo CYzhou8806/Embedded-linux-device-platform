@@ -1,0 +1,41 @@
+#!/bin/sh
+# Gate for device-service: the acquisition MCU must prove it holds the key
+# it was paired with, before any of its samples are used
+# (docs/security/device-authentication.md §7).
+#
+#   nonce  = 16 bytes from the kernel RNG
+#   answer = what the MCU returns through the driver (auth_challenge/auth_response)
+#   expect = HMAC-SHA256(K, "acq-auth-v1" || DEVICE_ID || FW_VERSION || nonce)[:16]
+#
+# K comes from /data/devauth/mcu.key (32 bytes, root 0600), put there at
+# pairing time (tools/pair-mcu.sh). STAND-IN: the design derives K on the
+# device from the Pi's OTP key through the firmware HMAC service; this is a
+# file on the encrypted data partition instead. Missing key, wrong answer or
+# no answer: exit 1 - device-service doesn't start, the health check fails,
+# and an update that broke this is never committed.
+# Only BusyBox + openssl: no xxd, no od -A; printf '\xHH' works in ash.
+set -u
+D=/sys/bus/spi/devices/spi0.0
+KEY=${MCU_AUTH_KEY:-/data/devauth/mcu.key}
+fail() { echo "mcu-auth: FAIL - $*" >&2; exit 1; }
+
+[ -r "$KEY" ] || fail "no pairing key at $KEY"
+hexkey=$(hexdump -v -e '1/1 "%02x"' "$KEY")
+[ ${#hexkey} -eq 64 ] || fail "pairing key is not 32 bytes"
+dev=$(cat $D/device_id 2>/dev/null) || fail "MCU not answering (device_id)"
+fw=$(cat $D/fw_version 2>/dev/null) || fail "MCU not answering (fw_version)"
+dev=$(printf '%08x' "$dev"); fw=$(printf '%08x' "$fw")
+
+nonce=$(dd if=/dev/urandom bs=16 count=1 2>/dev/null | hexdump -v -e '1/1 "%02x"')
+printf '%s' "$nonce" > $D/auth_challenge || fail "could not send the challenge"
+answer=$(cat $D/auth_response 2>/dev/null) || fail "no answer from the MCU"
+
+tohex_esc() { echo "$1" | sed 's/../\\x&/g'; }
+expect=$( { printf 'acq-auth-v1'; printf "$(tohex_esc "$dev$fw$nonce")"; } \
+	| openssl dgst -sha256 -mac HMAC -macopt "hexkey:$hexkey" -r | cut -c1-32)
+
+if [ "$answer" = "$expect" ]; then
+	echo "mcu-auth: OK - MCU 0x$dev fw 0x$fw answered the challenge ($(cat $D/auth_cycles 2>/dev/null) cycles)"
+	exit 0
+fi
+fail "wrong answer from MCU 0x$dev (not the paired device, or not paired)"

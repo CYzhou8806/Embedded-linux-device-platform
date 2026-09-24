@@ -1,0 +1,6 @@
+[Unit]
+Description=Remember the current (NTP-synchronised) time on /data
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/device-platform-clock-floor save
