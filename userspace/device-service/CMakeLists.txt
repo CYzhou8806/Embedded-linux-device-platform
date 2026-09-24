@@ -36,6 +36,8 @@ add_executable(device-service
 #      the sysroot, and device-service's recipe DEPENDS on it);
 #   2. the sibling source tree, for a development-host build where nothing
 #      has been installed.
+option(BUILD_TESTING "Build device-service-tests (requires GTest)" ON)
+
 find_path(DEVBUS_INCLUDE_DIR devbus/devbus.hpp)
 find_library(DEVBUS_LIBRARY devbus)
 if(DEVBUS_INCLUDE_DIR AND DEVBUS_LIBRARY)
@@ -43,8 +45,13 @@ if(DEVBUS_INCLUDE_DIR AND DEVBUS_LIBRARY)
 	set(DEVBUS_TARGET ${DEVBUS_LIBRARY})
 elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../devbus/CMakeLists.txt)
 	message(STATUS "devbus: building the sibling source tree")
-	set(BUILD_TESTING OFF CACHE BOOL "" FORCE) # devbus's own tests need GTest; not our concern here
+	# devbus's own tests are not our concern here. Turned off with a normal
+	# variable that shadows the cache entry only for the add_subdirectory()
+	# call - a CACHE FORCE here would also switch off device-service's own
+	# tests below, which is what it silently did before.
+	set(BUILD_TESTING OFF)
 	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../devbus ${CMAKE_BINARY_DIR}/devbus EXCLUDE_FROM_ALL)
+	unset(BUILD_TESTING)
 	set(DEVBUS_TARGET devbus)
 	set(DEVBUS_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../devbus/include)
 else()
@@ -60,7 +67,6 @@ target_compile_options(device-service PRIVATE -Wall -Wextra)
 # Yocto recipe (yocto/meta-device-platform) install paths agree.
 install(TARGETS device-service RUNTIME DESTINATION /opt/device-service)
 
-option(BUILD_TESTING "Build device-service-tests (requires GTest)" ON)
 if(BUILD_TESTING)
 	enable_testing()
 	add_subdirectory(tests)

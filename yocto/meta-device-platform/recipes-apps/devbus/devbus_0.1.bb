@@ -14,7 +14,14 @@ inherit cmake
 # duplicating it inside the layer.
 FILESEXTRAPATHS:prepend := "${THISDIR}/../../../../userspace:"
 
-SRC_URI = "file://devbus"
+# devbus-bench also compares against device-service's RingBuffer and
+# includes it through ../device-service/include. Fetching that directory too
+# recreates the same relative layout under ${WORKDIR} - without it the
+# recipe fails in do_compile, which a development-host build (where the two
+# trees are always side by side) never shows.
+SRC_URI = "file://devbus \
+           file://device-service/include \
+          "
 
 S = "${WORKDIR}/devbus"
 

@@ -12,6 +12,11 @@ LICENSE = "CLOSED"
 # builds (just without working WiFi until someone sets the real path).
 DEVICE_PLATFORM_WPA_CONF ?= "${THISDIR}/files/wpa_supplicant.conf.example"
 
+# That file is not in SRC_URI, so BitBake doesn't see its contents: without
+# this, replacing a placeholder with the real credentials leaves the task
+# hash unchanged and sstate quietly reinstalls the old file.
+do_install[file-checksums] += "${DEVICE_PLATFORM_WPA_CONF}:True"
+
 SRC_URI = "file://wlan0.network \
            file://wpa_supplicant-wlan0.service \
            file://99-device-platform.preset \

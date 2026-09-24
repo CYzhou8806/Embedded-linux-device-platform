@@ -8,8 +8,15 @@
 
 ## 一次性环境准备
 
-1. **主机装编译依赖**（AlmaLinux/RHEL 9 家族，来源：Yocto 官方系统
-   需求文档）：
+1. **主机装编译依赖**。
+
+   **Ubuntu 24.04（当前的开发机，2026-09 起）**：`sudo bash tools/setup-ubuntu-host.sh`
+   一次装齐（Yocto 官方依赖列表 + 本项目要的其他工具）。注意 Ubuntu 23.10+
+   默认禁止非特权 user namespace，bitbake 靠它隔离任务网络，不放开会直接报
+   "User namespaces are not usable by BitBake"——脚本里写了
+   `kernel.apparmor_restrict_unprivileged_userns = 0`（开发机上的有意放宽）。
+
+   **AlmaLinux/RHEL 9 家族（最初的 VM，来源：Yocto 官方系统需求文档）**：
    ```bash
    sudo dnf install -y epel-release dnf-plugins-core
    sudo dnf config-manager --set-enabled crb
@@ -67,7 +74,8 @@
    # 真实 WiFi 密码——指向仓库之外的一个本地文件，内容见下一节。
    DEVICE_PLATFORM_WPA_CONF = "/opt/yocto/local-config/wpa_supplicant.conf"
 
-   # 这台机器资源比 Yocto 官方参考配置小，保守设并发度，避免 OOM。
+   # 最初的 VM（6 核 14 GB）要保守设并发度，避免 OOM；
+   # 现在的 Ubuntu 主机（12 核 31 GB）不设，用默认（nproc）。
    BB_NUMBER_THREADS = "4"
    PARALLEL_MAKE = "-j 4"
    ```
