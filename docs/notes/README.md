@@ -8,8 +8,11 @@ genuine and technically accurate, just informal in tone and language.
 
 | File | What it covers |
 | --- | --- |
-| `learning-qa.md` | Confirmed Q&A log, mostly from the V3 (Device Tree + kernel driver) stage. |
+| `learning-qa.md` | Confirmed Q&A log: Q1–Q46 from the V1–V7 build (Device Tree, driver, interrupts, service, Yocto, performance), Q47–Q81 from the 2026-09 security review. |
+| `knowledge-map.html` | Two collapsible mind maps (open in a browser): the security review's eight lessons and the embedded-Linux knowledge from V1–V8, each point tagged with its Q number. |
 | `security-knowledge-map.zh.md` | Map of the embedded-security territory (boot chain, integrity/encryption, TEE, update, key infrastructure) doubling as a review checklist, with per-topic status markers. Paired with the work plan in `private/security-plan.md`. |
+| `security-lessons.zh.md` | Lesson notes from the 2026-09 security review (lessons 0–7: primitives, threat model, secure boot, integrity/encryption, updates, OP-TEE, device authentication, hardening): everything explained, whether or not it has been restated yet (confirmed items also go to `learning-qa.md`). |
+| `security-zh/` | Chinese translations of the `docs/security/*.md` documents, for review. The English originals are authoritative. |
 | `systems-programming-patterns.md` | Generic, reusable systems-programming patterns learned along the way (not tied to one file/case), including real-time Linux tuning below the process level. |
 | `driver-code-walkthrough.zh.md` | Line-by-line walkthrough of `driver/custom-acq/custom_acq.c`. |
 | `device-service-code-walkthrough.zh.md` | Line-by-line walkthrough of `userspace/device-service/`. |

@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设备平台知识图</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root{
+  --bg:#f3f5f2; --surface:#ffffff; --ink:#1b2420; --muted:#5d6a63; --line:#b5c0b9;
+  --chip-bg:#e7ece8; --chip-ink:#3c4a43; --focus:#2f6f5e;
+  --b0:#2f6f5e; --b1:#8a5a14; --b2:#7a3b52; --b3:#2d5f86; --b4:#5b6b1f; --b5:#6a4a8c; --b6:#9a4a2a; --b7:#3f6a6a; --b8:#555f58;
+  --tint:.10;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111614; --surface:#1a211e; --ink:#e3ebe6; --muted:#9aa8a0; --line:#3d4a44;
+    --chip-bg:#26302c; --chip-ink:#c3d0c9; --focus:#7cc4ad;
+    --b0:#6fc2a8; --b1:#d9a55a; --b2:#d68aa6; --b3:#79b3de; --b4:#b3c46a; --b5:#b69ae0; --b6:#e39472; --b7:#7fc0c0; --b8:#a3b0a8;
+    --tint:.16;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111614; --surface:#1a211e; --ink:#e3ebe6; --muted:#9aa8a0; --line:#3d4a44;
+  --chip-bg:#26302c; --chip-ink:#c3d0c9; --focus:#7cc4ad;
+  --b0:#6fc2a8; --b1:#d9a55a; --b2:#d68aa6; --b3:#79b3de; --b4:#b3c46a; --b5:#b69ae0; --b6:#e39472; --b7:#7fc0c0; --b8:#a3b0a8;
+  --tint:.16;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;font-size:14px;line-height:1.5;padding-inline:16px;padding-block:20px 40px}
+.wrap{max-width:1400px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-size:22px;font-weight:700;margin:0;text-wrap:balance}
+.sub{color:var(--muted);margin:2px 0 0;font-size:13px}
+.tabs{display:flex;gap:4px;background:var(--chip-bg);padding:4px;border-radius:8px}
+.tab{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:500;padding:6px 14px;border-radius:6px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.tab:focus-visible,.node:focus-visible,.tool:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tool{border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:13px;padding:4px 10px;border-radius:6px;cursor:pointer}
+.legend{color:var(--muted);font-size:12px;margin-left:auto}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11.5px}
+.keys{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.key{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.key h2{font-size:13px;font-weight:700;margin:0 0 6px;letter-spacing:.02em}
+.ladder{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;font-size:13px}
+.ladder span.step{background:var(--chip-bg);color:var(--chip-ink);padding:1px 8px;border-radius:4px}
+.ladder .arr{color:var(--muted)}
+.key p{margin:6px 0 0;color:var(--muted);font-size:12.5px}
+.canvas{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow-x:auto;padding:18px 12px}
+/* tree */
+.mm{display:flex;align-items:center;min-width:max-content}
+.mm ul{list-style:none;margin:0;padding:0 0 0 14px;display:flex;flex-direction:column;justify-content:center;position:relative}
+.mm ul::before{content:"";position:absolute;left:0;top:50%;width:14px;border-top:1.5px solid var(--line)}
+.mm li{display:flex;align-items:center;position:relative;padding:3px 0 3px 16px}
+.mm li::before{content:"";position:absolute;left:0;top:50%;width:16px;border-top:1.5px solid var(--line)}
+.mm li::after{content:"";position:absolute;left:0;top:0;bottom:0;border-left:1.5px solid var(--line)}
+.mm li:first-child::after{top:50%}
+.mm li:last-child::after{bottom:50%}
+.mm li:only-child::after{display:none}
+.node{font:inherit;color:inherit;text-align:left;border:1px solid transparent;background:transparent;padding:3px 8px;border-radius:6px;max-width:300px;display:block}
+.node .t{display:block}
+.node .d{display:block;color:var(--muted);font-size:12px;line-height:1.45}
+.node .q{display:inline-flex;gap:3px;flex-wrap:wrap;margin-left:4px;vertical-align:1px}
+.node .q b{font-family:"JetBrains Mono",ui-monospace,monospace;font-weight:500;font-size:10.5px;background:var(--chip-bg);color:var(--chip-ink);padding:0 5px;border-radius:3px}
+.root{font-size:16px;font-weight:700;background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:8px;max-width:180px}
+.root .d{color:var(--bg);opacity:.75}
+.branch{font-weight:700;border-color:var(--c);background:color-mix(in srgb,var(--c) calc(var(--tint)*100%),var(--surface));cursor:pointer;min-width:150px}
+.branch .no{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;color:var(--c);font-weight:500;display:block;letter-spacing:.04em}
+.branch .d{font-weight:400}
+.branch::after{content:attr(data-toggle);float:right;margin-left:8px;color:var(--c);font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:500}
+.mid{font-weight:500;border-left:3px solid var(--c);border-radius:0 6px 6px 0;background:color-mix(in srgb,var(--c) 5%,var(--surface))}
+.leaf{font-size:13px}
+.bl{font-size:10.5px;font-family:"JetBrains Mono",ui-monospace,monospace;color:var(--c);display:block;margin-top:2px}
+footer{color:var(--muted);font-size:12px}
+@media (max-width:600px){ h1{font-size:19px} .legend{margin-left:0} }
+@media (prefers-reduced-motion:no-preference){ .node{transition:background .15s} }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1 id="title">安全专项 · 8 课</h1>
+      <p class="sub" id="subtitle">2026-09 复习，课堂笔记在 docs/notes/security-lessons.zh.md</p>
+    </div>
+    <div class="tabs" role="tablist" aria-label="选择知识图">
+      <button class="tab" role="tab" id="tab-security" aria-selected="true" data-map="security">安全专项</button>
+      <button class="tab" role="tab" id="tab-embedded" aria-selected="false" data-map="embedded">嵌入式 Linux</button>
+    </div>
+  </header>
+
+  <section class="keys" id="keys" aria-label="贯穿全局的主线"></section>
+
+  <div class="bar">
+    <button class="tool" id="expand-all">全部展开</button>
+    <button class="tool" id="collapse-all">只看主干</button>
+    <span class="legend">点击彩色节点展开或收起 · <span class="mono">Q47</span> = learning-qa.md 里的问答编号</span>
+  </div>
+
+  <div class="canvas" role="region" aria-label="思维导图" tabindex="0">
+    <div id="map"></div>
+  </div>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const MAPS = {
+security: {
+  title: "安全专项 · 8 课",
+  subtitle: "2026-09 复习，课堂笔记在 docs/notes/security-lessons.zh.md",
+  foot: "问答卡片 Q47–Q81 在 docs/notes/learning-qa.md 的「安全专项」一节；正式文档中文版在 docs/notes/security-zh/。",
+  keys: [
+    {h:"主线一：秘密放在哪才偷不走", steps:["普通文件","MCU flash + 读保护","OTP","TEE","安全芯片 / HSM"], p:"越往右越难偷，代价越高，有的一步不可逆。用了密钥，问题就变成密钥放在哪。"},
+    {h:"主线二：怎么防止换回旧的", steps:["nonce（防重放）","最低版本号","OTP 计数位 / RPMB"], p:"签名只证明是我们发的，证明不了是最新的。靠可重写存储执行的规则，都能靠回滚那份存储撤销。"},
+    {h:"防改 ≠ 防看", steps:["完整性：哈希 / HMAC / 签名 / dm-verity","机密性：加密 / LUKS"], p:"加密不防改，签名不防看。先问清楚要防的是哪个。"}
+  ],
+  root:{t:"安全专项", d:"8 课 · Q47–Q81"},
+  branches:[
+    {no:"第 0 课", t:"基础工具", d:"它保证什么、不保证什么、要什么秘密", kids:[
+      {t:"哈希 SHA-256", kids:[{t:"数据指纹，谁都能算",q:[47]},{t:"证明不了你是谁",q:[56]}]},
+      {t:"HMAC", kids:[{t:"带密钥的指纹，双方共享 K",q:[56]},{t:"难题变成：密钥放哪",q:[58]},{t:"每块不同 ≠ 保密（UID 派生要 master）"}]},
+      {t:"对称加密 AES", kids:[{t:"防看不防改，改了只解出乱码",q:[64]},{t:"LUKS：一个头、多个钥匙盒、一把卷密钥",q:[69]}]},
+      {t:"数字签名", kids:[{t:"私钥签、公钥验",q:[62]},{t:"防改 + 证明是谁；验证方造不了"}]},
+      {t:"证书与 CA", kids:[{t:"证书 = 公钥 + 说明 + CA 签名",q:[65]},{t:"CA 是只签证书的钥匙",q:[67]},{t:"一把钥匙一件事",q:[66]},{t:"验更新包：先验证书，再验包",q:[68]}]},
+      {t:"SD 卡与启动", kids:[{t:"p1 选槽 · p2/3 启动 · p5/6 系统 · p7 数据",q:[48]},{t:"boot.img 打包整体签名",q:[50]},{t:"FAT 给固件，ext4 给 Linux",q:[55]},{t:"HSM：私钥不出来的保险箱",q:[61]}]}
+    ]},
+    {no:"第 1 课", t:"威胁模型", d:"防谁、防什么、先修哪个", kids:[
+      {t:"四个问题", kids:[{t:"资产 · 攻击者 · 入口 · 优先级",q:[71]}]},
+      {t:"攻击者 A1–A4", kids:[{t:"A1 网络：决定优先级"},{t:"A2 技师 / A3 二手买家：决定设计"},{t:"A4 供应链"}]},
+      {t:"接受的风险", kids:[{t:"MCU 的 K 被抠出也可接受",d:"做不做得到 × 得到什么 × 修的代价",q:[70]}]},
+      {t:"修复顺序 ≠ 严重度", kids:[{t:"F1 空密码最便宜，排第一"},{t:"F4 secure boot 不可逆，排后面"}]}
+    ]},
+    {no:"第 2 课", t:"Secure Boot", d:"只跑签过名的软件 · 修 F4", kids:[
+      {t:"接力链", kids:[{t:"BootROM → bootloader → boot.img → 内核 → p5",q:[52,59]},{t:"信任根：物理上改不了",q:[53]}]},
+      {t:"OTP", kids:[{t:"存公钥指纹，不存公钥",q:[72]},{t:"另存设备私钥 → 算 p7 口令",q:[73]}]},
+      {t:"反签", kids:[{t:"bootloader 要我们再签一次",q:[57]}]},
+      {t:"现状", kids:[{t:"签名全做了，OTP 没烧 → 不强制检查"},{t:"boot 钥匙钉在熔丝，丢了没救"}]}
+    ]},
+    {no:"第 3 课", t:"完整性与加密", d:"修 F5 F7 F8", kids:[
+      {t:"p5：dm-verity", kids:[{t:"读到哪块验哪块",q:[60]},{t:"根哈希必须在签名里",q:[47]}]},
+      {t:"p7：LUKS + dm-integrity", kids:[{t:"改 1 字节 → I/O 错误"},{t:"挡不住旧扇区回放"}]},
+      {t:"发现坏块之后", kids:[{t:"单独重启 = 无限重启",q:[74]},{t:"配合 tryboot 自动回旧槽",q:[75]}]},
+      {t:"代价（Pi 5 实测）", kids:[{t:"verity 读 −16% · LUKS −7%"},{t:"integrity 写 −50%：换断电安全"}]}
+    ]},
+    {no:"第 4 课", t:"更新", d:"修 F6 F14", kids:[
+      {t:"A/B", kids:[{t:"只写空闲槽，不变砖",q:[76]}]},
+      {t:"更新包的一生", kids:[{t:"签 → 验 → 写空闲槽 → tryboot → 健康检查 → 确认 / 回退",q:[68,75]}]},
+      {t:"防回滚", kids:[{t:"最低版本号挡住更新器",q:[77]},{t:"换整张卡：要 OTP 计数位",d:"按位烧，确认后烧，只在安全版本变时烧"}]}
+    ]},
+    {no:"第 5 课", t:"OP-TEE", d:"设备身份 · 修 F12", kids:[
+      {t:"TrustZone → OP-TEE → TA",q:[78], kids:[{t:"私钥在里面生成和使用，出不来"},{t:"TA 自己读私钥也会被杀"}]},
+      {t:"缺口：存储回滚", kids:[{t:"加密文件被换回旧版 → 第二个身份"}]},
+      {t:"补救：RPMB", kids:[{t:"只能往上加的计数器",q:[79]},{t:"发现回滚 → 设备失去身份（失败即关闭）"}]},
+      {t:"产线烧录", kids:[{t:"持有证明 → Device CA 发证书"}]}
+    ]},
+    {no:"第 6 课", t:"设备认证", d:"MCU · 修 F9 F10", kids:[
+      {t:"HMAC 挑战-应答",q:[80], kids:[{t:"nonce 防重放"},{t:"设备号 + 固件版本绑定回答"}]},
+      {t:"缺口：K 在 flash", kids:[{t:"RDP level 1 + 一机一密"},{t:"level 1 有公开绕过"}]},
+      {t:"真解法", kids:[{t:"安全芯片 / TrustZone-M"}]},
+      {t:"一道门", kids:[{t:"认证不过 → 服务不起 → 更新自动回滚"}]}
+    ]},
+    {no:"第 7 课", t:"加固", d:"修 F1 F2 F3 F11", kids:[
+      {t:"门口",q:[81], kids:[{t:"SSH 只认密钥，不许 root / 转发"}]},
+      {t:"进来之后", kids:[{t:"只读根 + 服务沙箱：9.4 → 1.8"}]},
+      {t:"攻击面", kids:[{t:"内核模块 1808 → 31"},{t:"只加载签名模块"}]},
+      {t:"已知漏洞", kids:[{t:"CVE 分诊；内核跟 stable"}]},
+      {t:"读回验证", kids:[{t:"Yama 编进去却没启用"},{t:"配了 ≠ 生效了"}]}
+    ]}
+  ]
+},
+embedded: {
+  title: "嵌入式 Linux · 设备平台",
+  subtitle: "V1–V8 边做边学的知识，按数据从 MCU 流到应用的方向排",
+  foot: "问答卡片 Q1–Q46 在 docs/notes/learning-qa.md；逐行讲解在 docs/notes/*-code-walkthrough.zh.md。每个分支下方的小字是对应的 Bootlin 培训教材（Plan.md 里的主教材）。",
+  keys: [
+    {h:"一条数据的路", steps:["MCU 采样","SPI","GPIO 中断","驱动 kfifo","/dev/acq0","device-service","devbus 共享内存"], p:"整个项目就是把这条路从硬件一路打通到应用，每一段对应下面一个分支。"},
+    {h:"调试先怀疑什么", steps:["硬件接线","中断优先级 / 竞态","环境配置","最后才是代码逻辑"], p:"松掉的杜邦线、echo 没写完整、ordering cycle，都不是代码 bug。"},
+    {h:"Bootlin 教材对照", steps:["Kernel & Driver","Embedded Linux","Yocto / OpenEmbedded"], p:"V3 驱动与中断读第一份；V6 构建与系统读后两份。"}
+  ],
+  root:{t:"设备平台", d:"STM32F103 + Pi 5 · Q1–Q46"},
+  branches:[
+    {no:"V1–V2", t:"MCU 与 SPI 协议", d:"采集仪器的底层", bl:"Bootlin: Embedded Linux", kids:[
+      {t:"SPI", kids:[{t:"主从：MCU 不能主动说话",q:[13]},{t:"全双工：发的同时必收",q:[16]},{t:"读寄存器要两帧，中间留间隔",q:[16]}]},
+      {t:"DATA_READY 引脚", kids:[{t:"先测线通不通，再测驱动",q:[8]},{t:"写 control → MCU 采样 → 拉引脚 → 中断",q:[13]}]},
+      {t:"MCU 固件", kids:[{t:"寄存器协议 + FIFO + 回显校验"},{t:"中断优先级、竞态（case-01/02）",q:[14]}]}
+    ]},
+    {no:"V3", t:"Device Tree", d:"硬件说明书", bl:"Bootlin: Kernel & Driver", kids:[
+      {t:"节点 = 一个硬件的描述",q:[1]},
+      {t:"status = \"disabled\"",q:[2]},
+      {t:"overlay 生效 → compatible 匹配驱动",q:[3]}
+    ]},
+    {no:"V3", t:"内核驱动", d:"custom_acq.c", bl:"Bootlin: Kernel & Driver", kids:[
+      {t:"模块与 probe", kids:[{t:"out-of-tree 模块、加载与匹配",q:[4]},{t:"函数被内核接上：注册回调",q:[5]},{t:"模块编译用 Kbuild，不用 cmake",q:[6]}]},
+      {t:"函数指针表", kids:[{t:"C 手搓虚函数表",q:[7]},{t:"和 C++ vtable 的关系",q:[24]}]},
+      {t:"给用户态的接口", kids:[{t:"sysfs 属性（命名约定）",q:[29]},{t:"misc device → /dev/acq0",q:[25,26]},{t:"file_operations：用户态零改动就能调",q:[28]}]},
+      {t:"演进", kids:[{t:"V3 四个版本怎么搭起来",q:[27]}]}
+    ]},
+    {no:"V3", t:"中断与并发", d:"最容易出 bug 的地方", bl:"Bootlin: Kernel & Driver", kids:[
+      {t:"中断路径", kids:[{t:"GPIO → 中断控制器 → hard IRQ → 线程",q:[10,11]},{t:"加中断 ≠ 写新 GPIO 驱动",q:[9]}]},
+      {t:"hard IRQ 规矩", kids:[{t:"不能睡眠",q:[15]},{t:"能抢占线程，不排队等核",q:[17,18]}]},
+      {t:"锁", kids:[{t:"mutex 睡眠等，spinlock 忙等",q:[19,22]},{t:"irqsave 只关本核中断",q:[20,21]},{t:"调度器 / 中断控制器 / 优先级三回事",q:[23]}]},
+      {t:"case-04", kids:[{t:"多核真并发，不是优先级问题",q:[12]},{t:"锁保护一次完整的寄存器读写"}]}
+    ]},
+    {no:"V4", t:"用户态服务", d:"device-service（C++）", bl:"Bootlin: Embedded Linux", kids:[
+      {t:"采集线程 + 环形缓冲", kids:[{t:"短超时 poll，才能及时退出",q:[38]},{t:"时间用 steady clock",q:[36]}]},
+      {t:"可观测性", kids:[{t:"Metrics 读别人的状态，不自己计数",q:[30]},{t:"SequenceTracker 数丢包",q:[35]}]},
+      {t:"Watchdog", kids:[{t:"先探活，再软复位",q:[31]}]},
+      {t:"systemd", kids:[{t:"systemd 是什么",q:[33]},{t:"集成 = 服务管理 + sd_notify",q:[32,34]}]},
+      {t:"回调", kids:[{t:"std::function 回调的生命周期",q:[37]}]}
+    ]},
+    {no:"M4", t:"devbus", d:"零拷贝共享内存中间件", kids:[
+      {t:"共享内存布局"},
+      {t:"两个无锁环 + DropOldest"},
+      {t:"内存序：每一处为什么是那个"},
+      {t:"pidfd 回收崩溃的订阅者"},
+      {t:"三种等待策略的代价"}
+    ]},
+    {no:"V6", t:"Yocto 与构建", d:"造一个产品镜像", bl:"Bootlin: Yocto / OpenEmbedded", kids:[
+      {t:"四样东西 + 一个动作",d:"BitBake · 配方 · 层 · 镜像配方",q:[39]},
+      {t:"层", kids:[{t:"bblayers.conf vs layer.conf",q:[40]},{t:"镜像只写配方名",q:[41]},{t:"同名配方听优先级",q:[42]}]},
+      {t:"交叉编译", kids:[{t:"C/C++ 要编成 ARM64 机器码",q:[43]}]},
+      {t:"坑：构建成功 ≠ 生效", kids:[{t:"高优先级层覆盖了我们的文件"}]}
+    ]},
+    {no:"V5 · V7", t:"性能与实时", d:"测出来，再调", bl:"Bootlin: Embedded Linux", kids:[
+      {t:"吞吐瓶颈", kids:[{t:"一条样本 3 次读 × 间隔",q:[44]},{t:"inter_frame 500 → 100 µs"}]},
+      {t:"亲和性", kids:[{t:"IRQ 亲和性管中断代码",q:[45]},{t:"CPU 亲和性管用户线程",q:[45]}]},
+      {t:"测延迟", kids:[{t:"逻辑分析仪：MCU 翻引脚 → 中断响应",q:[46]}]},
+      {t:"实时", kids:[{t:"SCHED_FIFO · mlockall · PREEMPT_RT"}]}
+    ]},
+    {no:"V8", t:"安全", d:"见另一张图", kids:[
+      {t:"8 课 · Q47–Q81", d:"切换到“安全专项”标签"}
+    ]}
+  ]
+}
+};
+
+const COLORS = ["--b0","--b1","--b2","--b3","--b4","--b5","--b6","--b7","--b8"];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function qChips(q){ return q && q.length ? `<span class="q">${q.map(n=>`<b>Q${n}</b>`).join("")}</span>` : ""; }
+function nodeHTML(n, cls){
+  return `<span class="t">${esc(n.t)}${qChips(n.q)}</span>${n.d?`<span class="d">${esc(n.d)}</span>`:""}`;
+}
+function renderKids(kids, depth){
+  if(!kids || !kids.length) return "";
+  return `<ul>${kids.map(k=>{
+    const cls = depth===0 ? "node mid" : "node leaf";
+    return `<li><div class="${cls}">${nodeHTML(k)}</div>${renderKids(k.kids, depth+1)}</li>`;
+  }).join("")}</ul>`;
+}
+function render(key){
+  const m = MAPS[key];
+  document.getElementById("title").textContent = m.title;
+  document.getElementById("subtitle").textContent = m.subtitle;
+  document.getElementById("foot").textContent = m.foot;
+  document.getElementById("keys").innerHTML = m.keys.map(k=>`
+    <div class="key"><h2>${esc(k.h)}</h2>
+      <div class="ladder">${k.steps.map((s,i)=>`${i?'<span class="arr">→</span>':''}<span class="step">${esc(s)}</span>`).join("")}</div>
+      <p>${esc(k.p)}</p></div>`).join("");
+  const branches = m.branches.map((b,i)=>{
+    const c = `var(${COLORS[i%COLORS.length]})`;
+    return `<li style="--c:${c}">
+      <button class="node branch" aria-expanded="true" data-toggle="−">
+        <span class="no">${esc(b.no)}</span>
+        <span class="t">${esc(b.t)}</span>${b.d?`<span class="d">${esc(b.d)}</span>`:""}${b.bl?`<span class="bl">${esc(b.bl)}</span>`:""}
+      </button>
+      ${renderKids(b.kids,0)}</li>`;
+  }).join("");
+  document.getElementById("map").innerHTML =
+    `<div class="mm"><div class="node root"><span class="t">${esc(m.root.t)}</span><span class="d">${esc(m.root.d)}</span></div><ul>${branches}</ul></div>`;
+  document.querySelectorAll("#map .branch").forEach(btn=>{
+    btn.addEventListener("click",()=>setOpen(btn, btn.getAttribute("aria-expanded")!=="true"));
+  });
+  // mid-level colors inherit --c via the li style
+  document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected", t.dataset.map===key ? "true":"false"));
+}
+function setOpen(btn, open){
+  const ul = btn.parentElement.querySelector(":scope > ul");
+  if(ul) ul.hidden = !open;
+  btn.setAttribute("aria-expanded", open ? "true":"false");
+  btn.dataset.toggle = open ? "−" : "+";
+}
+function setAll(open){ document.querySelectorAll("#map .branch").forEach(b=>setOpen(b, open)); }
+
+function pick(key){
+  render(key);
+  try{ localStorage.setItem("mm-tab", key); }catch(e){}
+  if(location.hash !== "#"+key){ try{ history.replaceState(null,"","#"+key); }catch(e){} }
+}
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>pick(t.dataset.map)));
+document.getElementById("expand-all").addEventListener("click",()=>setAll(true));
+document.getElementById("collapse-all").addEventListener("click",()=>setAll(false));
+
+let start = "security";
+const h = location.hash.replace("#","");
+if(MAPS[h]) start = h; else { try{ const s = localStorage.getItem("mm-tab"); if(MAPS[s]) start = s; }catch(e){} }
+render(start);
+</script>
+</body>
+</html>
