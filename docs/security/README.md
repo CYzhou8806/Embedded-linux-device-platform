@@ -21,8 +21,20 @@ Code:
   and an HSM wrapper for Raspberry Pi's signing tools.
 - [`security/optee-ta/`](../../security/optee-ta/) — the device identity TA
   and its normal-world client.
+- [`security/cve/`](../../security/cve/) and [`security/hardening/`](../../security/hardening/) —
+  kernel CVE triage, binary and kernel-config hardening reports.
+- [`security/integrity/`](../../security/integrity/) — the dm-verity tamper demo.
+- [`security/device-auth/`](../../security/device-auth/) — the MCU challenge–response verifier.
 - [`yocto/meta-device-platform/`](../../yocto/meta-device-platform/) —
   `device-platform-image-prod` and the recipes it adds.
+- [`yocto/meta-device-platform-verity/`](../../yocto/meta-device-platform-verity/) —
+  the signed A/B image: dm-verity root, LUKS2 data partition, RAUC tryboot
+  backend, health check, hardened 6.12 kernel.
+
+Raw output of every run cited in these documents: [`results/security/`](../../results/security/).
+Case studies from this work: [case 10](../debugging/case-10-dm-verity-one-byte-on-the-card.md)
+(dm-verity on the card) and [case 11](../debugging/case-11-ab-update-four-failures-invisible-on-the-build-host.md)
+(A/B updates on the board).
 
 **Limits of the hardware**, stated in each document where they matter:
 the Raspberry Pi 5 has no TPM or secure element, the STM32F103 has no

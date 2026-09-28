@@ -59,7 +59,7 @@ real hardware, not simulated.
 | Kernel | Device Tree overlay + out-of-tree SPI driver: threaded IRQ (hard-IRQ timestamping + threaded FIFO drain), `kfifo`-backed buffer, sysfs diagnostics |
 | Userspace | Multithreaded C++17 device service — acquisition worker, ring buffer, structured logging, metrics, config-driven scheduling knobs, systemd unit |
 | Testing | Python integration tests against real hardware, sustained hardware stress tests, unit tests for pure logic |
-| Debugging | 9 documented root-cause investigations (two of which a second platform later corrected, with the corrections kept alongside the originals) (`docs/debugging/`) spanning IRQ priority inversion, protocol race conditions, stale-buffer bugs, an intermittent SPI-controller stall, and two real-time pitfalls found on the target (RT throttling, RCU starvation under PREEMPT_RT) |
+| Debugging | 11 documented root-cause investigations (two of which a second platform later corrected, with the corrections kept alongside the originals) (`docs/debugging/`) spanning IRQ priority inversion, protocol race conditions, stale-buffer bugs, an intermittent SPI-controller stall, two real-time pitfalls found on the target (RT throttling, RCU starvation under PREEMPT_RT), and two from the security work (a one-byte dm-verity tamper on the card, and signed A/B updates that failed on the board for reasons the build host couldn't show) |
 | Performance | Full-chain latency characterization (MCU-produced → hard-IRQ → userspace) with repeated-measurement statistical validation, not single-run numbers |
 | Middleware | `devbus`: zero-copy shared-memory pub/sub between processes on the device (loan/send, per-subscriber lock-free queues and drop policies, crash reclaim via pidfd), measured against Unix sockets |
 | Real-time | Self-built PREEMPT_RT and non-RT kernels from one source, booted on the target through one-shot `tryboot`; kernel × tuning latency matrix with `cyclictest` alongside |
@@ -111,10 +111,11 @@ userspace/device-service/ C++17 device service
 userspace/devbus/         Zero-copy shared-memory pub/sub middleware (see its README)
 tests/                    unit / integration / hardware test suites
 yocto/meta-device-platform/  Custom Yocto layer (driver, service, image recipes)
+yocto/meta-device-platform-verity/  Signed A/B images: dm-verity root, LUKS2 data, RAUC, hardened 6.12 kernel
 experiments/scheduler-baseline/  Standalone cyclictest-style RT probe
 experiments/rt-kernel/    PREEMPT_RT kernel build + safe tryboot deployment for the Pi 5
 platforms/                The two Linux distributions this runs on, and how they differ
-security/                 Signing (PKCS#11), OP-TEE TA, dm-verity and CVE tooling
+security/                 Signing (PKCS#11), OP-TEE TA, dm-verity, CVE, hardening and MCU-auth tooling
 docs/                     Performance report, debugging case studies, security, walkthroughs
 results/                  Raw latency/throughput data, charts, logic-analyzer captures
 ```
