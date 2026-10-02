@@ -45,6 +45,8 @@ std::vector<ServiceInfo> list_services() {
 		const std::string file = entry.path().filename().string();
 		if (file.rfind("devbus.", 0) != 0)
 			continue;
+		if (file.size() > 5 && file.compare(file.size() - 5, 5, ".data") == 0)
+			continue; // a service's payload segment, listed with its control segment
 		try {
 			detail::ShmSegment seg = detail::ShmSegment::open("/" + file);
 			if (seg.size() < sizeof(detail::SegmentHeader))

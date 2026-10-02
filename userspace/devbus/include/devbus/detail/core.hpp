@@ -84,7 +84,8 @@ private:
 	bool deliver(uint32_t s, uint32_t chunk, SendReport& report) noexcept;
 	void free_chunk(uint32_t chunk) noexcept;
 
-	ShmSegment seg_;
+	ShmSegment seg_;      // control
+	ShmSegment data_seg_; // chunk headers + payloads; read-write only here
 	SegmentHeader* header_ = nullptr;
 	ChunkHeader* chunk_headers_ = nullptr;
 	bool memory_locked_ = false;
@@ -97,6 +98,7 @@ private:
 	std::vector<uint8_t> active_;         // per slot: publisher has onboarded it
 	std::vector<int> pidfds_;             // per slot
 	std::vector<uint32_t> active_list_;   // onboarded slots, Block-policy ones last
+	std::vector<int64_t> claimed_since_;  // per slot: when it was first seen Claimed with no pid yet
 	uint32_t loans_out_ = 0;
 	uint64_t next_seq_ = 1;
 	uint32_t liveness_every_ = 0;
@@ -133,10 +135,11 @@ public:
 private:
 	bool has_data() const noexcept;
 
-	ShmSegment seg_;
+	ShmSegment seg_;      // control, read-write
+	ShmSegment data_seg_; // chunk headers + payloads, mapped read-only
 	SegmentHeader* header_ = nullptr;
 	SubscriberSlot* slot_ = nullptr;
-	ChunkHeader* chunk_headers_ = nullptr;
+	const ChunkHeader* chunk_headers_ = nullptr;
 	SubscriberConfig cfg_;
 	uint32_t slot_index_ = 0;
 	uint64_t mask_ = 0;

@@ -12,6 +12,9 @@ namespace devbus::detail {
 
 namespace {
 
+// How long a Block publisher spins on a full queue before it sleeps.
+constexpr int64_t kBlockSpinNs = 20'000;
+
 inline void cpu_relax() noexcept {
 #if defined(__x86_64__) || defined(__i386__)
 	__builtin_ia32_pause();
@@ -34,6 +37,7 @@ PublisherCore::PublisherCore(std::string_view service, const TypeInfo& type, con
 	if (cfg.max_subscribers == 0)
 		throw Error("devbus: max_subscribers must be at least 1");
 	const std::string name = detail::shm_name(service);
+	const std::string data_name = detail::shm_data_name(service);
 	const Layout l = compute_layout(cfg.max_subscribers, cfg.queue_capacity, cfg.max_borrowed, cfg.max_loans,
 					type.size, type.align);
 	if (l.chunk_count > UINT16_MAX)
@@ -49,13 +53,25 @@ PublisherCore::PublisherCore(std::string_view service, const TypeInfo& type, con
 		if (existing.size() >= sizeof(SegmentHeader) && process_alive(h->publisher_pid.load()))
 			throw Error("devbus: service '" + std::string(service) + "' already has a live publisher");
 		ShmSegment::unlink(name);
+		ShmSegment::unlink(data_name);
 	} catch (const Error& e) {
 		if (std::string_view(e.what()).find("live publisher") != std::string_view::npos)
 			throw;
 		// open failed: no stale segment, the normal case
 	}
 
-	seg_ = ShmSegment::create(name, l.total_size);
+	// Data segment first: a subscriber that finds the control segment
+	// "ready" must find the data segment already there. A stale data
+	// segment without a control segment (publisher killed between the two
+	// creates) is removed rather than reported.
+	ShmSegment::unlink(data_name);
+	data_seg_ = ShmSegment::create(data_name, l.data_size, 0640);
+	try {
+		seg_ = ShmSegment::create(name, l.total_size, 0660);
+	} catch (...) {
+		ShmSegment::unlink(data_name);
+		throw;
+	}
 	std::byte* base = seg_.data();
 
 	header_ = new (base) SegmentHeader{};
@@ -76,6 +92,7 @@ PublisherCore::PublisherCore(std::string_view service, const TypeInfo& type, con
 	header_->chunk_headers_offset = l.chunk_headers_offset;
 	header_->payloads_offset = l.payloads_offset;
 	header_->total_size = l.total_size;
+	header_->data_size = l.data_size;
 
 	for (uint32_t i = 0; i < cfg.max_subscribers; ++i) {
 		auto* s = new (base + l.slots_offset + i * l.slot_stride) SubscriberSlot{};
@@ -83,7 +100,7 @@ PublisherCore::PublisherCore(std::string_view service, const TypeInfo& type, con
 		for (uint32_t r = 0; r < l.queue_capacity + l.completion_capacity; ++r)
 			new (&rings[r]) std::atomic<uint32_t>(0);
 	}
-	chunk_headers_ = std::launder(reinterpret_cast<ChunkHeader*>(base + l.chunk_headers_offset));
+	chunk_headers_ = std::launder(reinterpret_cast<ChunkHeader*>(data_seg_.data() + l.chunk_headers_offset));
 	for (uint32_t c = 0; c < l.chunk_count; ++c)
 		new (&chunk_headers_[c]) ChunkHeader{};
 
@@ -94,10 +111,11 @@ PublisherCore::PublisherCore(std::string_view service, const TypeInfo& type, con
 	outstanding_.assign(static_cast<std::size_t>(l.chunk_count) * cfg.max_subscribers, 0);
 	active_.assign(cfg.max_subscribers, 0);
 	pidfds_.assign(cfg.max_subscribers, -1);
+	claimed_since_.assign(cfg.max_subscribers, 0);
 	active_list_.reserve(cfg.max_subscribers);
 
 	if (cfg.lock_memory)
-		memory_locked_ = seg_.lock();
+		memory_locked_ = seg_.lock() && data_seg_.lock();
 	liveness_every_ = cfg.liveness_check_every;
 
 	header_->publisher_pid.store(getpid(), std::memory_order_relaxed);
@@ -118,6 +136,7 @@ PublisherCore::~PublisherCore() {
 	// Subscribers that still have it mapped keep working until they unmap;
 	// the name disappears now so the next publisher starts clean.
 	ShmSegment::unlink(seg_.name());
+	ShmSegment::unlink(data_seg_.name());
 }
 
 SubscriberSlot* PublisherCore::slot(uint32_t i) const noexcept {
@@ -126,7 +145,7 @@ SubscriberSlot* PublisherCore::slot(uint32_t i) const noexcept {
 }
 
 std::byte* PublisherCore::payload(uint32_t chunk) const noexcept {
-	return seg_.data() + header_->payloads_offset + chunk * header_->chunk_stride;
+	return data_seg_.data() + header_->payloads_offset + chunk * header_->chunk_stride;
 }
 
 uint32_t PublisherCore::active_subscribers() const noexcept {
@@ -215,6 +234,7 @@ void PublisherCore::reclaim_slot(uint32_t s) noexcept {
 		pidfds_[s] = -1;
 	}
 	active_[s] = 0;
+	claimed_since_[s] = 0;
 	sl->state.store(static_cast<uint32_t>(SlotState::Free), std::memory_order_release);
 }
 
@@ -225,9 +245,16 @@ void PublisherCore::scan_slots() noexcept {
 		auto st = static_cast<SlotState>(sl->state.load(std::memory_order_acquire));
 		if (st == SlotState::Active && !active_[s]) {
 			// Onboarding: happens once per subscriber, so the pidfd_open()
-			// syscall here is not a steady-state hot-path cost.
+			// syscall here is not a steady-state hot-path cost. No pidfd
+			// means the subscriber is already gone (or the slot is
+			// corrupt): reclaim it instead of onboarding a slot whose
+			// liveness can never be checked.
 			pidfds_[s] = pidfd_open(sl->pid.load(std::memory_order_relaxed));
-			active_[s] = 1;
+			if (pidfds_[s] < 0) {
+				reclaim_slot(s);
+			} else {
+				active_[s] = 1;
+			}
 			changed = true;
 		} else if (st == SlotState::Closing) {
 			reclaim_slot(s);
@@ -257,10 +284,27 @@ uint32_t PublisherCore::check_liveness() noexcept {
 		SubscriberSlot* sl = slot(s);
 		auto st = static_cast<SlotState>(sl->state.load(std::memory_order_acquire));
 		bool dead = false;
-		if (active_[s])
+		const int pid = sl->pid.load(std::memory_order_relaxed);
+		if (active_[s]) {
 			dead = !pidfd_alive(pidfds_[s]);
-		else if (st == SlotState::Claimed || st == SlotState::Active)
-			dead = !process_alive(sl->pid.load(std::memory_order_relaxed));
+		} else if (st == SlotState::Claimed && pid == 0) {
+			// A subscriber between claiming the slot and writing its pid -
+			// not dead, just not finished. Treating pid 0 as a dead process
+			// reclaimed the slot under a subscriber that went on to mark it
+			// Active and then never received anything (found by the
+			// record/replay test, whose publisher checks liveness every
+			// millisecond while waiting for subscribers). Only a slot stuck
+			// like this for a second - a subscriber that died in that
+			// window - is reclaimed.
+			const int64_t now = monotonic_ns();
+			if (claimed_since_[s] == 0)
+				claimed_since_[s] = now;
+			dead = now - claimed_since_[s] > 1'000'000'000;
+		} else if (st == SlotState::Claimed || st == SlotState::Active) {
+			dead = !process_alive(pid);
+		}
+		if (st != SlotState::Claimed || pid != 0)
+			claimed_since_[s] = 0;
 		if (dead) {
 			reclaim_slot(s);
 			++reaped;
@@ -342,7 +386,29 @@ bool PublisherCore::deliver(uint32_t s, uint32_t chunk, SendReport& report) noex
 				++report.block_timeouts;
 				return false;
 			}
-			cpu_relax();
+			// Spin first: a subscriber that is merely busy for a few
+			// microseconds frees a slot sooner than a futex round trip
+			// would notice. Past that, sleep instead of burning the core -
+			// at SCHED_FIFO a spinning publisher is exactly what RT
+			// throttling stops (case 08), and it starves the very
+			// subscriber it is waiting for if they share a CPU.
+			if (now - block_start < kBlockSpinNs) {
+				cpu_relax();
+				break;
+			}
+			const uint32_t word = sl->space_futex.load(std::memory_order_acquire);
+			// seq_cst pair with the subscriber's data_tail CAS and its load
+			// of publisher_waiting in try_receive(): either it sees this
+			// flag and wakes us, or we see its pop here and don't sleep.
+			sl->publisher_waiting.store(1, std::memory_order_seq_cst);
+			if (head - sl->data_tail.load(std::memory_order_seq_cst) < cap ||
+			    sl->state.load(std::memory_order_acquire) != static_cast<uint32_t>(SlotState::Active)) {
+				sl->publisher_waiting.store(0, std::memory_order_relaxed);
+				break;
+			}
+			const int64_t left = static_cast<int64_t>(sl->block_timeout_us) * 1000 - (now - block_start);
+			futex_wait(&sl->space_futex, word, std::chrono::nanoseconds(left > 0 ? left : 0));
+			sl->publisher_waiting.store(0, std::memory_order_relaxed);
 			break;
 		}
 		}
@@ -409,6 +475,13 @@ SubscriberCore::SubscriberCore(std::string_view service, const TypeInfo& type, c
 		throw Error("devbus: service '" + std::string(service) + "' is still being created");
 	if (header_->type_hash != type.hash || header_->type_size != type.size || header_->type_align != type.align)
 		throw Error("devbus: payload type mismatch for service '" + std::string(service) + "'");
+	// Before the pidfd below, so a failure here leaks nothing.
+	// Read-only: O_RDONLY open, PROT_READ mapping (threat model F13).
+	data_seg_ = ShmSegment::open(detail::shm_data_name(service), /*writable=*/false);
+	if (seg_.size() < header_->total_size || data_seg_.size() < header_->data_size)
+		throw Error("devbus: segments for '" + std::string(service) + "' are truncated");
+	chunk_headers_ = std::launder(
+		reinterpret_cast<const ChunkHeader*>(data_seg_.data() + header_->chunk_headers_offset));
 	const int pub = header_->publisher_pid.load(std::memory_order_acquire);
 	publisher_pidfd_ = pidfd_open(pub);
 	if (pub == 0 || !pidfd_alive(publisher_pidfd_)) {
@@ -417,7 +490,6 @@ SubscriberCore::SubscriberCore(std::string_view service, const TypeInfo& type, c
 		throw Error("devbus: service '" + std::string(service) + "' has no live publisher");
 	}
 
-	chunk_headers_ = std::launder(reinterpret_cast<ChunkHeader*>(seg_.data() + header_->chunk_headers_offset));
 	mask_ = header_->queue_capacity - 1;
 	done_mask_ = header_->completion_capacity - 1;
 
@@ -450,14 +522,19 @@ SubscriberCore::SubscriberCore(std::string_view service, const TypeInfo& type, c
 SubscriberCore::~SubscriberCore() {
 	// Samples must not outlive their subscriber; any still borrowed are
 	// reclaimed by the publisher anyway, as if this process had crashed.
-	if (slot_)
-		slot_->state.store(static_cast<uint32_t>(SlotState::Closing), std::memory_order_release);
+	if (slot_) {
+		slot_->state.store(static_cast<uint32_t>(SlotState::Closing), std::memory_order_seq_cst);
+		// A publisher blocked on this queue must not sleep out its whole
+		// timeout for a subscriber that has left.
+		slot_->space_futex.fetch_add(1, std::memory_order_release);
+		futex_wake_all(&slot_->space_futex);
+	}
 	if (publisher_pidfd_ >= 0)
 		close(publisher_pidfd_);
 }
 
 const std::byte* SubscriberCore::payload(uint32_t chunk) const noexcept {
-	return seg_.data() + header_->payloads_offset + chunk * header_->chunk_stride;
+	return data_seg_.data() + header_->payloads_offset + chunk * header_->chunk_stride;
 }
 
 bool SubscriberCore::has_data() const noexcept {
@@ -481,8 +558,16 @@ ReceiveStatus SubscriberCore::try_receive(uint32_t& chunk) noexcept {
 		}
 		const uint32_t c = ring[tail & mask_].load(std::memory_order_acquire);
 		// Lost the race to a DropOldest eviction: retry with the new tail.
-		if (!slot_->data_tail.compare_exchange_strong(tail, tail + 1, std::memory_order_acq_rel))
+		// seq_cst: the Block publisher's sleep handshake (deliver()).
+		if (!slot_->data_tail.compare_exchange_strong(tail, tail + 1, std::memory_order_seq_cst))
 			continue;
+		// A Block publisher asleep on our full queue: there is room now.
+		// Like the publisher's wake, the syscall is only paid when it is
+		// really waiting.
+		if (slot_->publisher_waiting.load(std::memory_order_seq_cst)) {
+			slot_->space_futex.fetch_add(1, std::memory_order_release);
+			futex_wake_all(&slot_->space_futex);
+		}
 		if (c >= header_->chunk_count)
 			continue; // corrupt entry; never hand out an out-of-range chunk
 		const uint64_t seq = chunk_headers_[c].seq;

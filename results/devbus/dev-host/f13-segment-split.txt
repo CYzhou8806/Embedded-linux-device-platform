@@ -1,0 +1,22 @@
+# devbus layout v1 (one read-write segment, HEAD e74b141) vs v2 (control segment
+# + read-only data segment, threat model F13). Dev host (Ubuntu 24.04, 12 cores),
+# NOT pinned, governor not fixed - medians are comparable, tails are host noise.
+# 2026-10-01. Same binary flags (Release), devbus-loan transport, futex wait.
+#latency,transport,size_bytes,wait,rate_hz,samples,p50_us,p90_us,p99_us,p999_us,max_us,sub_cpu_pct
+old: latency,devbus-loan,64,futex,1000,3000,25.82,45.16,46.68,83.96,147.58,1.7
+new: latency,devbus-loan,64,futex,1000,3000,22.59,24.87,176.68,361.03,484.06,1.2
+old: latency,devbus-loan,4194304,futex,100,500,43.90,57.20,93.68,173.87,173.87,0.2
+new: latency,devbus-loan,4194304,futex,100,500,44.14,57.51,91.90,638.86,638.86,0.2
+old: latency,devbus-loan,64,futex,1000,3000,25.12,44.85,46.34,106.39,193.01,1.7
+new: latency,devbus-loan,64,futex,1000,3000,24.70,25.23,44.66,119.83,345.72,1.2
+old: latency,devbus-loan,4194304,futex,100,500,44.83,57.86,85.70,125.47,125.47,0.2
+new: latency,devbus-loan,4194304,futex,100,500,45.70,58.47,62.34,76.46,76.46,0.2
+old: latency,devbus-loan,64,futex,1000,3000,22.98,25.21,45.33,232.85,301.67,1.2
+new: latency,devbus-loan,64,futex,1000,3000,24.30,24.75,124.79,436.38,463.83,1.2
+old: latency,devbus-loan,4194304,futex,100,500,45.52,61.05,65.45,89.50,89.50,0.2
+new: latency,devbus-loan,4194304,futex,100,500,45.45,58.41,61.30,115.66,115.66,0.2
+# Reading: p50 unchanged (22.6-25.8 us at 64 B both ways, 43.9-45.7 us at 4 MiB both
+# ways; 4 MiB still costs the same as 64 B plus the fixed wake-up, i.e. still
+# zero-copy). p99/p99.9 swing 2-5x between repeats of the SAME binary here, so
+# nothing about tails can be concluded from this host; that needs the pinned Pi
+# setup of docs/devbus-experiments.md.

@@ -1,16 +1,30 @@
 #pragma once
 
-// Shared-memory layout of one devbus service. Everything here lives in a
-// POSIX shared-memory segment mapped at different addresses in different
+// Shared-memory layout of one devbus service. Everything here lives in
+// POSIX shared-memory segments mapped at different addresses in different
 // processes, so: no pointers (only offsets and chunk indices), only
 // trivially-copyable data and always-lock-free atomics.
 //
-//   [SegmentHeader]
-//   [SubscriberSlot 0][data ring][done ring]
-//   [SubscriberSlot 1][data ring][done ring]
-//   ...
-//   [ChunkHeader x chunk_count]
-//   [payload chunk 0][payload chunk 1]...   (each cache-line aligned)
+// Two segments since layout version 2:
+//
+//   control  /dev/shm/devbus.<svc>       0660, every participant maps it read-write
+//     [SegmentHeader]
+//     [SubscriberSlot 0][data ring][done ring]
+//     [SubscriberSlot 1][data ring][done ring]
+//     ...
+//   data     /dev/shm/devbus.<svc>.data  0640, only the publisher can write it
+//     [ChunkHeader x chunk_count]
+//     [payload chunk 0][payload chunk 1]...   (each cache-line aligned)
+//
+// Before version 2 it was one read-write segment, so any subscriber could
+// rewrite a payload another subscriber was reading at that moment (threat
+// model F13). Now subscribers map the data segment PROT_READ, from a file
+// they can only open O_RDONLY: the page tables, not convention, stop them.
+// What a subscriber can still write is the control segment - its own
+// indices, and in principle other slots' - which the publisher already
+// treats as untrusted (bounds-checked, never followed as pointers). The
+// worst a hostile subscriber can do there is misdirect or starve others,
+// not forge content.
 //
 // Per publisher->subscriber pair there are two single-producer queues of
 // chunk indices:
@@ -28,7 +42,7 @@
 namespace devbus::detail {
 
 inline constexpr uint64_t kMagic = 0x3153554256454431ull; // "1DEVBUS1"
-inline constexpr uint32_t kLayoutVersion = 1;
+inline constexpr uint32_t kLayoutVersion = 2;
 inline constexpr std::size_t kCacheLine = 64;
 
 static_assert(std::atomic<uint64_t>::is_always_lock_free, "devbus needs lock-free 64-bit atomics");
@@ -69,9 +83,10 @@ struct alignas(kCacheLine) SegmentHeader {
 	uint64_t chunk_stride;
 	uint64_t slot_stride;
 	uint64_t slots_offset;
-	uint64_t chunk_headers_offset;
-	uint64_t payloads_offset;
-	uint64_t total_size;
+	uint64_t chunk_headers_offset; // in the data segment
+	uint64_t payloads_offset;      // in the data segment
+	uint64_t total_size;           // of the control segment
+	uint64_t data_size;            // of the data segment
 
 	std::atomic<int32_t> publisher_pid; // 0 once the publisher has shut down
 	std::atomic<uint32_t> ready;        // 1 once the segment is fully initialized
@@ -96,6 +111,12 @@ struct alignas(kCacheLine) SubscriberSlot {
 
 	alignas(kCacheLine) std::atomic<uint32_t> futex_word; // bumped by publisher to wake
 	std::atomic<uint32_t> sleeping;                       // subscriber is (about to be) in futex_wait
+
+	// The reverse direction, for Overflow::Block: the publisher sleeps here
+	// when this subscriber's queue stays full, and the subscriber wakes it
+	// after taking a sample out. Same handshake as the pair above.
+	alignas(kCacheLine) std::atomic<uint32_t> space_futex;   // bumped by subscriber to wake
+	std::atomic<uint32_t> publisher_waiting;                 // publisher is (about to be) in futex_wait
 
 	// Written by the publisher only; read by anyone for introspection.
 	alignas(kCacheLine) std::atomic<uint64_t> delivered;
@@ -124,7 +145,8 @@ struct Layout {
 	uint64_t slots_offset;
 	uint64_t chunk_headers_offset;
 	uint64_t payloads_offset;
-	uint64_t total_size;
+	uint64_t total_size; // control segment
+	uint64_t data_size;  // data segment
 };
 
 // The chunk budget is what makes loan() deterministic: every place a chunk
@@ -142,10 +164,11 @@ inline Layout compute_layout(uint32_t max_subscribers, uint32_t queue_capacity, 
 					 sizeof(std::atomic<uint32_t>) * (l.queue_capacity + l.completion_capacity),
 				 kCacheLine);
 	l.slots_offset = round_up(sizeof(SegmentHeader), kCacheLine);
-	l.chunk_headers_offset = l.slots_offset + l.slot_stride * max_subscribers;
-	l.payloads_offset = round_up(l.chunk_headers_offset + sizeof(ChunkHeader) * l.chunk_count,
+	l.total_size = round_up(l.slots_offset + l.slot_stride * max_subscribers, 4096);
+	l.chunk_headers_offset = 0;
+	l.payloads_offset = round_up(sizeof(ChunkHeader) * l.chunk_count,
 				     type_align > kCacheLine ? type_align : kCacheLine);
-	l.total_size = round_up(l.payloads_offset + l.chunk_stride * l.chunk_count, 4096);
+	l.data_size = round_up(l.payloads_offset + l.chunk_stride * l.chunk_count, 4096);
 	return l;
 }
 

@@ -16,6 +16,7 @@ add_library(devbus
 	src/os.cpp
 	src/core.cpp
 	src/introspect.cpp
+	src/record.cpp
 )
 target_include_directories(devbus PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -26,6 +27,11 @@ target_compile_options(devbus PRIVATE -Wall -Wextra -Wpedantic)
 
 add_executable(devbus-ls tools/devbus_ls.cpp)
 target_link_libraries(devbus-ls PRIVATE devbus)
+
+add_executable(devbus-record tools/devbus_record.cpp)
+target_link_libraries(devbus-record PRIVATE devbus)
+add_executable(devbus-replay tools/devbus_replay.cpp)
+target_link_libraries(devbus-replay PRIVATE devbus)
 
 add_executable(devbus-example-pub examples/sample_publisher.cpp)
 target_link_libraries(devbus-example-pub PRIVATE devbus)
@@ -40,7 +46,7 @@ add_executable(devbus-bench bench/devbus_bench.cpp)
 target_include_directories(devbus-bench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../device-service/include)
 target_link_libraries(devbus-bench PRIVATE devbus)
 
-install(TARGETS devbus devbus-ls devbus-bench acq-bridge RUNTIME DESTINATION bin ARCHIVE DESTINATION lib)
+install(TARGETS devbus devbus-ls devbus-record devbus-replay devbus-bench acq-bridge RUNTIME DESTINATION bin ARCHIVE DESTINATION lib)
 install(DIRECTORY include/devbus DESTINATION include)  # includes acq_sample.hpp, which device-service also uses
 
 option(BUILD_TESTING "Build devbus-tests (requires GTest)" ON)

@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 
+#include <sys/types.h>
 #include <time.h>
 
 namespace devbus::detail {
@@ -22,8 +23,11 @@ inline int64_t monotonic_ns() noexcept {
 }
 
 // "/devbus.<service>" - the name shm_open() wants, and what shows up
-// under /dev/shm.
+// under /dev/shm. The control segment (header, subscriber slots, rings).
 std::string shm_name(std::string_view service);
+// "/devbus.<service>.data" - chunk headers and payloads. Separate so that
+// subscribers can map it read-only (threat model F13).
+std::string shm_data_name(std::string_view service);
 
 // Owns one mmap()ed shared-memory segment.
 class ShmSegment {
@@ -36,11 +40,14 @@ public:
 	ShmSegment& operator=(const ShmSegment&) = delete;
 
 	// Creates a new segment (O_EXCL) of exactly `size` bytes, zero-filled
-	// and pre-faulted. Throws devbus::Error, including when it already
-	// exists - stale-segment cleanup is the caller's decision.
-	static ShmSegment create(const std::string& name, std::size_t size);
-	// Opens an existing segment at whatever size it has.
-	static ShmSegment open(const std::string& name);
+	// and pre-faulted, with file mode `mode`. Throws devbus::Error,
+	// including when it already exists - stale-segment cleanup is the
+	// caller's decision.
+	static ShmSegment create(const std::string& name, std::size_t size, mode_t mode = 0660);
+	// Opens an existing segment at whatever size it has. writable=false
+	// opens it O_RDONLY and maps it PROT_READ: a write through the mapping
+	// is a SIGSEGV, not a silent change other processes would see.
+	static ShmSegment open(const std::string& name, bool writable = true);
 	static void unlink(const std::string& name) noexcept;
 
 	std::byte* data() const { return data_; }

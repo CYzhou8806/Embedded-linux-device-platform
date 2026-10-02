@@ -23,10 +23,10 @@ namespace {
 	throw Error(what + ": " + std::strerror(errno));
 }
 
-std::byte* map(int fd, std::size_t size, const std::string& name) {
+std::byte* map(int fd, std::size_t size, const std::string& name, bool writable = true) {
 	// MAP_POPULATE pre-faults every page now, at setup time, instead of on
 	// first touch somewhere in the hot path.
-	void* p = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, fd, 0);
+	void* p = mmap(nullptr, size, writable ? PROT_READ | PROT_WRITE : PROT_READ, MAP_SHARED | MAP_POPULATE, fd, 0);
 	if (p == MAP_FAILED)
 		throw_errno("mmap " + name);
 	return static_cast<std::byte*>(p);
@@ -39,6 +39,10 @@ std::string shm_name(std::string_view service) {
 	for (char c : service)
 		name += (c == '/') ? '.' : c; // shm names can't contain further slashes
 	return name;
+}
+
+std::string shm_data_name(std::string_view service) {
+	return shm_name(service) + ".data";
 }
 
 ShmSegment::~ShmSegment() {
@@ -60,10 +64,21 @@ ShmSegment& ShmSegment::operator=(ShmSegment&& other) noexcept {
 	return *this;
 }
 
-ShmSegment ShmSegment::create(const std::string& name, std::size_t size) {
-	int fd = shm_open(name.c_str(), O_CREAT | O_EXCL | O_RDWR, 0660);
+ShmSegment ShmSegment::create(const std::string& name, std::size_t size, mode_t mode) {
+	int fd = shm_open(name.c_str(), O_CREAT | O_EXCL | O_RDWR, mode);
 	if (fd < 0)
 		throw_errno("shm_open(create) " + name);
+	// shm_open's mode goes through the umask: with the common 022, the
+	// 0660 the control segment needs for group subscribers silently became
+	// 0640, and a subscriber in the group could not open it at all. The
+	// file mode is part of the security boundary here, so set it exactly.
+	if (fchmod(fd, mode) != 0) {
+		int saved = errno;
+		close(fd);
+		shm_unlink(name.c_str());
+		errno = saved;
+		throw_errno("fchmod " + name);
+	}
 	if (ftruncate(fd, static_cast<off_t>(size)) != 0) {
 		int saved = errno;
 		close(fd);
@@ -85,8 +100,8 @@ ShmSegment ShmSegment::create(const std::string& name, std::size_t size) {
 	return seg;
 }
 
-ShmSegment ShmSegment::open(const std::string& name) {
-	int fd = shm_open(name.c_str(), O_RDWR, 0);
+ShmSegment ShmSegment::open(const std::string& name, bool writable) {
+	int fd = shm_open(name.c_str(), writable ? O_RDWR : O_RDONLY, 0);
 	if (fd < 0)
 		throw_errno("shm_open(open) " + name);
 	struct stat st{};
@@ -96,7 +111,7 @@ ShmSegment ShmSegment::open(const std::string& name) {
 	}
 	ShmSegment seg;
 	try {
-		seg.data_ = map(fd, static_cast<std::size_t>(st.st_size), name);
+		seg.data_ = map(fd, static_cast<std::size_t>(st.st_size), name, writable);
 	} catch (...) {
 		close(fd);
 		throw;

@@ -1,0 +1,7 @@
+#latency,transport,size_bytes,wait,rate_hz,samples,p50_us,p90_us,p99_us,p999_us,max_us,sub_cpu_pct
+latency,devbus-loan,64,futex,1000,5000,4.15,4.94,12.35,35.98,114.91,0.3
+latency,devbus-loan,4194304,futex,100,500,5.08,5.67,6.80,11.93,11.93,0.0
+latency,devbus-loan,64,futex,1000,5000,4.15,4.96,5.54,10.37,53.35,0.3
+latency,devbus-loan,4194304,futex,100,500,5.09,5.35,6.52,8.11,8.11,0.0
+latency,devbus-loan,64,futex,1000,5000,4.20,8.50,17.37,25.30,56.70,0.3
+latency,devbus-loan,4194304,futex,100,500,5.09,5.46,7.89,18.96,18.96,0.0

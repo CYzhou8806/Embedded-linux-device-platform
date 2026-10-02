@@ -38,10 +38,12 @@ when one consumer falls behind.
 ## Architecture
 
 ```
-publisher process                shared memory: /dev/shm/devbus.<service>               subscriber process
+publisher process          /dev/shm/devbus.<service>.data  (0640: subscribers map it read-only)       subscriber process
                      ┌───────────────────────────────────────────────────────────┐
- loan() ───────────► │ chunk pool  [hdr|payload][hdr|payload][hdr|payload] ...   │ ◄── read in place
-   write in place    │                                                           │
+ loan() ───────────► │ chunk pool  [hdr|payload][hdr|payload][hdr|payload] ...   │ ◄── read in place (PROT_READ)
+   write in place    └───────────────────────────────────────────────────────────┘
+                           /dev/shm/devbus.<service>       (0660: everyone read-write)
+                     ┌───────────────────────────────────────────────────────────┐
  send(chunk) ──────► │ slot 0: data ring   (publisher → subscriber, chunk idx)   │ ──► receive()
                      │         done ring   (subscriber → publisher, chunk idx)   │ ◄── ~Sample()
  reclaim ◄────────── │ slot 1: ...                                               │
@@ -49,9 +51,14 @@ publisher process                shared memory: /dev/shm/devbus.<service>       
  private: free list, per-chunk refcounts, per-subscriber outstanding counts, pidfds
 ```
 
-- **One segment per service**, laid out once from `ServiceConfig`. It holds
+- **Two segments per service**, laid out once from `ServiceConfig`. They hold
   only offsets and indices (never pointers), because every process maps
-  it at a different address.
+  them at a different address. Payloads live in their own segment, which
+  only the publisher can write. Subscribers map it `PROT_READ`, so one
+  compromised subscriber can't rewrite what the others are reading
+  (layout version 2; threat model F13). Everything subscribers do have to
+  write (ring indices, wake-up flags) is in the control segment, and the
+  publisher treats all of it as untrusted.
 - **Two lock-free queues per publisher→subscriber pair.** The data ring
   carries "new sample in chunk *i*". The done ring carries "I'm finished
   with chunk *i*". Each ring has a single producer.
@@ -111,6 +118,43 @@ counters, which by definition only move after data is lost. One acquire
 load per active subscriber, no syscall, cheap enough to sample on every
 send. `device-service` uses this to ease the MCU's rate down before the
 pipeline starts dropping; see its `backpressure_max_devbus_pressure`.
+
+## Record and replay
+
+```bash
+devbus-record acq/samples run.rec --seconds 60     # a Block subscriber writing to disk
+devbus-replay run.rec --speed 1 --subscribers 1    # same type, same bytes, same timing
+devbus-replay run.rec --service acq/test --speed 0 # renamed, as fast as consumers take it
+```
+
+Both are type-agnostic (`include/devbus/record.hpp`). The recorder reads
+the payload type's identity (hash, size, alignment) from the live service
+and stores it in the file. The replayer creates a service with exactly
+that identity, so existing subscribers open a replay unchanged, and ones
+built for another type are refused, as they would be for a live
+publisher. The recorder uses `Block`, so a recording is complete unless
+it reports gaps: if the disk falls behind, the publisher waits up to the
+block timeout before dropping, and the drop shows up in the gap count.
+Replay holds the recorded inter-sample timing to within tens of
+microseconds (spin for the last stretch, sleep before it).
+
+**Verified on the Pi** (2026-10-02, 6.12 hardened kernel): 5000 real
+acquisition samples recorded from `acq-bridge` with 0 gaps, replayed under
+a new name, and recorded again. The two recordings have **byte-identical
+payloads** and the same type hash. Replay timing against the original:
+median 0.1 µs, p99 6.4 µs, over 4.999 s each. Zero-copy after the F13
+split, on the same board: 64 B p50 4.15–4.20 µs and 4 MiB 5.08–5.09 µs
+over three runs, against 4.35 / 4.57 µs with the single-segment layout on
+6.6 (another kernel, so only indicative). 4 MiB still costs what 64 B
+does. Data: `results/devbus/pi5-yocto/6.12.93-hardened-layout-v2/`.
+
+Verified on the dev host: 2001 samples recorded from the example
+publisher at 1 kHz with 0 gaps, and replayed to the example subscriber
+at 1000/s with 0 gaps (mean lateness 0 µs, max 20 µs). Payload bytes
+come back unchanged, *including any timestamps inside them*. The example
+subscriber measures latency from the payload's own timestamp, so on a
+replay it reports the recording's age (~3 s in that test), not transport
+latency. `Sample::publish_ns()` is the replay-time stamp to use instead.
 
 ## Build and run
 
@@ -180,9 +224,13 @@ the method, the tables, and what each result means.
   needs them.
 - Same machine only. Crossing to another machine is a bridge process
   (e.g. Zenoh/MQTT), not a transport inside devbus.
-- `Block` waits by spinning with a pause instruction, bounded by
-  `block_timeout`. A futex wait on the publisher side is a possible later
-  step.
+- ~~`Block` waits by spinning~~ Since 2026-10-01 a `Block` publisher spins
+  for 20 µs, then sleeps on a futex in the subscriber's slot, which the
+  subscriber signals when it takes a sample out (only if the publisher is
+  actually asleep, so the common case costs no syscall). A test holds the
+  publisher back for ~200 ms behind a slow subscriber and checks it used
+  under 20 % of a CPU meanwhile. A subscriber that never signals still
+  only costs `block_timeout`.
 - Refcounts are 16-bit, which caps a service at 65535 chunks.
 
 ## Roadmap
@@ -199,8 +247,22 @@ the method, the tables, and what each result means.
 2. Waitset: one thread waiting on several subscribers. Needs an
    eventfd-per-subscriber, handed over with `SCM_RIGHTS`.
 3. Dynamic-size payloads (byte slices) for variable-size frames.
-4. Record/replay as an ordinary `Block` subscriber plus a replaying publisher.
+4. ~~Record/replay as an ordinary `Block` subscriber plus a replaying
+   publisher~~ Done, see "Record and replay" above.
 5. ~~Measure on the Raspberry Pi 5 under PREEMPT_RT and `SCHED_FIFO`~~ Done,
    see the experiments doc and debugging cases 08 and 09.
-6. `Block` waits by spinning. At `SCHED_FIFO` that ran into RT throttling
-   (case 08). Wait on a futex in the subscriber slot instead.
+6. ~~`Block` waits by spinning. At `SCHED_FIFO` that ran into RT throttling
+   (case 08). Wait on a futex in the subscriber slot instead.~~ Done (see
+   "Limits" above). Not yet measured on the Pi under `SCHED_FIFO`.
+
+**Fixed along the way (2026-10-01): an onboarding race.** A subscriber
+claims a free slot and *then* writes its pid. A liveness check in that
+window read pid 0, `process_alive(0)` said "dead", and the slot was
+reclaimed under the subscriber. The subscriber then marked it `Active`
+and never received a sample. With liveness checks every 1024 sends the
+window was almost never hit. The replayer, which checks every
+millisecond while waiting for subscribers, hit it about once in fifty
+test runs. A slot that is `Claimed` with no pid is now "being
+initialized" and is reclaimed only if it stays that way for a second.
+`SlotBeingClaimedIsNotReapedAsDead` builds that state by hand, fails
+without the fix and passes with it.
