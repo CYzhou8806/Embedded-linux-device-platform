@@ -14,8 +14,9 @@ std::chrono::milliseconds check_interval(std::chrono::milliseconds timeout) {
 }
 } // namespace
 
-Watchdog::Watchdog(Device& device, AcquisitionWorker& worker, std::chrono::milliseconds timeout)
-	: device_(device), worker_(worker), timeout_(timeout) {}
+Watchdog::Watchdog(AcquisitionWorker& worker, std::chrono::milliseconds timeout, std::function<bool()> armed,
+		   std::function<void(std::chrono::milliseconds)> on_stall)
+	: worker_(worker), timeout_(timeout), armed_(std::move(armed)), on_stall_(std::move(on_stall)) {}
 
 Watchdog::~Watchdog() {
 	stop();
@@ -36,45 +37,21 @@ void Watchdog::stop() {
 }
 
 void Watchdog::check_once() {
-	auto since_last_sample = std::chrono::steady_clock::now() - worker_.last_sample_time();
+	if (armed_ && !armed_())
+		return; // paused, calibrating, recovering...: silence is expected
+
+	const auto now = std::chrono::steady_clock::now();
+	const auto since_last_sample = now - worker_.last_sample_time();
 	if (since_last_sample < timeout_)
 		return; // still healthy
+	if (now - last_report_ < timeout_)
+		return; // already reported this one
+	last_report_ = now;
 
-	auto now = std::chrono::steady_clock::now();
-	if (now - last_recovery_attempt_ < timeout_) {
-		// Already tried recovering within this same timeout window -
-		// don't hammer the SPI bus with repeated attempts back to back.
-		return;
-	}
-	last_recovery_attempt_ = now;
-
-	spdlog::warn(
-		"watchdog: no sample received in {} ms (timeout {} ms), probing device...",
-		std::chrono::duration_cast<std::chrono::milliseconds>(since_last_sample).count(),
-		timeout_.count());
-
-	uint32_t device_id;
-	try {
-		device_id = device_.read_device_id();
-	} catch (const std::exception& e) {
-		// The link itself is down - a software soft-reset can't fix this,
-		// it needs a real hardware reset (tools/mcu-reset.sh, over SWD,
-		// bypasses SPI entirely) or a manual power-cycle.
-		spdlog::error(
-			"watchdog: liveness probe failed ({}) - SPI link appears down; "
-			"a soft reset can't fix this, try tools/mcu-reset.sh or a power-cycle",
-			e.what());
-		return;
-	}
-
-	spdlog::info("watchdog: device still responds (DEVICE_ID=0x{:08x}), attempting soft recovery", device_id);
-	try {
-		device_.stop_acquisition();
-		device_.start_acquisition(); // MCU firmware resets seq_counter/FIFO on this write (case-05)
-		spdlog::info("watchdog: soft recovery attempted (control 0 -> 1)");
-	} catch (const std::exception& e) {
-		spdlog::error("watchdog: soft recovery attempt itself failed: {}", e.what());
-	}
+	const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(since_last_sample);
+	spdlog::warn("watchdog: no sample received in {} ms (timeout {} ms)", ms.count(), timeout_.count());
+	if (on_stall_)
+		on_stall_(ms);
 }
 
 void Watchdog::run() {

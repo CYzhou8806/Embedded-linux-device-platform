@@ -33,9 +33,13 @@ do_install:append() {
 	install -d ${D}/opt/device-service
 	install -m 0644 ${S}/config.example.json ${D}/opt/device-service/config.json
 
+	# The operator client for the control socket, on PATH.
+	install -d ${D}${bindir}
+	ln -sf /opt/device-service/device-ctl ${D}${bindir}/device-ctl
+
 	install -d ${D}${systemd_system_unitdir}
 	install -m 0644 ${S}/systemd/device-service.service ${D}${systemd_system_unitdir}/device-service.service
 }
 
-FILES:${PN} += "/opt/device-service/device-service /opt/device-service/config.json ${systemd_system_unitdir}/device-service.service"
+FILES:${PN} += "${bindir}/device-ctl /opt/device-service/device-service /opt/device-service/device-ctl /opt/device-service/config.json ${systemd_system_unitdir}/device-service.service"
 CONFFILES:${PN} += "/opt/device-service/config.json"

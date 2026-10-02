@@ -40,6 +40,15 @@ Config Config::load(const std::string& path) {
 	cfg.devbus_service = j.value("devbus_service", cfg.devbus_service);
 	cfg.devbus_max_subscribers = j.value("devbus_max_subscribers", cfg.devbus_max_subscribers);
 	cfg.devbus_queue_capacity = j.value("devbus_queue_capacity", cfg.devbus_queue_capacity);
+	cfg.autostart = j.value("autostart", cfg.autostart);
+	cfg.control_socket = j.value("control_socket", cfg.control_socket);
+	cfg.state_dir = j.value("state_dir", cfg.state_dir);
+	cfg.evidence_keep = j.value("evidence_keep", cfg.evidence_keep);
+	cfg.max_recovery_attempts = j.value("max_recovery_attempts", cfg.max_recovery_attempts);
+	cfg.recovery_timeout_ms = j.value("recovery_timeout_ms", cfg.recovery_timeout_ms);
+	cfg.recovery_backoff_ms = j.value("recovery_backoff_ms", cfg.recovery_backoff_ms);
+	cfg.calibration_duration_ms = j.value("calibration_duration_ms", cfg.calibration_duration_ms);
+	cfg.calibration_min_samples = j.value("calibration_min_samples", cfg.calibration_min_samples);
 
 	return cfg;
 }

@@ -1,4 +1,4 @@
-# device-service (V4)
+# device-service (V4, V2/M0 · M4 · M5)
 
 C++ userspace service that consumes the kernel driver's `/dev/acq0` (see
 `driver/custom-acq/`). Plan.md's V4: Device / RingBuffer /
@@ -13,7 +13,9 @@ and Phase 2 (everything else).
 2. Opens `/dev/acq0`, reads `device_id`/`fw_version` from sysfs as a
    liveness check, notifies systemd it's ready (`sd_notify(READY=1)`,
    a no-op outside systemd).
-3. Writes `1` to the `control` sysfs attribute to start acquisition.
+3. Hands the device to the `Supervisor` (Plan.md V2/M5, see "Machine
+   state" below), which writes `1` to the `control` sysfs attribute to
+   start acquisition unless `autostart` is off.
 4. `AcquisitionWorker` (its own thread) polls `/dev/acq0` and drains
    samples into a bounded `RingBuffer`, tracking sequence-number
    continuity via `SequenceTracker`.
@@ -21,14 +23,12 @@ and Phase 2 (everything else).
    (rate/samples/gaps/buffer occupancy/kfifo_overflow) and pings systemd's
    watchdog (`sd_notify(WATCHDOG=1)`) on the same heartbeat.
 6. `Watchdog` (its own thread) watches for "no new sample in
-   `liveness_timeout_ms`", probes the device (a real sysfs read), and
-   attempts a soft recovery (`control` 0→1, which resets the MCU's own
-   `seq_counter`/FIFO — see `docs/debugging/case-05-*.md`) if the probe
-   still succeeds. If the probe itself fails, the SPI link is genuinely
-   down; this logs an error pointing at `tools/mcu-reset.sh` rather than
-   retrying blindly.
-7. On `SIGINT`/`SIGTERM`: stops acquisition, drains/joins the worker,
-   metrics, and watchdog threads, and prints a final shutdown report.
+   `liveness_timeout_ms`" while the machine is `Running`, and reports a
+   stall to the `Supervisor`. Since M5 it only detects; the recovery
+   policy lives in the supervisor.
+7. On `SIGINT`/`SIGTERM`: the supervisor goes to `Stopped` (stopping
+   acquisition, even mid-calibration or mid-recovery), then the worker,
+   metrics, and watchdog threads are joined and a final report printed.
 8. `BackpressureController` (Plan.md V2/M0, off by default —
    `backpressure_enabled`): its own thread polls `kfifo_overflow`; any
    movement backs `REG_SAMPLE_RATE` off (halved by default,
@@ -73,6 +73,123 @@ and Phase 2 (everything else).
    separate process, reading `/dev/acq0` itself. Use that when you do not
    want the full service; use this when device-service is already running
    and should be the one owner of the device.
+
+## Machine state (Plan.md V2/M5)
+
+Before M5 each part handled its own corner: the watchdog would soft-reset
+the MCU, the backpressure controller would rewrite its sample rate, and
+nothing knew what the device as a whole was doing. A watchdog that knows
+nothing about pauses resets the MCU straight out of one. Now one
+`Supervisor` owns a single machine state, and every change goes through
+one table (`src/device_state.cpp`):
+
+```mermaid
+stateDiagram-v2
+    [*] --> Init
+    Init --> Ready: InitOk (startup probe)
+    Ready --> Running: Start
+    Running --> Paused: Pause
+    Paused --> Running: Resume
+    Ready --> Calibrating: Calibrate
+    Paused --> Calibrating: Calibrate
+    Calibrating --> Ready: CalibrationDone (ok or not)
+    Running --> Recovering: Stall (watchdog)
+    Recovering --> Running: Recovered
+    Recovering --> Fault: RecoveryFailed
+    Ready --> Fault: DeviceError
+    Running --> Fault: DeviceError
+    Paused --> Fault: DeviceError
+    Calibrating --> Fault: DeviceError
+    Fault --> Recovering: Reset (operator)
+    Fault --> Stopped: Stop
+    Running --> Stopped: Stop (any state)
+```
+
+- **One thread applies every event**, from a queue. Operator commands,
+  watchdog stalls, the acquisition thread dying, and SIGTERM all become
+  events, so a soft reset can never interleave with a calibration.
+  Operator commands are checked against the current state on arrival: a
+  command that is not allowed is refused with the reason, not queued.
+- **A state means it is already true.** The device action behind
+  `Running`/`Paused`/`Stopped` is done *before* the state is published:
+  `Running` means `control=1` has been written. If the device refuses,
+  the state never changes and the machine goes to `Fault` instead.
+- **Recovery** (`Recovering`): probe, soft reset (`control` 0→1, which
+  restarts the MCU's sequence counter and FIFO, case-05), then wait up to
+  `recovery_timeout_ms` for samples. Up to `max_recovery_attempts`, with
+  exponential backoff. If the acquisition thread died on a read error,
+  recovery also reopens `/dev/acq0` and restarts the thread. The probe
+  compares `device_id` against the value read at startup, because on
+  this hardware a dead MCU does not make the read fail. It returns
+  `0x00000000` (seen on the Pi on 2026-10-01, with `fw_version` failing
+  with EIO next to it). The startup probe now rejects 0 and all-ones for
+  the same reason; before this it logged them as "device online".
+- **Fault is latched.** Only an operator `reset` (or `stop`) leaves it,
+  so a flapping device can't keep cycling unnoticed. Entering `Fault`
+  stops acquisition and writes **cross-layer evidence** to
+  `state_dir/fault-<UTC>.json`: the service's state history and counters,
+  every custom-acq sysfs attribute (a read that fails is recorded as its
+  error, which is often the most telling line), and the kernel log lines
+  about the driver or SPI (unavailable under the production sandbox's
+  `ProtectKernelLogs=`, and recorded as unavailable). Kept to
+  `evidence_keep` files.
+- **Calibration** (`Calibrating`) is docs/performance.md's M3 clock-drift
+  measurement as a managed procedure: run the MCU for
+  `calibration_duration_ms`, fit `irq_ts_ns` against `seq` online
+  (Welford co-moments; raw sums of ~1e12 ns timestamps lose the ppm in
+  double precision), and write `state_dir/calibration.json` atomically.
+  It refuses runs it can't trust: a sequence restart mid-run, or
+  timestamps batched by a congested link (case-07). A failed calibration
+  is not a fault.
+
+**Control channel**, separate from the data path (samples on devbus,
+commands here): a Unix socket at `control_socket`, one command per
+connection, one line of JSON back. Peer credentials must be root or the
+service's own uid. `device-ctl` (`tools/device-ctl.c`, plain C, since
+BusyBox `nc` has no Unix-socket mode) is the client:
+
+```bash
+device-ctl status      # state, counters, history, last fault, last calibration
+device-ctl pause | resume | start | calibrate | reset
+```
+
+`systemctl status device-service` shows the current state too
+(`sd_notify(STATUS=...)`). On the A/B image the health check that
+commits an updated slot asks for `"state":"Running"`, since a process
+that is `active` can now be sitting in a latched `Fault`.
+
+**On the board** (images 1.3.1/1.3.2, 2026-10-02): device-service starts
+at boot `Init → Ready → Running`, the A/B health check commits a slot on
+`"state":"Running"`, and in M8's `stall` scenario the supervisor took the
+device from 4.26 s of silence back to Running on its first recovery
+attempt. **Calibration ran and correctly refused.** On the 6.12 kernel at
+1 kHz, 27.6 % of samples share an IRQ timestamp (two samples drained per
+pass), and the calibrator rejects anything over 1 %, because a fit over
+batched stamps measures the drain cadence, not the MCU's clock. M3's
+−64.42 ppm was measured on 6.6, where every stamp was distinct. On 6.12
+a calibration needs a lower rate. At 500 Hz and 250 Hz there were 0
+repeated stamps, and four runs gave **+41.6, +38.9, +38.8, +38.5 ppm**: the
+same at both rates, settling after the first. The sign convention differs
+from M3's offline script. Here + means the MCU runs fast
+(`measured/nominal − 1`); M3 used the spacing (`slope/nominal − 1`), so
+its −64.42 ppm also means fast. The MCU's uncompensated RC oscillator ran
+~39 ppm fast on this day against ~64 ppm on 2026-09-16, which is why
+calibration is a procedure that can be re-run rather than a constant. The
+data is in `results/kernel-hardening-ab/`. One rough edge, seen there:
+after a calibration started from `Paused` the machine is in `Ready`, so
+the operator's next command is `start`, not `resume`.
+
+**Tested** on the development host against a simulated MCU: the real
+Device/Worker/Watchdog/Supervisor classes, with `/dev/acq0` replaced by
+a named pipe and sysfs by a directory of plain files
+(`tests/test_supervisor.cpp`). This covers stall recovery, a dead MCU
+reading zeros, the acquisition thread dying, a pause not being taken
+for a stall, calibration recovering an injected −64.42 ppm, and Stop
+interrupting a 60 s calibration. 60 tests in all, also clean under
+ThreadSanitizer and AddressSanitizer. Writing them turned up a real bug:
+`Device::wait_readable()` only looked for `POLLIN`, so a hung-up fd made
+`poll()` return immediately forever. That was a 100%-CPU spin in which
+the read error was never seen.
 
 ## Build
 
@@ -160,14 +277,13 @@ comparison is the reason both platforms are kept.
   found via V5's integration tests). Not something `Watchdog`'s soft
   reset can recover from either (a stuck `spi_sync_transfer()` blocks the
   same SPI path `Watchdog`'s own probe would need to use).
-- `Watchdog`'s recovery is a *soft* reset only (rewriting `control` over
+- The supervisor's recovery is a *soft* reset only (rewriting `control` over
   SPI) — it cannot recover a link that's genuinely down (SPI echo
   mismatches / no response at all). That needs a real hardware reset
   (`tools/mcu-reset.sh`, over SWD) or a manual power-cycle; this service
   deliberately does not attempt either automatically (SWD needs a
   debugger connected, and a background service auto-triggering a
   hardware reset is a bigger blast radius than this phase wants).
-- No unit tests for `AcquisitionWorker`/`MetricsReporter`/`Watchdog`
-  themselves (they're thin orchestration around `Device`, which talks to
-  real hardware) — the testable logic inside them (`SequenceTracker`,
-  `RingBuffer`, `Config`) is covered instead.
+- `MetricsReporter` has no tests of its own. `AcquisitionWorker`,
+  `Watchdog` and `Supervisor` are covered end to end against the
+  simulated MCU described above.

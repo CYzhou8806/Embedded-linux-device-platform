@@ -43,6 +43,11 @@ public:
 	// Opens /dev/acq0. Throws DeviceError on failure.
 	void open();
 
+	// Closes and opens /dev/acq0 again. Supervisor's recovery uses it when
+	// the acquisition thread died on a read error, after which the old fd
+	// can't be trusted to be usable.
+	void reopen();
+
 	// Writes "1"/"0" to sysfs_dir/control. Throws DeviceError on failure.
 	void start_acquisition();
 	void stop_acquisition();
@@ -77,6 +82,10 @@ public:
 	// BackpressureController uses to slow the MCU down live.
 	uint32_t read_sample_rate();
 	void write_sample_rate(uint32_t hz);
+
+	// Raw text of any sysfs attribute, for diagnostics (fault evidence,
+	// status). Throws DeviceError like the typed readers above.
+	std::string read_attribute(const std::string& name) { return read_sysfs(name); }
 
 private:
 	std::string write_sysfs(const std::string& name, const std::string& value);

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(device-service LANGUAGES CXX)
+project(device-service LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -28,7 +28,19 @@ add_executable(device-service
 	src/watchdog.cpp
 	src/backpressure_controller.cpp
 	src/sample_publisher.cpp
+	src/device_state.cpp
+	src/clock_calibrator.cpp
+	src/fault_evidence.cpp
+	src/supervisor.cpp
+	src/control_server.cpp
+	src/commands.cpp
 )
+
+# Operator client for the control socket (plain C, no dependencies - it
+# has to run on a BusyBox image with nothing else installed).
+add_executable(device-ctl tools/device-ctl.c)
+set_target_properties(device-ctl PROPERTIES LINKER_LANGUAGE C)
+target_compile_options(device-ctl PRIVATE -Wall -Wextra)
 
 # devbus (userspace/devbus) carries the shared-memory pub/sub this service
 # publishes acq/samples on. Two ways to find it, in this order:
@@ -65,7 +77,7 @@ target_compile_options(device-service PRIVATE -Wall -Wextra)
 # Matches README.md's manual install convention (/opt/device-service/) and
 # systemd/device-service.service's ExecStart - both the manual and the
 # Yocto recipe (yocto/meta-device-platform) install paths agree.
-install(TARGETS device-service RUNTIME DESTINATION /opt/device-service)
+install(TARGETS device-service device-ctl RUNTIME DESTINATION /opt/device-service)
 
 if(BUILD_TESTING)
 	enable_testing()

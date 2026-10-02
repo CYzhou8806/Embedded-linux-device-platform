@@ -5,11 +5,6 @@ namespace acq {
 namespace {
 constexpr int kPollTimeoutMs = 200;
 
-int64_t now_ms() {
-	return std::chrono::duration_cast<std::chrono::milliseconds>(
-		std::chrono::steady_clock::now().time_since_epoch()).count();
-}
-
 // steady_clock is CLOCK_MONOTONIC on Linux glibc, the same clock the
 // kernel's ktime_get_ns() (driver/custom-acq/custom_acq.c's irq_ts_ns)
 // uses - directly comparable, no epoch conversion needed.
@@ -17,6 +12,11 @@ int64_t now_ns() {
 	return std::chrono::duration_cast<std::chrono::nanoseconds>(
 		std::chrono::steady_clock::now().time_since_epoch()).count();
 }
+}
+
+int64_t AcquisitionWorker::now_ms() {
+	return std::chrono::duration_cast<std::chrono::milliseconds>(
+		std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
 AcquisitionWorker::AcquisitionWorker(Device& device, RingBuffer<Sample>& buffer, LatencyLogger* latency_logger,
@@ -29,6 +29,8 @@ AcquisitionWorker::~AcquisitionWorker() {
 
 void AcquisitionWorker::start() {
 	stop_requested_ = false;
+	failed_ = false;
+	last_error_ = nullptr;
 	last_sample_ms_ = now_ms(); // grace period starts now, not at epoch 0
 	thread_ = std::thread(&AcquisitionWorker::run, this);
 }
@@ -65,6 +67,8 @@ void AcquisitionWorker::run() {
 				const int64_t prev = age_ewma_ns_.load(std::memory_order_relaxed);
 				age_ewma_ns_.store(prev == 0 ? age : prev + (age - prev) / 64, std::memory_order_relaxed);
 			}
+			if (ClockCalibrator* cal = calibrator_.load(std::memory_order_acquire))
+				cal->observe(s.seq, s.irq_ts_ns);
 			if (latency_logger_)
 				latency_logger_->log(s.seq, s.irq_ts_ns, recv_ts_ns);
 			// Publish before the local ring buffer: other processes should
@@ -75,6 +79,7 @@ void AcquisitionWorker::run() {
 		}
 	} catch (...) {
 		last_error_ = std::current_exception();
+		failed_.store(true, std::memory_order_release);
 	}
 }
 

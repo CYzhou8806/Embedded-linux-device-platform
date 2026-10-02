@@ -6,6 +6,7 @@
 #include <exception>
 #include <thread>
 
+#include "clock_calibrator.hpp"
 #include "device.hpp"
 #include "latency_logger.hpp"
 #include "ring_buffer.hpp"
@@ -95,10 +96,28 @@ public:
 
 	// Re-thrown by the caller (e.g. main) after stop() if the worker
 	// thread exited due to a DeviceError rather than a requested stop.
+	// Only read it once failed() is true or after stop(): it is written by
+	// the worker thread just before failed() flips.
 	std::exception_ptr last_error() const { return last_error_; }
+
+	// True once the read loop has exited on an error rather than on
+	// stop(). Supervisor polls this; the thread itself has no way to
+	// report its own death otherwise.
+	bool failed() const { return failed_.load(std::memory_order_acquire); }
+
+	// Restart the "time since last sample" clock without a sample having
+	// arrived. Supervisor calls it whenever it (re)starts acquisition: after
+	// a pause, last_sample_time() is as old as the pause, and the watchdog
+	// would otherwise report a stall the instant acquisition resumes.
+	void rearm() { last_sample_ms_ = now_ms(); }
+
+	// While non-null, every sample is also fed to this calibrator (on this
+	// thread). Supervisor sets it for the length of a calibration run.
+	void set_calibrator(ClockCalibrator* c) { calibrator_.store(c, std::memory_order_release); }
 
 private:
 	void run();
+	static int64_t now_ms();
 
 	Device& device_;
 	RingBuffer<Sample>& buffer_;
@@ -112,6 +131,8 @@ private:
 	std::atomic<int64_t> last_sample_ms_{0};
 	std::atomic<int64_t> sample_age_ns_{0};
 	std::atomic<int64_t> age_ewma_ns_{0};
+	std::atomic<bool> failed_{false};
+	std::atomic<ClockCalibrator*> calibrator_{nullptr};
 };
 
 } // namespace acq

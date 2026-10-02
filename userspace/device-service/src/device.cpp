@@ -26,6 +26,14 @@ void Device::open() {
 	}
 }
 
+void Device::reopen() {
+	if (fd_ >= 0) {
+		::close(fd_);
+		fd_ = -1;
+	}
+	open();
+}
+
 std::string Device::write_sysfs(const std::string& name, const std::string& value) {
 	std::ofstream f(sysfs_dir_ + name);
 	if (!f) {
@@ -78,7 +86,12 @@ bool Device::wait_readable(int timeout_ms) {
 			return false;
 		throw DeviceError(std::string("poll on ") + dev_path_ + " failed: " + std::strerror(errno));
 	}
-	return ret > 0 && (pfd.revents & POLLIN);
+	// POLLERR/POLLHUP/POLLNVAL count as "readable" on purpose: they mean
+	// the next read() will fail, and letting it fail is how the caller
+	// finds out. Testing for POLLIN alone turned a hung-up fd into a
+	// 100%-CPU spin - poll() returns at once, forever, and nothing ever
+	// reads the error (found by tests/test_supervisor.cpp, 2026-10-01).
+	return ret > 0 && (pfd.revents & (POLLIN | POLLERR | POLLHUP | POLLNVAL));
 }
 
 uint32_t Device::read_device_id() {

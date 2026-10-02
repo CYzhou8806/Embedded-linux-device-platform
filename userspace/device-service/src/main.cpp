@@ -3,7 +3,9 @@
 // them, shut down cleanly on SIGINT/SIGTERM. Phase 2 adds Configuration,
 // spdlog logging, MetricsReporter, Watchdog (ErrorRecovery), and systemd
 // readiness/watchdog notifications (sd_notify) — GoogleTest unit tests
-// live under tests/.
+// live under tests/. Plan.md V2/M5 puts a Supervisor (machine state,
+// recovery policy, calibration, fault evidence) in charge of the device
+// and adds an operator control socket.
 #include <cerrno>
 #include <chrono>
 #include <csignal>
@@ -12,22 +14,29 @@
 #include <exception>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <thread>
 
+#include <fcntl.h>
 #include <sched.h>
+#include <unistd.h>
 #include <sys/mman.h>
 
+#include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <systemd/sd-daemon.h>
 
 #include "acquisition_worker.hpp"
 #include "backpressure_controller.hpp"
+#include "commands.hpp"
 #include "config.hpp"
+#include "control_server.hpp"
 #include "device.hpp"
 #include "latency_logger.hpp"
 #include "metrics.hpp"
 #include "ring_buffer.hpp"
 #include "sample_publisher.hpp"
+#include "supervisor.hpp"
 #include "watchdog.hpp"
 
 namespace {
@@ -51,6 +60,34 @@ void init_logging(const std::string& log_level) {
 	spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v");
 	spdlog::set_level(spdlog::level::from_str(log_level));
 }
+
+// Plan.md V2/M8: every state transition also goes into the ftrace ring
+// buffer, next to the driver's custom_acq tracepoints, so one trace shows
+// the injected fault, its effect in the driver, and the supervisor's
+// decision on one clock. Transitions are rare, so this costs nothing;
+// best effort, since tracefs may not be mounted or may be outside the
+// sandbox.
+class TraceMarker {
+public:
+	TraceMarker() {
+		for (const char* p : {"/sys/kernel/tracing/trace_marker", "/sys/kernel/debug/tracing/trace_marker"}) {
+			fd_ = ::open(p, O_WRONLY | O_CLOEXEC);
+			if (fd_ >= 0)
+				break;
+		}
+	}
+	~TraceMarker() {
+		if (fd_ >= 0)
+			::close(fd_);
+	}
+	void write(const std::string& line) const {
+		if (fd_ >= 0)
+			(void)!::write(fd_, line.data(), line.size());
+	}
+
+private:
+	int fd_ = -1;
+};
 
 } // namespace
 
@@ -99,6 +136,7 @@ int main(int argc, char** argv) {
 
 	acq::Device device(cfg.dev_path, cfg.sysfs_dir);
 	acq::RingBuffer<acq::Sample> buffer(cfg.buffer_capacity);
+	uint32_t device_id = 0;
 
 	try {
 		device.open();
@@ -106,7 +144,18 @@ int main(int argc, char** argv) {
 		// Liveness check before touching acquisition at all - reuses the
 		// existing read-only sysfs attrs rather than inventing a new
 		// probe path (see docs/learning-qa.md Q25/Q26).
-		uint32_t device_id = device.read_device_id();
+		device_id = device.read_device_id();
+		// All-zeros / all-ones is what an SPI read of an MCU that isn't
+		// driving MISO returns - the transfer itself "succeeds". Seen on
+		// the Pi after a power cycle left the MCU stopped (2026-10-01):
+		// device_id=0x00000000 while fw_version failed with EIO. Before
+		// this check the service logged that as "device online".
+		if (device_id == 0x00000000u || device_id == 0xffffffffu) {
+			char buf[96];
+			std::snprintf(buf, sizeof(buf), "DEVICE_ID=0x%08x - MCU not responding (reset it: tools/mcu-reset.sh)",
+				      device_id);
+			throw acq::DeviceError(buf);
+		}
 		uint32_t fw_version = device.read_fw_version();
 		spdlog::info("device online: DEVICE_ID=0x{:08x} FW_VERSION=0x{:08x}", device_id, fw_version);
 		// No-op when not run under systemd (NOTIFY_SOCKET unset) - safe to
@@ -136,15 +185,32 @@ int main(int argc, char** argv) {
 	}
 	acq::AcquisitionWorker worker(device, buffer, &latency_logger, sample_publisher.get());
 
+	acq::SupervisorConfig sup_cfg;
+	sup_cfg.expected_device_id = device_id;
+	sup_cfg.max_recovery_attempts = cfg.max_recovery_attempts;
+	sup_cfg.recovery_timeout = std::chrono::milliseconds(cfg.recovery_timeout_ms);
+	sup_cfg.recovery_backoff = std::chrono::milliseconds(cfg.recovery_backoff_ms);
+	sup_cfg.calibration_duration = std::chrono::milliseconds(cfg.calibration_duration_ms);
+	sup_cfg.calibration_min_samples = cfg.calibration_min_samples;
+	sup_cfg.state_dir = cfg.state_dir;
+	sup_cfg.evidence_keep = cfg.evidence_keep;
+	acq::Supervisor supervisor(device, worker, sup_cfg);
+	// systemctl status shows this line - the machine state at a glance.
+	TraceMarker trace_marker;
+	supervisor.set_on_transition([&trace_marker](acq::State from, acq::State to, acq::Event e) {
+		sd_notifyf(0, "STATUS=%s", std::string(acq::to_string(to)).c_str());
+		trace_marker.write("device-service: " + std::string(acq::to_string(from)) + " -> " +
+				   std::string(acq::to_string(to)) + " on " + std::string(acq::to_string(e)));
+	});
+
 	std::thread signal_thread([&] {
 		int sig = 0;
 		sigwait(&shutdown_set, &sig);
 		spdlog::info("received signal {}, shutting down...", sig);
-		try {
-			device.stop_acquisition();
-		} catch (const std::exception& e) {
-			spdlog::error("stop_acquisition failed: {}", e.what());
-		}
+		// Stopped's entry action stops acquisition on the MCU; doing it
+		// through the supervisor means it can't interleave with a
+		// recovery or calibration that happens to be running.
+		supervisor.stop();
 		// Unblock the buffer first: if the worker happens to be stuck
 		// inside buffer_.push() (buffer momentarily full), worker.stop()
 		// alone would deadlock waiting to join a thread that's waiting on
@@ -158,7 +224,15 @@ int main(int argc, char** argv) {
 	// running a second timer purely for sd_notify - see MetricsReporter's
 	// header comment on set_on_tick().
 	metrics.set_on_tick([] { sd_notify(0, "WATCHDOG=1"); });
-	acq::Watchdog watchdog(device, worker, std::chrono::milliseconds(cfg.liveness_timeout_ms));
+	// Detection only; what to do about a stall is the supervisor's call.
+	// Armed only while Running: silence while paused or calibrating is
+	// expected, and during recovery the supervisor is already on it.
+	acq::Watchdog watchdog(
+		worker, std::chrono::milliseconds(cfg.liveness_timeout_ms),
+		[&supervisor] { return supervisor.state() == acq::State::Running; },
+		[&supervisor](std::chrono::milliseconds silent) {
+			supervisor.post(acq::Event::Stall, "no sample for " + std::to_string(silent.count()) + " ms");
+		});
 	// The leading congestion signal, assembled from whichever sources are
 	// configured: sample age covers the driver/SPI side falling behind,
 	// devbus pressure covers a consumer falling behind. Null when neither
@@ -187,15 +261,28 @@ int main(int argc, char** argv) {
 						  cfg.backpressure_backoff_divisor, cfg.backpressure_recovery_step_hz,
 						  std::move(early_warning));
 
-	try {
-		device.start_acquisition();
-	} catch (const std::exception& e) {
-		spdlog::error("start_acquisition failed: {}", e.what());
-		pthread_kill(signal_thread.native_handle(), SIGTERM);
-		signal_thread.join();
-		return 1;
+	std::unique_ptr<acq::ControlServer> control;
+	if (!cfg.control_socket.empty()) {
+		control = std::make_unique<acq::ControlServer>(
+			cfg.control_socket, [&supervisor](const std::string& cmd, const ucred& peer) { return acq::handle_command(supervisor, cmd, peer); });
+		try {
+			control->start();
+			spdlog::info("control socket: {}", cfg.control_socket);
+		} catch (const std::exception& e) {
+			// Like devbus: acquisition is the job, the control channel
+			// is an extra. Run without it rather than not at all.
+			spdlog::warn("control socket disabled: {}", e.what());
+			control.reset();
+		}
 	}
+
+	// The read thread runs from here to shutdown in every state; whether
+	// the MCU is producing is what the supervisor switches.
 	worker.start();
+	supervisor.start();
+	supervisor.post(acq::Event::InitOk, "startup probe passed");
+	if (cfg.autostart)
+		supervisor.post(acq::Event::Start, "autostart");
 	metrics.start();
 	watchdog.start();
 	if (cfg.backpressure_enabled)
@@ -210,6 +297,8 @@ int main(int argc, char** argv) {
 	}
 
 	signal_thread.join();
+	if (control)
+		control->stop();
 	if (cfg.backpressure_enabled)
 		backpressure.stop();
 	watchdog.stop();

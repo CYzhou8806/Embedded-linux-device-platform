@@ -19,5 +19,14 @@
   "backpressure_max_devbus_pressure": 0.0,
   "devbus_service": "",
   "devbus_max_subscribers": 4,
-  "devbus_queue_capacity": 16
+  "devbus_queue_capacity": 16,
+  "autostart": true,
+  "control_socket": "/run/device-service/control.sock",
+  "state_dir": "/var/lib/device-service",
+  "evidence_keep": 20,
+  "max_recovery_attempts": 3,
+  "recovery_timeout_ms": 2000,
+  "recovery_backoff_ms": 500,
+  "calibration_duration_ms": 10000,
+  "calibration_min_samples": 1000
 }

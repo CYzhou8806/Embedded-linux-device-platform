@@ -17,6 +17,15 @@ RestartSec=2
 # restarts it. Kept comfortably above metrics_interval_ms in
 # config.json so a couple of missed ticks don't false-trigger.
 WatchdogSec=15
+# Plan.md V2/M5: /run/device-service holds the control socket
+# (config.json's control_socket; tools/device-ctl.c talks to it), and
+# /var/lib/device-service the fault evidence and calibration.json
+# (state_dir). systemd creates both owned by whatever User= a drop-in
+# sets, and keeps them writable under ProtectSystem=strict.
+RuntimeDirectory=device-service
+RuntimeDirectoryMode=0750
+StateDirectory=device-service
+StateDirectoryMode=0750
 
 [Install]
 WantedBy=multi-user.target

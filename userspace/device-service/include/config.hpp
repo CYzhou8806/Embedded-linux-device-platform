@@ -89,6 +89,23 @@ struct Config {
 	uint32_t devbus_max_subscribers = 4;
 	uint32_t devbus_queue_capacity = 16;
 
+	// Plan.md V2/M5 orchestration (Supervisor). autostart=true keeps the
+	// pre-M5 behavior of acquiring as soon as the device is probed; false
+	// leaves it in Ready until an operator sends "start".
+	bool autostart = true;
+	// Unix socket for operator commands (tools: device-ctl). Empty =
+	// no control channel. The systemd unit's RuntimeDirectory= creates
+	// /run/device-service with the right owner.
+	std::string control_socket;
+	// Fault evidence and calibration.json. Empty = log only.
+	std::string state_dir;
+	std::size_t evidence_keep = 20;
+	int max_recovery_attempts = 3;
+	int recovery_timeout_ms = 2000;
+	int recovery_backoff_ms = 500;
+	int calibration_duration_ms = 10000;
+	uint64_t calibration_min_samples = 1000;
+
 	static Config load(const std::string& path);
 };
 
