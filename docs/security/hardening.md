@@ -357,6 +357,67 @@ separate debug build), `COMPAT` and `IO_URING` (not yet shown to be unused).
 `ARM64_BTI_KERNEL`/pointer authentication need CPU features the A76
 doesn't have (§6).
 
+### Configuration, step 2: the full checker (2026-10-01)
+
+The hand-picked 44 above were the start. The full
+[kernel-hardening-checker](https://github.com/a13xp0p0v/kernel-hardening-checker)
+(0.6.17.1) checks 282 kconfig and cmdline items. Over the 1.2.x kernel it
+reported **175 OK / 107 FAIL**. A second fragment,
+[`hardening-kspp.cfg`](../../yocto/meta-device-platform-verity/recipes-kernel/linux/files/hardening-kspp.cfg),
+takes it to **230 OK / 52 FAIL**: KSPP's kconfig items go from 46/91 to
+71/91, grsecurity's from 36/53 to 48/53. Records:
+[before](../../results/security/hardening/kernel-hardening-checker-6.12-before.txt),
+[after](../../results/security/hardening/kernel-hardening-checker-6.12-after.txt).
+**Booted on the board** through the A/B path (images 1.3.1/1.3.2,
+2026-10-02): `/sys/kernel/security/lockdown` reads `[integrity]`, the LSMs
+are `lockdown,capability,yama,landlock`, there are no failed units, and
+M8's `custom_acq` tracepoints work under lockdown. The full M8 matrix ran
+on this kernel. The cost question (`INIT_ON_FREE_DEFAULT_ON` is a memset
+per free, plus the debug checks) was measured the only way that isolates
+the kernel: the same card, slot A on the old kernel and slot B on the new
+one, 3 × 10 000 raw samples each. The fraction of samples drained two to
+a pass was A 15.0 / 22.9 / 28.1 % and B 27.6 / 27.9 / 27.4 %
+([data and script](../../results/kernel-hardening-ab/)). B sits steadily
+at A's upper end. That suggests a small cost, but A's spread covers B, so
+it is **not established**. Sequence gaps were 0 in all six runs.
+
+The decision that shaped the rest is **lockdown in integrity mode, not
+confidentiality**. Both stop root from modifying the running kernel
+(unsigned modules, `/dev/mem`, kexec, debugfs). Confidentiality also
+closes tracefs, perf and kprobes, which would switch off M8's field
+diagnostics (the `custom_acq` tracepoints that place a fault in its layer).
+Tracing was cut down to what M8 uses instead. Static tracepoints and
+`trace_marker` stay; the function tracer, kprobes, the stack tracer and
+debugfs are gone. Those are the parts that can patch or probe arbitrary
+kernel code.
+
+As in step 1, every line of the fragment was checked against the
+resulting `.config`. That caught five that had not taken effect:
+`KPROBE_EVENTS` vanishes with `KPROBES`; `HARDENED_USERCOPY_DEFAULT_ON`
+doesn't exist in 6.12; `LSM_MMAP_MIN_ADDR` is SELinux-only;
+`ARM64_BTI_KERNEL` is `depends on !CC_IS_GCC` (GCC bug 106671); and
+`IP_SCTP` stayed `=m` because the DLM selects it, and two cluster
+filesystems select the DLM. Those three are off now, and the final check
+reads 47 of 47 applied.
+
+The 52 that remain, and why. (An earlier version of this table also
+listed `FAIL_FUTEX` as "missed". It isn't a failure: the checker reports
+`OK: is not found`. A `grep FAIL` over the report had matched the option's
+*name*.)
+
+| group | items | why they stay |
+| --- | --- | --- |
+| **Not possible here** | `CFI_CLANG`, `CFI_PERMISSIVE`, `SHADOW_CALL_STACK` (Clang only; this is a GCC build); `ARM64_BTI_KERNEL` (GCC); `KASAN_HW_TAGS` (MTE, Armv8.5), `ARM64_GCS` (Armv9.4); `ARM64_SW_TTBR0_PAN` (the A76 has hardware PAN, so the software emulation would add nothing); three `ARM_SMMU*` (no Arm SMMU on the BCM2712); `EFI_DISABLE_PCI_DMA`, `RESET_ATTACK_MITIGATION`, `efi=` (no EFI); `SCHED_CORE`, `nosmt` (the A76 has no SMT); `HARDENED_USERCOPY_DEFAULT_ON`, `LSM_MMAP_MIN_ADDR`, `LSM=*selinux*` (not in 6.12, or SELinux-only, and there is no SELinux policy); `hardened_usercopy=1` on the cmdline (already compiled in as the default) | — |
+| **Kept, something needs them** | `MODULES`, `nomodule`, `TRIM_UNUSED_KSYMS` | the out-of-tree `custom_acq` driver and the WiFi stack are modules (all signed, `MODULE_SIG_FORCE`) |
+| | `FTRACE`, `GENERIC_TRACER`, `KALLSYMS`, `LOCK_DOWN_KERNEL_FORCE_CONFIDENTIALITY`, `lockdown=confidentiality` | M8's tracepoints (above) |
+| | `BPF_SYSCALL` | systemd enforces `DevicePolicy=` (device-service's `/dev/acq0` allow-list) with a cgroup BPF program |
+| | six `CRYPTO_USER_API*` | `libcryptsetup` checks ciphers through AF_ALG (its "Required kernel crypto interface not available" path), and `/data` is LUKS2 |
+| | `STAGING` | the Pi's VideoCore drivers live in staging |
+| | `FB`, `VT` | the HDMI console was how the secure-boot tryboot failure was diagnosed (§ secure-boot); a recovery channel worth keeping |
+| | `CHECKPOINT_RESTORE`, `KCMP`, `RSEQ`, `PROC_PAGE_MONITOR` | used by systemd or glibc, or not yet examined; the cost of a wrong guess here is a broken boot |
+| **Deferred to a board soak** | `UBSAN_BOUNDS`/`_LOCAL_BOUNDS`/`_TRAP`/`_SANITIZE_ALL`, `PAGE_TABLE_CHECK`(`_ENFORCED`), `RANDSTRUCT_FULL`, `STATIC_USERMODEHELPER`, `WERROR` | UBSAN trap and page-table checks *panic* on bugs in vendor drivers, which is the point but needs a soak test first; randstruct ties every module to the build's seed; a static usermode helper breaks `request_module`; `-Werror` on a vendor tree is a build-policy decision |
+| | `page_alloc.shuffle`, `hash_pointers` (cmdline) | the cmdline is part of what tryboot switches; change it together with a boot test |
+
 ### Runtime settings
 
 [`90-device-platform-hardening.conf`](../../yocto/meta-device-platform-verity/recipes-support/device-platform-ab/files/90-device-platform-hardening.conf)

@@ -4,7 +4,7 @@
 # against, and even a conditional SRC_URI:append changes its task hashes
 # (BitBake hashes the unexpanded variable text).
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
-SRC_URI:append = " file://dm-builtin.cfg file://hardening.cfg"
+SRC_URI:append = " file://dm-builtin.cfg file://hardening.cfg file://hardening-kspp.cfg"
 
 # kernel-base recommends kernel-image, so anything that pulls in a kernel
 # module package (cryptsetup's recommendations do, in the initramfs) also
