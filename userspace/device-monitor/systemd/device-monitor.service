@@ -1,0 +1,61 @@
+[Unit]
+Description=Read-only remote monitoring of device-service (mutual TLS)
+Documentation=file:///opt/device-monitor/README.md
+# Not provisioned = not started: no certificate, nothing to serve.
+ConditionPathExists=/data/monitor/device.crt
+# Only /data (the credentials) has to come first. Not device-service: it
+# is ordered After=multi-user.target, and this unit is WantedBy that
+# target, so "After=device-service" closed an ordering cycle and systemd
+# deleted device-service's start job to break it (board, 2026-10-02).
+# Each request connects to the control socket afresh and answers 503
+# until it exists. Not network-online either: a listener on 0.0.0.0 needs
+# no configured network, and the target pulled in wait-online, which held
+# the boot for two minutes waiting on an unplugged eth0.
+After=device-platform-data.service
+
+[Service]
+ExecStart=/opt/device-monitor/device-monitor /opt/device-monitor/config.json
+Restart=on-failure
+RestartSec=5
+
+# Who it runs as: a throwaway uid, plus the device-service group so it can
+# reach the control socket - where it is a read-only peer (status only).
+DynamicUser=yes
+SupplementaryGroups=acq
+
+# The key never becomes readable by this uid on /data (root 0600 there):
+# systemd copies these into a ramfs only this service can see, at
+# /run/credentials/device-monitor.service/. The CRL is required, not
+# optional - provisioning always issues one, even if it revokes nothing.
+LoadCredential=device.crt:/data/monitor/device.crt
+LoadCredential=device.key:/data/monitor/device.key
+LoadCredential=operator-ca.crt:/data/monitor/operator-ca.crt
+LoadCredential=operator.crl:/data/monitor/operator.crl
+
+# The opposite of device-service's sandbox: network yes, hardware no.
+CapabilityBoundingSet=
+NoNewPrivileges=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

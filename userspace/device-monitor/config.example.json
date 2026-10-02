@@ -1,0 +1,10 @@
+{
+  "listen_address": "0.0.0.0",
+  "listen_port": 8443,
+  "cert_file": "/run/credentials/device-monitor.service/device.crt",
+  "key_file": "/run/credentials/device-monitor.service/device.key",
+  "client_ca_file": "/run/credentials/device-monitor.service/operator-ca.crt",
+  "crl_file": "/run/credentials/device-monitor.service/operator.crl",
+  "control_socket": "/run/device-service/control.sock",
+  "timeout_ms": 5000
+}

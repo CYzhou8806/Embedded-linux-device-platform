@@ -27,6 +27,7 @@ IMAGE_INSTALL:remove = "kernel-modules"
 IMAGE_INSTALL:append = " \
     ${@' '.join('kernel-module-' + m for m in d.getVar('DEVICE_PLATFORM_MODULES').split())} \
     device-platform-ab \
+    device-monitor \
 "
 # rauc-mark-good would mark every booted slot good unconditionally, before
 # anything checked it - the health check (device-platform-healthcheck) is
