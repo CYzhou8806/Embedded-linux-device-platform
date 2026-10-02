@@ -14,6 +14,7 @@ pointing back to the findings it closes.
 | [integrity-and-encryption.md](integrity-and-encryption.md) | dm-verity for the rootfs, LUKS for data, and where the key can live on this board | F5, F7, F8 |
 | [update-and-provisioning.md](update-and-provisioning.md) | Signed A/B updates on the Pi 5 firmware's tryboot (tested on the board: failed update rolled back, healthy one committed), anti-rollback, per-device provisioning | F6, F14 |
 | [device-authentication.md](device-authentication.md) | Authenticating the MCU on the SPI link: challenge–response with a per-MCU key, measured on the board; read-out protection level 1 | F9, F10 |
+| [remote-monitoring.md](remote-monitoring.md) | Read-only status over mutual TLS 1.3 from a separate, network-only process; Device CA + a new Operator CA in the HSM, CRL that fails closed | M7 (not a finding) |
 
 Code:
 

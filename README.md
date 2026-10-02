@@ -27,11 +27,17 @@ real hardware, not simulated.
                 ▼
 ┌────────────────────────────────┐
 │  C++17 Device Service           │  multithreaded, systemd-managed
-│  Config / Metrics / Logging     │
-│  Error recovery / liveness      │  rate backpressure, acts before loss
-└───────────────┬─────────────────┘
-                │ devbus          (measured: ~5us, any payload size)
-                ▼
+│  Supervisor: machine state,     │  recovery, calibration, fault evidence
+│  Config / Metrics / Logging     │  rate backpressure, acts before loss
+└───────┬───────────────┬─────────┘
+        │               │ control socket (status read-only to the group)
+        │               ▼
+        │   ┌──────────────────────┐
+        │   │ device-monitor       │  mutual TLS 1.3, network yes / hardware no
+        │   └──────────────────────┘
+        │
+        │ devbus          (measured: ~5us, any payload size)
+        ▼
 ┌────────────────────────────────┐
 │  devbus: zero-copy pub/sub      │  C++20, POSIX shared memory
 │  loan/send, no copy at all      │  lock-free per-subscriber queues
@@ -58,13 +64,15 @@ real hardware, not simulated.
 | Embedded Linux | Custom Yocto/OpenEmbedded (Scarthgap) image, `bitbake`-built, boots to a working system on real Raspberry Pi 5 hardware |
 | Kernel | Device Tree overlay + out-of-tree SPI driver: threaded IRQ (hard-IRQ timestamping + threaded FIFO drain), `kfifo`-backed buffer, sysfs diagnostics |
 | Userspace | Multithreaded C++17 device service — acquisition worker, ring buffer, structured logging, metrics, config-driven scheduling knobs, systemd unit |
+| Orchestration | One supervisor owns the machine state (Ready/Running/Paused/Calibrating/Recovering/Fault): bounded recovery with backoff, a latched fault that saves cross-layer evidence (service history, every driver attribute, kernel log), clock calibration as a managed procedure, an operator control socket — tested end to end against a simulated MCU, also under TSan/ASan; see [`device-service`](userspace/device-service/README.md#machine-state-planmd-v2m5) |
+| Diagnostics | Kernel tracepoints at every layer boundary (IRQ, drain, kfifo, `read()`, SPI errors) plus fault-injection knobs, on one ftrace clock with the supervisor's transitions; an analyzer that names the layer a fault started in — 7/7 on the board; its first board run found a driver bug where one SPI error stopped acquisition for 4 s (case 15) — see [`experiments/m8-fault-injection/`](experiments/m8-fault-injection/README.md) |
 | Testing | Python integration tests against real hardware, sustained hardware stress tests, unit tests for pure logic |
-| Debugging | 11 documented root-cause investigations (two of which a second platform later corrected, with the corrections kept alongside the originals) (`docs/debugging/`) spanning IRQ priority inversion, protocol race conditions, stale-buffer bugs, an intermittent SPI-controller stall, two real-time pitfalls found on the target (RT throttling, RCU starvation under PREEMPT_RT), and two from the security work (a one-byte dm-verity tamper on the card, and signed A/B updates that failed on the board for reasons the build host couldn't show) |
+| Debugging | 15 documented root-cause investigations (two of which a second platform later corrected, with the corrections kept alongside the originals) (`docs/debugging/`) spanning IRQ priority inversion, protocol race conditions, stale-buffer bugs, an intermittent SPI-controller stall, two real-time pitfalls found on the target (RT throttling, RCU starvation under PREEMPT_RT), two from the security work (a one-byte dm-verity tamper on the card, and signed A/B updates that failed on the board for reasons the build host couldn't show), a Yocto build failure worked around for a week until Kbuild's `make clean` turned out to be deleting packaged files, a dead MCU that a protocol blind spot made read as a valid device, an update its own health check refused (now a release gate), and a transient SPI error that stalled the pipeline, found by fault injection |
 | Performance | Full-chain latency characterization (MCU-produced → hard-IRQ → userspace) with repeated-measurement statistical validation, not single-run numbers |
-| Middleware | `devbus`: zero-copy shared-memory pub/sub between processes on the device (loan/send, per-subscriber lock-free queues and drop policies, crash reclaim via pidfd), measured against Unix sockets |
+| Middleware | `devbus`: zero-copy shared-memory pub/sub between processes on the device (loan/send, per-subscriber lock-free queues and drop policies, crash reclaim via pidfd), measured against Unix sockets; payloads mapped read-only into subscribers, type-preserving record/replay, and a `Block` publisher that sleeps on a futex instead of spinning |
 | Real-time | Self-built PREEMPT_RT and non-RT kernels from one source, booted on the target through one-shot `tryboot`; kernel × tuning latency matrix with `cyclictest` alongside |
 | Cross-platform | The same source and the same board on two Linux distributions and six kernels (self-built and vendor), to separate what the kernel contributes from what the image does — see [`platforms/`](platforms/) |
-| Security | Threat model and audit of this device (14 findings); production image with key-only SSH, read-only rootfs and a sandboxed service; CVE triage with the kernel's real compiled-file list; Pi 5 secure-boot signing with keys in a PKCS#11 token; an OP-TEE trusted application for device identity; signed RAUC updates; a provisioning station — see [`docs/security/`](docs/security/README.md) |
+| Security | Threat model and audit of this device (14 findings); production image with key-only SSH, read-only rootfs and a sandboxed service; CVE triage with the kernel's real compiled-file list; Pi 5 secure-boot signing with keys in a PKCS#11 token; an OP-TEE trusted application for device identity; signed RAUC updates; a provisioning station; read-only remote monitoring over mutual TLS from a separate process, with an HSM-backed Operator CA and revocation — see [`docs/security/`](docs/security/README.md) |
 
 ## Results
 
@@ -109,13 +117,15 @@ device-tree/              Device Tree overlay source
 driver/custom-acq/        Kernel driver (see its README) + code walkthrough
 userspace/device-service/ C++17 device service
 userspace/devbus/         Zero-copy shared-memory pub/sub middleware (see its README)
+userspace/device-monitor/ Read-only remote monitoring over mutual TLS (docs/security/remote-monitoring.md)
 tests/                    unit / integration / hardware test suites
 yocto/meta-device-platform/  Custom Yocto layer (driver, service, image recipes)
 yocto/meta-device-platform-verity/  Signed A/B images: dm-verity root, LUKS2 data, RAUC, hardened 6.12 kernel
 experiments/scheduler-baseline/  Standalone cyclictest-style RT probe
 experiments/rt-kernel/    PREEMPT_RT kernel build + safe tryboot deployment for the Pi 5
+experiments/m8-fault-injection/  Fault-injection matrix, trace analyzer (which layer failed first)
 platforms/                The two Linux distributions this runs on, and how they differ
-security/                 Signing (PKCS#11), OP-TEE TA, dm-verity, CVE, hardening and MCU-auth tooling
+security/                 Signing (PKCS#11), OP-TEE TA, dm-verity, CVE, hardening, MCU-auth and monitoring-PKI tooling
 docs/                     Performance report, debugging case studies, security, walkthroughs
 results/                  Raw latency/throughput data, charts, logic-analyzer captures
 ```

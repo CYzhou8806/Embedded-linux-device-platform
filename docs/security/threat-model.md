@@ -154,6 +154,16 @@ they matter:
   payload read-only for subscribers needs a separate read-only mapping
   per subscriber, which is a design change to devbus and out of scope
   for this audit.
+  **Update 2026-10-01:** done after all, and it turned out smaller than
+  stated above. It did not need one mapping per subscriber, only one
+  read-only segment that all subscribers share. devbus layout version 2
+  moves chunk headers and payloads into `/dev/shm/devbus.<svc>.data`
+  (mode 0640). Subscribers open it `O_RDONLY` and map it `PROT_READ`, so a
+  write is a SIGSEGV (a test casts away `const` and checks that the
+  process dies). The control segment stays read-write, so a hostile
+  subscriber can still misdirect or starve others through the rings, but
+  it can't change content. Modes are now set with `fchmod`: the umask had
+  been silently turning the intended 0660 into 0640.
 
 ## 8. After the work
 
@@ -180,7 +190,7 @@ isn't taken on the project's only board.
 | **F10** | SWD open, RDP 0 | **limited by hardware** | RDP 1 shown to stop the debugger reading the key, and removing it mass-erases ([record](../../results/security/device-auth/rdp-level1-demo.txt)) | F103 RDP 1 has a public bypass (CVE-2020-8004); RDP 2 is permanent and not used; the MCU was left at RDP 0 for development |
 | **F11** | device-service root, unconfined | **closed** | exposure 9.4 → 1.8; on the board it runs as user `acq`, `CapEff = 0x804000`, seccomp, own network namespace, no samples lost | — |
 | **F12** | no device identity | **limited by hardware** | identity key generated inside an OP-TEE TA (QEMU), certificate from the HSM Device CA via a provisioning station with proof of possession ([optee](optee.md), [provisioning](update-and-provisioning.md) §5) | No TEE on the Pi 5; without RPMB, rolling back TEE storage produced a second identity ([optee](optee.md) §3.2) |
-| **F13** | devbus payload writable by subscribers | **open, by design** | unchanged; documented in §7 | Needs per-subscriber read-only mappings — a devbus design change |
+| **F13** | devbus payload writable by subscribers | **closed** (host) | devbus layout v2: payloads in a separate segment mapped `PROT_READ` by subscribers; a write through a received sample kills the writer (test, also under TSan); medians unchanged on the dev host ([data](../../results/devbus/dev-host/f13-segment-split.txt)) | Control segment still writable by subscribers (misdirection/DoS, not content). On the Pi: zero-copy unchanged (4 MiB ≈ 64 B ≈ 4–5 µs) |
 | **F14** | no key handling | **closed** | four keys, generated non-extractable in a PKCS#11 token, PIN never in argv ([update-and-provisioning](update-and-provisioning.md) §1); the build only ever holds a development key | SoftHSM is a software stand-in: backup and physical protection are what a real HSM adds |
 
 Seven of the fourteen are fully or mostly closed on the board. Every

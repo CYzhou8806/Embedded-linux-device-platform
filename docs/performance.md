@@ -816,6 +816,64 @@ one direction. M2's FPGA counter as a third, independent clock source
 (and, per Plan.md, optionally PTP between two Linux boxes) is still
 pending M2 itself — this section only closes the non-FPGA half of M3.
 
+## 6.12 with the second hardening fragment (2026-10-02)
+
+The A/B image moved to kernel 6.12.93 and then to the hardening fragment
+of [hardening.md §7](security/hardening.md). This was measured on that
+board, image 1.3.2, MCU at `inter_frame_us=50`, device-service stopped,
+with its own latency logger
+([data](../results/latency-6.12-hardened/)):
+
+| rate | p50 | p99 | p99.9 | max |
+| --- | --- | --- | --- | --- |
+| 1000 Hz | 1201 µs | 2178 µs | 2184 µs | 2185 µs |
+| 500 Hz | 1174 µs | 1180 µs | 1181 µs | 1184 µs |
+
+At 500 Hz every sample is drained alone, so **1.17 ms is the cost of one
+sample from IRQ to userspace on this kernel**. That is more than the
+1 ms period at 1 kHz, so at 1 kHz the drain takes two samples per pass:
+27.6 % of samples share an IRQ timestamp, and the tail doubles. The 6.6
+Yocto card at the same setting measured 777 µs (the table in
+`custom_acq.c`), about 260 µs per register read then against 390 µs now.
+
+**Not resolved: whether that is 6.12 or the hardening.** A same-card A/B
+comparison of the batched fraction (A on the old 6.12 config, B on the
+new one, three runs each) gave A 15.0 / 22.9 / 28.1 % and B 27.6 / 27.9 /
+27.4 % ([data](../results/kernel-hardening-ab/)). B sits at A's upper end
+but inside its spread. Slot A has since been overwritten by 1.3.2, so the
+next step is a 6.12 build without the fragment, on the second card.
+
+What it changes elsewhere:
+
+- **M3's clock-drift method needs distinct stamps.** M5's calibration
+  correctly refuses at 1 kHz on this kernel. At 500 and 250 Hz it succeeds
+  with 0 repeats: +41.6 / +38.9 / +38.8 / +38.5 ppm, independent of rate.
+  M3 measured −64.42 ppm with the opposite sign convention, so both mean
+  "MCU fast". It ran ~39 ppm fast on this day and ~64 ppm on 2026-09-16,
+  which is consistent with the uncompensated RC oscillator M3 already
+  suspected of thermal drift.
+- **The M0 cliff moved from ~1680 Hz (6.6) to between 1111 and 1250 Hz.**
+  Overload sweep on this kernel, 6 s of raw `/dev/acq0` per step
+  ([data](../results/overload-6.12-hardened/)):
+
+  | requested | MCU actually | delivered gaps | batched | kfifo_overflow |
+  | --- | --- | --- | --- | --- |
+  | 600–900 | 625 / 714 / 833 / 909 | 0 | 0 % | 0 |
+  | 1000 | 1000 | 0 | 24 % | 0 |
+  | 1100 | 1111 | 0 | 15 % | 0 |
+  | 1200, 1300, 1500 | 1250, 1428, 1666 | **collapse**: the reader got almost nothing | — | ~6870 per step |
+
+  It is a cliff again, not a slope. Above it the kfifo overflows while the
+  reader receives almost nothing; that collapse mechanism was not
+  investigated further this time.
+- **The MCU's rate is quantized.** The second column was a surprise. The
+  firmware sets the timer as `period = 10000 / rate_hz` on a 10 kHz base
+  (72 MHz / 7200, `main.c`), integer division, so 600 Hz runs at 625 and
+  1200 at 1250, and no rate between 1111 and 1250 exists. The cliff can
+  only be bracketed that finely. It also matters for calibration: the
+  "nominal" rate has to be the quantized one. 1000, 500 and 250 Hz divide
+  10 000 exactly, which is why today's calibrations were unaffected.
+
 ## Scope
 
 Measured on the stock Yocto/Poky kernel built in V6 (no PREEMPT_RT
