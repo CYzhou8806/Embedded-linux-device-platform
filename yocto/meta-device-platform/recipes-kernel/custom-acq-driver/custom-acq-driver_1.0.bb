@@ -14,11 +14,21 @@ inherit module
 # layer, so there is exactly one copy to keep in sync.
 FILESEXTRAPATHS:prepend := "${THISDIR}/../../../../driver/custom-acq:"
 
-SRC_URI = "file://custom_acq.c \
-           file://Makefile \
+SRC_URI = "file://custom_acq.c;subdir=custom-acq \
+           file://custom_acq_trace.h;subdir=custom-acq \
+           file://Makefile;subdir=custom-acq \
           "
 
-S = "${WORKDIR}"
+# Not ${WORKDIR}: module.bbclass's do_configure runs `make clean`, i.e.
+# `make -C $KDIR M=$S clean`, and Kbuild's external-module clean is a
+# `find $M -name '*.ko' -o -name '*.ko.*' ... -delete` over the whole of
+# M. With S = WORKDIR that reached into package/, packages-split/ and
+# sstate-build-package/ and deleted the previous build's custom_acq.ko.xz
+# - outside pseudo, which kept their inodes in its database. The next
+# do_package recreated the files under new inodes and pseudo aborted with
+# "inode mismatch" (exit 134). That was the recurring failure worked
+# around with `bitbake -c clean custom-acq-driver` until 2026-10-01.
+S = "${WORKDIR}/custom-acq"
 
 # driver/custom-acq/Makefile uses its own KDIR variable (for the plain
 # on-target `make` workflow documented in device-tree/README.md, falling

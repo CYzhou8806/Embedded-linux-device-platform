@@ -32,12 +32,16 @@
 #include <linux/kernel.h>
 #include <linux/version.h>
 /* get_unaligned_be32() & co. moved from <asm/unaligned.h> to
- * <linux/unaligned.h> in 6.12, and the old header was removed. */
+ * <linux/unaligned.h> in 6.12, and the old header was removed.
+ */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
 #include <linux/unaligned.h>
 #else
 #include <asm/unaligned.h>
 #endif
+
+#define CREATE_TRACE_POINTS
+#include "custom_acq_trace.h"
 
 #define REG_DEVICE_ID	0x00
 #define REG_FW_VERSION	0x01
@@ -139,6 +143,44 @@ module_param(downsample_n, uint, 0644);
 MODULE_PARM_DESC(downsample_n,
 		  "drop_policy=downsample only: keep 1 sample out of every N drained");
 
+/* Plan.md V2/M8: fault injection. Each knob reproduces, on demand, one
+ * failure this project has met or designed against, so the diagnostics
+ * (the custom_acq tracepoints, device-service's supervisor and its fault
+ * evidence) can be shown to locate it in the right layer. All 0 = off,
+ * which is the default and the only sane production value. Root-only
+ * (0644 on a root-owned sysfs file); every injection is itself traced
+ * (custom_acq_fault) so a trace never shows an effect without its cause.
+ *
+ *   fault_drain_delay_us   extra delay per drained sample: a slow SPI
+ *                          drain, i.e. inter_frame_us past the cliff
+ *                          (case-07) without touching inter_frame_us
+ *   fault_drop_every       drop every Nth drained sample in the driver:
+ *                          lost frames, seen by userspace as seq gaps
+ *   fault_spi_error_every  fail every Nth register read with -EIO: a
+ *                          noisy or half-dead link
+ *   fault_stall_ms         one shot: the next drain pass sleeps this long
+ *                          before starting, then the knob resets to 0 - a
+ *                          stuck drain, which is what the watchdog and the
+ *                          supervisor's recovery exist for
+ */
+static unsigned int fault_drain_delay_us;
+module_param(fault_drain_delay_us, uint, 0644);
+MODULE_PARM_DESC(fault_drain_delay_us, "M8 fault injection: extra delay (us) per drained sample");
+
+static unsigned int fault_drop_every;
+module_param(fault_drop_every, uint, 0644);
+MODULE_PARM_DESC(fault_drop_every, "M8 fault injection: drop every Nth drained sample (0 = off)");
+
+static unsigned int fault_spi_error_every;
+module_param(fault_spi_error_every, uint, 0644);
+MODULE_PARM_DESC(fault_spi_error_every, "M8 fault injection: fail every Nth register read with -EIO (0 = off)");
+
+static unsigned int fault_stall_ms;
+module_param(fault_stall_ms, uint, 0644);
+MODULE_PARM_DESC(fault_stall_ms, "M8 fault injection: one-shot stall (ms) of the next drain pass");
+
+static atomic_t fault_reg_reads = ATOMIC_INIT(0);
+
 enum custom_acq_drop_policy {
 	DROP_POLICY_NEWEST = 0,
 	DROP_POLICY_OLDEST,
@@ -169,6 +211,12 @@ static enum custom_acq_drop_policy custom_acq_get_drop_policy(void)
  */
 #define SAMPLE_KFIFO_SIZE	128
 
+/* Consecutive failed register reads a drain pass absorbs before it gives
+ * up (custom_acq_irq_thread). One transient error must not end the pass:
+ * see the comment there.
+ */
+#define DRAIN_MAX_ERRORS	3
+
 /* irq_ts_ns: CLOCK_MONOTONIC-equivalent (ktime_get_ns()) timestamp of the
  * hard-IRQ that triggered this sample's drain (Plan.md V7 latency work).
  * Placed last so seq/value keep their existing 8-byte layout for anything
@@ -196,7 +244,8 @@ struct custom_acq {
 	 * analyzer's own single clock, no cross-clock-domain correlation
 	 * needed to compute the MCU-to-hard-IRQ latency. NULL if the
 	 * "irq-marker-gpios" DT property isn't present - existing overlays
-	 * without it keep working unchanged. */
+	 * without it keep working unchanged.
+	 */
 	struct gpio_desc *irq_marker;
 	bool irq_marker_state;
 
@@ -268,6 +317,14 @@ static int custom_acq_reg_read(struct spi_device *spi, u8 addr, u32 *val)
 
 	mutex_lock(&priv->spi_lock);
 
+	if (fault_spi_error_every &&
+	    atomic_inc_return(&fault_reg_reads) % fault_spi_error_every == 0) {
+		trace_custom_acq_fault("spi_error", addr);
+		ret = -EIO;
+		rx[0] = 0;
+		goto out;
+	}
+
 	ret = custom_acq_xfer(spi, addr, 0, rx);
 	if (ret)
 		goto out;
@@ -278,6 +335,15 @@ static int custom_acq_reg_read(struct spi_device *spi, u8 addr, u32 *val)
 	if (ret)
 		goto out;
 
+	/* The echo check can't tell a dead bus from REG_DEVICE_ID: an MCU
+	 * that isn't driving MISO reads as all zeros, and the echo of
+	 * address 0x00 is 0x00. So device_id "succeeds" with 0x00000000 on a
+	 * dead link while every other register fails here with -EIO - exactly
+	 * the pair seen on the board on 2026-10-01. Userspace has to treat
+	 * device_id == 0 as "no device" (device-service's startup probe and
+	 * supervisor do); fixing it here would take a protocol change, e.g.
+	 * echoing ~addr.
+	 */
 	if (rx[0] != addr) {
 		dev_err(&spi->dev, "echo mismatch reading reg 0x%02x: got 0x%02x\n",
 			addr, rx[0]);
@@ -287,6 +353,8 @@ static int custom_acq_reg_read(struct spi_device *spi, u8 addr, u32 *val)
 
 	*val = ((u32)rx[1] << 24) | ((u32)rx[2] << 16) | ((u32)rx[3] << 8) | rx[4];
 out:
+	if (ret)
+		trace_custom_acq_spi_error(addr, rx[0], ret);
 	mutex_unlock(&priv->spi_lock);
 	return ret;
 }
@@ -634,6 +702,7 @@ static irqreturn_t custom_acq_irq_hard(int irq, void *data)
 	struct custom_acq *priv = data;
 
 	priv->irq_ts_ns = ktime_get_ns();
+	trace_custom_acq_irq(priv->irq_ts_ns);
 
 	if (priv->irq_marker) {
 		priv->irq_marker_state = !priv->irq_marker_state;
@@ -655,8 +724,18 @@ static irqreturn_t custom_acq_irq_thread(int irq, void *data)
 	struct custom_acq *priv = data;
 	struct custom_acq_sample s;
 	u32 level;
-	int ret;
+	int ret = 0;
 	unsigned int drained = 0;
+	unsigned int stall_ms;
+	unsigned int errors = 0;
+	const s64 pass_start = ktime_get_ns();
+	s64 pass_end;
+
+	stall_ms = xchg(&fault_stall_ms, 0);
+	if (stall_ms) {
+		trace_custom_acq_fault("stall", stall_ms);
+		msleep(stall_ms);
+	}
 
 	/* Re-read REG_FIFO_LEVEL from the MCU on every iteration rather than
 	 * snapshotting it once before the loop. DATA_READY is level-driven
@@ -671,9 +750,21 @@ static irqreturn_t custom_acq_irq_thread(int irq, void *data)
 	 * level keeps this thread draining for as long as data keeps
 	 * arriving, exiting only once the MCU actually reports empty.
 	 */
+	/* A failed register read used to end the pass. That is fatal here,
+	 * not cosmetic: the IRQ is edge-triggered and DATA_READY stays high
+	 * while the MCU's FIFO is non-empty, so a pass that leaves data behind
+	 * never gets another edge and acquisition stops until a watchdog
+	 * soft-resets the MCU. Found by M8's fault injection on the board
+	 * (2026-10-02): one injected -EIO in every 200 register reads stopped
+	 * the pipeline for 3.9 s each time. A transient error is now retried;
+	 * only DRAIN_MAX_ERRORS in a row give up, which leaves a really dead
+	 * link to the watchdog and the supervisor's recovery, as before.
+	 */
 	for (;;) {
 		ret = custom_acq_reg_read(priv->spi, REG_FIFO_LEVEL, &level);
 		if (ret) {
+			if (++errors < DRAIN_MAX_ERRORS)
+				continue;
 			dev_err(&priv->spi->dev, "IRQ: failed to read FIFO level: %d\n", ret);
 			break;
 		}
@@ -682,15 +773,32 @@ static irqreturn_t custom_acq_irq_thread(int irq, void *data)
 
 		ret = custom_acq_read_sample(priv->spi, &s);
 		if (ret) {
+			if (++errors < DRAIN_MAX_ERRORS)
+				continue;
 			dev_err(&priv->spi->dev, "IRQ: failed to read sample: %d\n", ret);
 			break;
 		}
+		errors = 0;
 		s.irq_ts_ns = priv->irq_ts_ns;
+
+		if (fault_drain_delay_us) {
+			trace_custom_acq_fault("drain_delay", fault_drain_delay_us);
+			usleep_range(fault_drain_delay_us, fault_drain_delay_us + 10);
+		}
+		if (fault_drop_every && (s.seq % fault_drop_every) == 0) {
+			trace_custom_acq_fault("drop", s.seq);
+			trace_custom_acq_sample(s.seq, ktime_get_ns() - s.irq_ts_ns,
+						kfifo_len(&priv->samples), "injected_drop");
+			drained++;
+			continue;
+		}
 
 		if (custom_acq_get_drop_policy() == DROP_POLICY_DOWNSAMPLE) {
 			priv->downsample_counter++;
 			if (priv->downsample_counter % downsample_n != 0) {
 				priv->policy_dropped++;
+				trace_custom_acq_sample(s.seq, ktime_get_ns() - s.irq_ts_ns,
+							kfifo_len(&priv->samples), "downsampled");
 				drained++;
 				continue;
 			}
@@ -702,13 +810,24 @@ static irqreturn_t custom_acq_irq_thread(int irq, void *data)
 
 			kfifo_get(&priv->samples, &discard);
 			priv->policy_dropped++;
+			trace_custom_acq_sample(discard.seq, ktime_get_ns() - discard.irq_ts_ns,
+						kfifo_len(&priv->samples), "evicted");
 		}
-		if (!kfifo_put(&priv->samples, s))
+		if (!kfifo_put(&priv->samples, s)) {
 			priv->kfifo_overflow++;
+			trace_custom_acq_sample(s.seq, ktime_get_ns() - s.irq_ts_ns,
+						kfifo_len(&priv->samples), "overflow");
+		} else {
+			trace_custom_acq_sample(s.seq, ktime_get_ns() - s.irq_ts_ns,
+						kfifo_len(&priv->samples), "queued");
+		}
 		mutex_unlock(&priv->fifo_lock);
 
 		drained++;
 	}
+
+	pass_end = ktime_get_ns();
+	trace_custom_acq_drain(drained, pass_end - pass_start, pass_end - priv->irq_ts_ns, ret);
 
 	if (drained)
 		wake_up_interruptible(&priv->data_wq);
@@ -762,6 +881,7 @@ static ssize_t custom_acq_read(struct file *file, char __user *buf, size_t count
 
 	mutex_lock(&priv->fifo_lock);
 	ret = kfifo_to_user(&priv->samples, buf, count, &copied);
+	trace_custom_acq_read(copied / sizeof(struct custom_acq_sample), kfifo_len(&priv->samples));
 	mutex_unlock(&priv->fifo_lock);
 	if (ret)
 		return ret;
