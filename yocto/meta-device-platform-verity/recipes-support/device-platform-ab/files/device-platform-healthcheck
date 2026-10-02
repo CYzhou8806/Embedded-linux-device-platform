@@ -9,9 +9,13 @@ if [ -e /run/device-platform-data.degraded ]; then
 	exit 1
 fi
 for i in $(seq 1 60); do
+	# "active" alone is not healthy: since M5 the service stays up in a
+	# latched Fault. Ask it for its own machine state - Running means the
+	# supervisor has samples flowing, not just a live process.
 	if systemctl is-active --quiet device-service &&
-	   [ "$(cat /sys/bus/spi/devices/spi0.0/device_id 2>/dev/null)" = 0xac00acc0 ]; then
-		echo "healthcheck: device-service active, MCU answering - marking slot good"
+	   [ "$(cat /sys/bus/spi/devices/spi0.0/device_id 2>/dev/null)" = 0xac00acc0 ] &&
+	   /opt/device-service/device-ctl status 2>/dev/null | grep -q '"state":"Running"'; then
+		echo "healthcheck: device-service Running, MCU answering - marking slot good"
 		exec rauc status mark-good
 	fi
 	sleep 5

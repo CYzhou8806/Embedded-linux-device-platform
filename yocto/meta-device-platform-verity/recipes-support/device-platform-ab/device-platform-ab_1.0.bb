@@ -30,6 +30,7 @@ SRC_URI = " \
     file://device-platform-clock-save.timer \
     file://device-platform-mcu-auth \
     file://device-service-mcu-auth.conf \
+    file://device-service-state.conf \
 "
 
 inherit systemd useradd
@@ -67,6 +68,7 @@ do_install() {
 	install -m 0644 ${WORKDIR}/dropbear-data.conf ${D}${systemd_system_unitdir}/dropbear@.service.d/data.conf
 	install -m 0644 ${WORKDIR}/device-service-user.conf ${D}${systemd_system_unitdir}/device-service.service.d/user.conf
 	install -m 0644 ${WORKDIR}/device-service-mcu-auth.conf ${D}${systemd_system_unitdir}/device-service.service.d/mcu-auth.conf
+	install -m 0644 ${WORKDIR}/device-service-state.conf ${D}${systemd_system_unitdir}/device-service.service.d/state.conf
 
 	install -d ${D}${sysconfdir}/sysctl.d
 	install -m 0644 ${WORKDIR}/90-device-platform-hardening.conf ${D}${sysconfdir}/sysctl.d/

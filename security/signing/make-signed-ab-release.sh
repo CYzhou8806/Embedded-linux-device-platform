@@ -34,6 +34,14 @@ envf="${VERITY_ENV:-/opt/yocto/build-verity/tmp/work-shared/raspberrypi5/dm-veri
 work="$out/work"
 rm -rf "$work"; mkdir -p "$work/ramdisk" "$work/outer" "$out"
 
+echo "== 0. release gate: systemd ordering cycles and missing commands in the rootfs"
+# Both failure classes have reached the board from clean builds (case 11,
+# and update 1.3.0 on 2026-10-02); both are visible offline. Nothing is
+# signed if this fails.
+: "${ROOTFS_DIR:=$(ls -d /opt/yocto/build-verity/tmp/work/raspberrypi5-poky-linux/device-platform-image-ab/*/rootfs)}"
+python3 "$here/../../tools/check-rootfs-units.py" "$ROOTFS_DIR" | sed 's/^/  /'
+[[ ${PIPESTATUS[0]} -eq 0 ]] || { echo "release gate failed - not signing"; exit 1; }
+
 echo "== 1. ramdisk contents, from the boot partition bitbake built"
 mcopy -s -n -i "$bootvfat" ::/* "$work/ramdisk/"
 # The Pi 5 loads its firmware from the EEPROM; start*.elf/fixup*/bootcode.bin
