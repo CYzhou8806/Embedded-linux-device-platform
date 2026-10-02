@@ -1,0 +1,179 @@
+[
+  {
+    "scenario": "baseline",
+    "expected": null,
+    "origin": null,
+    "correct": true,
+    "spread": [],
+    "injected": [],
+    "fault_window_ms": 2001,
+    "supervisor": [],
+    "counters": {
+      "gaps": 0,
+      "faults": 0,
+      "recoveries": 0
+    },
+    "evidence": []
+  },
+  {
+    "scenario": "drain_delay",
+    "expected": "drain",
+    "origin": "drain",
+    "correct": true,
+    "spread": [
+      [
+        "drain",
+        -0.1
+      ],
+      [
+        "reader",
+        -0.1
+      ],
+      [
+        "driver",
+        165.3
+      ]
+    ],
+    "injected": [
+      "drain_delay"
+    ],
+    "fault_window_ms": 3001,
+    "supervisor": [],
+    "counters": {
+      "gaps": 16,
+      "faults": 0,
+      "recoveries": 0
+    },
+    "evidence": []
+  },
+  {
+    "scenario": "drop",
+    "expected": "driver",
+    "origin": "driver",
+    "correct": true,
+    "spread": [
+      [
+        "driver",
+        31.7
+      ]
+    ],
+    "injected": [
+      "drop"
+    ],
+    "fault_window_ms": 3001,
+    "supervisor": [],
+    "counters": {
+      "gaps": 60,
+      "faults": 0,
+      "recoveries": 0
+    },
+    "evidence": []
+  },
+  {
+    "scenario": "spi_error",
+    "expected": "spi",
+    "origin": "spi",
+    "correct": true,
+    "spread": [
+      [
+        "spi",
+        57.8
+      ]
+    ],
+    "injected": [
+      "spi_error"
+    ],
+    "fault_window_ms": 3001,
+    "supervisor": [],
+    "counters": {
+      "gaps": 0,
+      "faults": 0,
+      "recoveries": 0
+    },
+    "evidence": []
+  },
+  {
+    "scenario": "stall",
+    "expected": "drain",
+    "origin": "drain",
+    "correct": true,
+    "spread": [
+      [
+        "drain",
+        1.0
+      ],
+      [
+        "reader",
+        1.0
+      ]
+    ],
+    "injected": [
+      "stall"
+    ],
+    "fault_window_ms": 6001,
+    "supervisor": [
+      "Running -> Recovering on Stall (no sample for 4264 ms)",
+      "Recovering -> Running on Recovered (samples flowing after attempt 1)"
+    ],
+    "counters": {
+      "gaps": 1,
+      "faults": 0,
+      "recoveries": 1
+    },
+    "evidence": []
+  },
+  {
+    "scenario": "slow_consumer",
+    "expected": "reader",
+    "origin": "reader",
+    "correct": true,
+    "spread": [
+      [
+        "reader",
+        4.2
+      ],
+      [
+        "driver",
+        132.9
+      ]
+    ],
+    "injected": [],
+    "fault_window_ms": 1007,
+    "supervisor": [],
+    "counters": {
+      "gaps": 1,
+      "faults": 0,
+      "recoveries": 0
+    },
+    "evidence": []
+  },
+  {
+    "scenario": "overload",
+    "expected": "drain",
+    "origin": "drain",
+    "correct": true,
+    "spread": [
+      [
+        "drain",
+        -0.5
+      ],
+      [
+        "reader",
+        -0.5
+      ],
+      [
+        "driver",
+        110.7
+      ]
+    ],
+    "injected": [],
+    "fault_window_ms": 3002,
+    "supervisor": [],
+    "counters": {
+      "gaps": 16,
+      "faults": 0,
+      "recoveries": 0
+    },
+    "evidence": []
+  }
+]

@@ -1,0 +1,52 @@
+[
+  {
+    "scenario": "baseline",
+    "error": "no 'm8: inject' marker in trace"
+  },
+  {
+    "scenario": "drain_delay",
+    "error": "no 'm8: inject' marker in trace"
+  },
+  {
+    "scenario": "drop",
+    "error": "no 'm8: inject' marker in trace"
+  },
+  {
+    "scenario": "spi_error",
+    "expected": "spi",
+    "origin": "spi",
+    "correct": true,
+    "spread": [
+      [
+        "spi",
+        58.7
+      ]
+    ],
+    "injected": [
+      "spi_error"
+    ],
+    "fault_window_ms": 3001,
+    "supervisor": [
+      "Running -> Recovering on Stall (no sample for 3868 ms)",
+      "Recovering -> Running on Recovered (samples flowing after attempt 1)"
+    ],
+    "counters": {
+      "gaps": 1,
+      "faults": 0,
+      "recoveries": 1
+    },
+    "evidence": []
+  },
+  {
+    "scenario": "stall",
+    "error": "no 'm8: inject' marker in trace"
+  },
+  {
+    "scenario": "slow_consumer",
+    "error": "no 'm8: inject' marker in trace"
+  },
+  {
+    "scenario": "overload",
+    "error": "no 'm8: inject' marker in trace"
+  }
+]

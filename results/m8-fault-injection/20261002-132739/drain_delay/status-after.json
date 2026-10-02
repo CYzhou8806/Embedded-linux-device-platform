@@ -1,0 +1,1 @@
+{"faults":0,"gaps":16,"history":[{"at":"2026-10-02T11:26:56Z","event":"InitOk","from":"Init","reason":"startup probe passed","to":"Ready"},{"at":"2026-10-02T11:26:56Z","event":"Start","from":"Ready","reason":"autostart","to":"Running"}],"in_state_s":56,"ok":true,"recoveries":0,"recovery_attempts":0,"sample_age_ewma_us":1493,"samples_read":55297,"state":"Running"}
